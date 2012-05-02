@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
 	if (fstat(fd[0], &sb) == -1)
 		errf("fstat: %s: %s\n", filename[0], strerror(errno));
 	else if (!S_ISREG(sb.st_mode))
-		errf("%s: %s\n", filename[0], strerror(errno));
+		errf("%s: not a regular file (mode:%d).\n", filename[0], sb.st_mode);
 	else if ((p = mmap(0, sb.st_size, PROT_READ, MAP_SHARED, fd[0], 0)) == MAP_FAILED)
 		errf("mmap: %s: %s\n", filename[0], strerror(errno));
 	else {
