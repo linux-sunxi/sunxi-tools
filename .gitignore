@@ -1,0 +1,4 @@
+bin2fex
+fex2bin
+*.o
+*.swp
