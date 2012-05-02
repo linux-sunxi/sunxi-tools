@@ -15,6 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "sunxi-tools.h"
+#include "bin2fex.h"
 
 #include <errno.h>
 #include <unistd.h>
@@ -27,12 +28,45 @@
 
 #define errf(...)	fprintf(stderr, __VA_ARGS__)
 
+static int decompile(void *bin, size_t bin_size, int out, const char *out_name);
+static int decompile_section(void *bin, size_t bin_size,
+			     struct script_section *section,
+			     int out, const char* out_named);
 /**
  */
-static int decompile(const char *bin, size_t bin_size, int out, const char *out_name)
+static int decompile(void *bin, size_t bin_size, int out, const char *out_name)
 {
-	errf("bin size: %zu\n", bin_size);
-	return 0;
+	int i;
+	struct {
+		struct script_head head;
+		struct script_section sections[];
+	} *script = bin;
+
+	errf("bin format: %d.%d.%d\n", script->head.version[0],
+	     script->head.version[1], script->head.version[2]);
+	errf("bin size: %zu (%d sections)\n", bin_size,
+	     script->head.sections);
+
+	/* TODO: SANITY: compare head.sections with bin_size */
+	for (i=0; i < script->head.sections; i++) {
+		struct script_section *section = &script->sections[i];
+
+		errf("%s: (section:%d, length:%d, offset:%d)\n",
+		     section->name, i+1, section->length, section->offset);
+
+		if (!decompile_section(bin, bin_size, section, out, out_name))
+			return 1; /* failure */
+	}
+	return 0; /* success */
+}
+
+/**
+ */
+static int decompile_section(void *bin, size_t bin_size,
+			     struct script_section *section,
+			     int out, const char* out_named)
+{
+	return 1; /* success */
 }
 
 /**
