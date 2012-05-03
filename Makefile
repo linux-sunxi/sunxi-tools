@@ -10,8 +10,11 @@ all: $(TOOLS)
 clean:
 	@rm -vf $(TOOLS)
 
-$(TOOLS): sunxi-tools.h
-bin2fex: bin2fex.h
+
+$(TOOLS): Makefile sunxi-tools.h
+
+%: %.c %.h
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(filter %.c,$^) $(LIBS)
 
 .gitignore: Makefile
 	@for x in $(TOOLS) '*.o' '*.swp'; do \
