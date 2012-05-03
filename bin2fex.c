@@ -34,6 +34,29 @@
 
 /**
  */
+static int name_in_list(const char *s, const char **list)
+{
+	size_t l = strlen(s);
+
+	{ /* remove trailing digits */
+		const char *p = &s[l-1];
+		while (l && *p >= '0' && *p <= '9') {
+			l--;
+			p--;
+		}
+	}
+
+	while (*list) {
+		if (memcmp(s, *list, l) == 0)
+			return 1;
+		list++;
+	}
+
+	return 0;
+}
+
+/**
+ */
 static inline int decompile_gpio(struct script_section *section,
 				 struct script_section_entry *entry,
 				 struct script_gpio_value *gpio,
@@ -76,6 +99,14 @@ static inline int decompile_single(struct script_section *section,
 				   int length, FILE *out)
 {
 	int ok = 1;
+	static const char *hexa_entries[] = {
+		"dram_baseaddr", "dram_zq", "dram_tpr", "dram_emr",
+		"g2d_size",
+		"rtp_press_threshold", "rtp_sensitive_level",
+		"ctp_twi_addr", "csi_twi_addr", "csi_twi_addr_b", "tkey_twi_addr",
+		"lcd_gamma_tbl_",
+		"gsensor_twi_addr",
+		NULL };
 
 	if (length != 1) {
 		pr_err("%s.%s: invalid length %d (assuming %d)\n",
@@ -83,7 +114,12 @@ static inline int decompile_single(struct script_section *section,
 		ok = 0;
 	}
 
-	fprintf(out, "%s\t= %d\n", entry->name, *d);
+	fprintf(out, "%s\t= ", entry->name);
+	if (name_in_list(entry->name, hexa_entries))
+		fprintf(out, "0x%x", *d);
+	else
+		fprintf(out, "%d", *d);
+	fputc('\n', out);
 
 	return ok;
 }
