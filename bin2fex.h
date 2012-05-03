@@ -36,4 +36,11 @@ struct script_section_entry {
 	int32_t pattern;
 };
 
+enum script_value_type {
+	SCRIPT_VALUE_TYPE_SINGLE_WORD = 1,
+	SCRIPT_VALUE_TYPE_STRING,
+	SCRIPT_VALUE_TYPE_MULTI_WORD,
+	SCRIPT_VALUE_TYPE_GPIO,
+	SCRIPT_VALUE_TYPE_NULL,
+};
 #endif

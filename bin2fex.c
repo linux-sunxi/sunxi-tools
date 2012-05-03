@@ -27,7 +27,8 @@
 #include <fcntl.h>
 
 #define errf(...)	fprintf(stderr, __VA_ARGS__)
-#define pr_info(F, ...)	fprintf(stderr, "bin2fex: " F, __VA_ARGS__)
+#define pr_info(F, ...)	fprintf(out, "; bin2fex: " F, __VA_ARGS__)
+#define pr_err(F, ...)	pr_info("ERROR" F, __VA_ARGS__)
 
 #define PTR(B, OFF)	(void*)((char*)(B)+(OFF))
 
@@ -39,15 +40,47 @@ static int decompile_section(void *bin, size_t bin_size,
 {
 	struct script_section_entry *entry = PTR(bin,  section->offset<<2);
 	int i = section->length;
+
+	fprintf(out, "[%s]\n", section->name);
 	for (; i--; entry++) {
+		void *data = PTR(bin, entry->offset<<2);
 		unsigned type, length;
 		type	= (entry->pattern >> 16) & 0xffff;
 		length	= (entry->pattern >>  0) & 0xffff;
 
-		pr_info("%s.%s\t(offset:%d, type:%d, length:%d)\n",
-			section->name, entry->name,
-			entry->offset, type, length);
+		switch(type) {
+		case SCRIPT_VALUE_TYPE_SINGLE_WORD: {
+			int32_t *d = data;
+			if (length != 1)
+				pr_err("%s.%s: invalid length %d (assuming 1)\n",
+				       section->name, entry->name, length);
+
+			/* TODO: some are preferred in hexa */
+			fprintf(out, "%s\t= %d\n", entry->name, *d);
+			}; break;
+		case SCRIPT_VALUE_TYPE_STRING: {
+			size_t bytes = length << 2;
+			const char *p, *pe, *s = data;
+
+			for(p=s, pe=s+bytes; *p && p!=pe; p++)
+				; /* seek end-of-string */
+
+			fprintf(out, "%s\t= \"%.*s\"\n", entry->name,
+				(int)(p-s), s);
+			}; break;
+		case SCRIPT_VALUE_TYPE_GPIO:
+			fprintf(out, "%s\t= GPIO\n", entry->name); break;
+		case SCRIPT_VALUE_TYPE_NULL:
+			fprintf(out, "%s\t=\n", entry->name);
+			break;
+		default:
+			pr_err("%s.%s: unknown type %d\n",
+			       section->name, entry->name, type);
+			fprintf(out, "%s\t=\n", entry->name);
+			break;
+		}
 	}
+	fputc('\n', out);
 
 	return 1; /* success */
 }
@@ -69,9 +102,6 @@ static int decompile(void *bin, size_t bin_size, FILE *out)
 	/* TODO: SANITY: compare head.sections with bin_size */
 	for (i=0; i < script->head.sections; i++) {
 		struct script_section *section = &script->sections[i];
-
-		pr_info("%s:\t(section:%d, length:%d, offset:%d)\n",
-			section->name, i+1, section->length, section->offset);
 
 		if (!decompile_section(bin, bin_size, section, out))
 			return 1; /* failure */
