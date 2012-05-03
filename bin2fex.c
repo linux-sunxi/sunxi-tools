@@ -34,7 +34,10 @@
 
 /**
  */
-static int decompile_gpio(struct script_section *section, struct script_section_entry *entry, struct script_gpio_value *gpio, int length, FILE *out)
+static inline int decompile_gpio(struct script_section *section,
+				 struct script_section_entry *entry,
+				 struct script_gpio_value *gpio,
+				 int length, FILE *out)
 {
 	int ok = 1;
 	char port = '?';
@@ -85,9 +88,11 @@ static int decompile_section(void *bin, size_t bin_size,
 		switch(type) {
 		case SCRIPT_VALUE_TYPE_SINGLE_WORD: {
 			int32_t *d = data;
-			if (length != 1)
+			if (length != 1) {
 				pr_err("%s.%s: invalid length %d (assuming %d)\n",
 				       section->name, entry->name, length, 1);
+				ok = 0;
+			}
 
 			/* TODO: some are preferred in hexa */
 			fprintf(out, "%s\t= %d\n", entry->name, *d);
@@ -113,6 +118,7 @@ static int decompile_section(void *bin, size_t bin_size,
 			pr_err("%s.%s: unknown type %d\n",
 			       section->name, entry->name, type);
 			fprintf(out, "%s\t=\n", entry->name);
+			ok = 0;
 			break;
 		}
 	}
