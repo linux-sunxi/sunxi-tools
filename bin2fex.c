@@ -79,7 +79,7 @@ static inline int decompile_gpio(struct script_section *section,
 		port = 'A' + (gpio->port-1);
 	}
 
-	fprintf(out, "%s\t= port:P%c%d", entry->name, port, gpio->port_num);
+	fprintf(out, "%s\t= port:P%c%02d", entry->name, port, gpio->port_num);
 	for (const int *p = &gpio->mul_sel, *pe = p+4; p != pe; p++) {
 		if (*p == -1)
 			fputs("<default>", out);
