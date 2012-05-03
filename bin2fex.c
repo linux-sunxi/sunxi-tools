@@ -27,11 +27,26 @@
 #include <fcntl.h>
 
 #define errf(...)	fprintf(stderr, __VA_ARGS__)
+#define pr_info(F, ...)	fprintf(stderr, "bin2fex: " F, __VA_ARGS__)
 
-static int decompile(void *bin, size_t bin_size, int out, const char *out_name);
+#define PTR(B, OFF)	(void*)((char*)(B)+(OFF))
+
+/**
+ */
 static int decompile_section(void *bin, size_t bin_size,
 			     struct script_section *section,
-			     int out, const char* out_named);
+			     int out, const char* out_named)
+{
+	int i;
+	struct script_section_entry *entries = PTR(bin,  section->offset<<2);
+	for (i=0; i<section->length; i++) {
+		pr_info("%s.%s\t(entry:%d, offset:%d, pattern:0x%05x)\n",
+			section->name, entries[i].name, i,
+			entries[i].offset, entries[i].pattern);
+	}
+
+	return 1; /* success */
+}
 /**
  */
 static int decompile(void *bin, size_t bin_size, int out, const char *out_name)
@@ -42,31 +57,22 @@ static int decompile(void *bin, size_t bin_size, int out, const char *out_name)
 		struct script_section sections[];
 	} *script = bin;
 
-	errf("bin format: %d.%d.%d\n", script->head.version[0],
-	     script->head.version[1], script->head.version[2]);
-	errf("bin size: %zu (%d sections)\n", bin_size,
-	     script->head.sections);
+	pr_info("version: %d.%d.%d\n", script->head.version[0],
+		script->head.version[1], script->head.version[2]);
+	pr_info("size: %zu (%d sections)\n", bin_size,
+		script->head.sections);
 
 	/* TODO: SANITY: compare head.sections with bin_size */
 	for (i=0; i < script->head.sections; i++) {
 		struct script_section *section = &script->sections[i];
 
-		errf("%s: (section:%d, length:%d, offset:%d)\n",
-		     section->name, i+1, section->length, section->offset);
+		pr_info("%s:\t(section:%d, length:%d, offset:%d)\n",
+			section->name, i+1, section->length, section->offset);
 
 		if (!decompile_section(bin, bin_size, section, out, out_name))
 			return 1; /* failure */
 	}
 	return 0; /* success */
-}
-
-/**
- */
-static int decompile_section(void *bin, size_t bin_size,
-			     struct script_section *section,
-			     int out, const char* out_named)
-{
-	return 1; /* success */
 }
 
 /**
