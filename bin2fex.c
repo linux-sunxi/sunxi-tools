@@ -34,18 +34,19 @@
 
 /**
  */
-static int name_in_list(const char *s, const char **list)
+static inline size_t strlen2(const char *s)
 {
 	size_t l = strlen(s);
-
-	{ /* remove trailing digits */
-		const char *p = &s[l-1];
-		while (l && *p >= '0' && *p <= '9') {
-			l--;
-			p--;
-		}
+	const char *p = &s[l-1];
+	while (l && *p >= '0' && *p <= '9') {
+		l--;
+		p--;
 	}
+	return l;
+}
 
+static int find_full_match(const char *s, size_t l, const char **list)
+{
 	while (*list) {
 		if (memcmp(s, *list, l) == 0)
 			return 1;
@@ -93,12 +94,8 @@ static inline int decompile_gpio(struct script_section *section,
 
 /**
  */
-static inline int decompile_single(struct script_section *section,
-				   struct script_section_entry *entry,
-				   int32_t *d,
-				   int length, FILE *out)
+static int decompile_single_mode(const char *name)
 {
-	int ok = 1;
 	static const char *hexa_entries[] = {
 		"dram_baseaddr", "dram_zq", "dram_tpr", "dram_emr",
 		"g2d_size",
@@ -107,6 +104,20 @@ static inline int decompile_single(struct script_section *section,
 		"lcd_gamma_tbl_",
 		"gsensor_twi_addr",
 		NULL };
+	size_t l = strlen2(name);
+
+	if (find_full_match(name, l, hexa_entries))
+		return 0;
+	else
+		return -1;
+}
+static inline int decompile_single(struct script_section *section,
+				   struct script_section_entry *entry,
+				   int32_t *d,
+				   int length, FILE *out)
+{
+	int ok = 1;
+	int mode;
 
 	if (length != 1) {
 		pr_err("%s.%s: invalid length %d (assuming %d)\n",
@@ -114,11 +125,16 @@ static inline int decompile_single(struct script_section *section,
 		ok = 0;
 	}
 
+	mode = decompile_single_mode(entry->name);
+
 	fprintf(out, "%s\t= ", entry->name);
-	if (name_in_list(entry->name, hexa_entries))
-		fprintf(out, "0x%x", *d);
-	else
+	if (mode < 0)
 		fprintf(out, "%d", *d);
+	else if (mode > 0)
+		fprintf(out, "0x%0*x", mode, *d);
+	else
+		fprintf(out, "0x%x", *d);
+
 	fputc('\n', out);
 
 	return ok;
