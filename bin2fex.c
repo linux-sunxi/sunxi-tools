@@ -37,12 +37,16 @@ static int decompile_section(void *bin, size_t bin_size,
 			     struct script_section *section,
 			     int out, const char* out_named)
 {
-	int i;
-	struct script_section_entry *entries = PTR(bin,  section->offset<<2);
-	for (i=0; i<section->length; i++) {
-		pr_info("%s.%s\t(entry:%d, offset:%d, pattern:0x%05x)\n",
-			section->name, entries[i].name, i,
-			entries[i].offset, entries[i].pattern);
+	struct script_section_entry *entry = PTR(bin,  section->offset<<2);
+	int i = section->length;
+	for (; i--; entry++) {
+		unsigned type, length;
+		type	= (entry->pattern >> 16) & 0xffff;
+		length	= (entry->pattern >>  0) & 0xffff;
+
+		pr_info("%s.%s\t(offset:%d, type:%d, length:%d)\n",
+			section->name, entry->name,
+			entry->offset, type, length);
 	}
 
 	return 1; /* success */
