@@ -36,6 +36,15 @@ struct script_section_entry {
 	int32_t pattern;
 };
 
+struct script_gpio_value {
+	int32_t port;
+	int32_t port_num;
+	int32_t mul_sel;
+	int32_t pull;
+	int32_t drv_level;
+	int32_t data;
+};
+
 enum script_value_type {
 	SCRIPT_VALUE_TYPE_SINGLE_WORD = 1,
 	SCRIPT_VALUE_TYPE_STRING,

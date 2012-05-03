@@ -28,9 +28,42 @@
 
 #define errf(...)	fprintf(stderr, __VA_ARGS__)
 #define pr_info(F, ...)	fprintf(out, "; bin2fex: " F, __VA_ARGS__)
-#define pr_err(F, ...)	pr_info("ERROR" F, __VA_ARGS__)
+#define pr_err(F, ...)	pr_info("ERROR: " F, __VA_ARGS__)
 
 #define PTR(B, OFF)	(void*)((char*)(B)+(OFF))
+
+/**
+ */
+static int decompile_gpio(struct script_section *section, struct script_section_entry *entry, struct script_gpio_value *gpio, int length, FILE *out)
+{
+	int ok = 1;
+	char port = '?';
+
+	if (length != 6) {
+		pr_err("%s.%s: invalid length %d (assuming %d)\n",
+		       section->name, entry->name, length, 6);
+		ok = 0;
+	}
+
+	if (gpio->port < 1 || gpio->port > 10) {
+		pr_err("%s.%s: unknown GPIO port type %d\n",
+		       section->name, entry->name, gpio->port);
+		ok = 0;
+	} else {
+		port = 'A' + (gpio->port-1);
+	}
+
+	fprintf(out, "%s\t= port:P%c%d", entry->name, port, gpio->port_num);
+	for (const int *p = &gpio->mul_sel, *pe = p+4; p != pe; p++) {
+		if (*p == -1)
+			fputs("<default>", out);
+		else
+			fprintf(out, "<%d>", *p);
+	}
+	fputc('\n', out);
+
+	return ok;
+}
 
 /**
  */
@@ -40,6 +73,7 @@ static int decompile_section(void *bin, size_t bin_size,
 {
 	struct script_section_entry *entry = PTR(bin,  section->offset<<2);
 	int i = section->length;
+	int ok = 1;
 
 	fprintf(out, "[%s]\n", section->name);
 	for (; i--; entry++) {
@@ -52,8 +86,8 @@ static int decompile_section(void *bin, size_t bin_size,
 		case SCRIPT_VALUE_TYPE_SINGLE_WORD: {
 			int32_t *d = data;
 			if (length != 1)
-				pr_err("%s.%s: invalid length %d (assuming 1)\n",
-				       section->name, entry->name, length);
+				pr_err("%s.%s: invalid length %d (assuming %d)\n",
+				       section->name, entry->name, length, 1);
 
 			/* TODO: some are preferred in hexa */
 			fprintf(out, "%s\t= %d\n", entry->name, *d);
@@ -69,7 +103,9 @@ static int decompile_section(void *bin, size_t bin_size,
 				(int)(p-s), s);
 			}; break;
 		case SCRIPT_VALUE_TYPE_GPIO:
-			fprintf(out, "%s\t= GPIO\n", entry->name); break;
+			if (!decompile_gpio(section, entry, data, length, out))
+			    ok = 0;
+			break;
 		case SCRIPT_VALUE_TYPE_NULL:
 			fprintf(out, "%s\t=\n", entry->name);
 			break;
@@ -82,7 +118,7 @@ static int decompile_section(void *bin, size_t bin_size,
 	}
 	fputc('\n', out);
 
-	return 1; /* success */
+	return ok;
 }
 /**
  */
