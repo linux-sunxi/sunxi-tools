@@ -17,6 +17,7 @@
 #ifndef _SUNXI_TOOLS_H
 #define _SUNXI_TOOLS_H
 
+/** flat function argument as unused */
 #ifdef UNUSED
 #elif defined(__GNUC__)
 #	define UNUSED(x) UNUSED_ ## x __attribute__((unused))
@@ -24,6 +25,7 @@
 #	define UNUSED(x) UNUSED_ ## x
 #endif
 
+/** shortcut to printf to stderr */
 #define errf(...)	fprintf(stderr, __VA_ARGS__)
 
 #endif
