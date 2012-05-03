@@ -35,7 +35,7 @@
  */
 static int decompile_section(void *bin, size_t bin_size,
 			     struct script_section *section,
-			     int out, const char* out_named)
+			     FILE *out)
 {
 	struct script_section_entry *entry = PTR(bin,  section->offset<<2);
 	int i = section->length;
@@ -53,7 +53,7 @@ static int decompile_section(void *bin, size_t bin_size,
 }
 /**
  */
-static int decompile(void *bin, size_t bin_size, int out, const char *out_name)
+static int decompile(void *bin, size_t bin_size, FILE *out)
 {
 	int i;
 	struct {
@@ -73,7 +73,7 @@ static int decompile(void *bin, size_t bin_size, int out, const char *out_name)
 		pr_info("%s:\t(section:%d, length:%d, offset:%d)\n",
 			section->name, i+1, section->length, section->offset);
 
-		if (!decompile_section(bin, bin_size, section, out, out_name))
+		if (!decompile_section(bin, bin_size, section, out))
 			return 1; /* failure */
 	}
 	return 0; /* success */
@@ -85,22 +85,23 @@ int main(int argc, char *argv[])
 {
 	struct stat sb;
 	int ret = -1;
-	int fd[] = {0, 1};
-	const char *filename[] = { "stdin", "stdout" };
+	int in = 0;
+	FILE *out = stdout;
+	const char *filename[] = {"stdin", "stdout"};
 	void *p;
 
 	/* open */
 	if (argc>1) {
 		filename[0] = argv[1];
 
-		if ((fd[0] = open(filename[0], O_RDONLY)) < 0) {
+		if ((in = open(filename[0], O_RDONLY)) < 0) {
 			errf("%s: %s\n", filename[0], strerror(errno));
 			goto usage;
 		}
 		if (argc > 2) {
 			filename[1] = argv[2];
 
-			if ((fd[1] = open(filename[1], O_WRONLY|O_CREAT, 0666)) < 0) {
+			if ((out = fopen(filename[1], "w")) == NULL) {
 				errf("%s: %s\n", filename[1], strerror(errno));
 				goto usage;
 			}
@@ -108,17 +109,17 @@ int main(int argc, char *argv[])
 	}
 
 	/* mmap input */
-	if (fstat(fd[0], &sb) == -1)
+	if (fstat(in, &sb) == -1)
 		errf("fstat: %s: %s\n", filename[0], strerror(errno));
 	else if (!S_ISREG(sb.st_mode))
 		errf("%s: not a regular file (mode:%d).\n", filename[0], sb.st_mode);
-	else if ((p = mmap(0, sb.st_size, PROT_READ, MAP_SHARED, fd[0], 0)) == MAP_FAILED)
+	else if ((p = mmap(0, sb.st_size, PROT_READ, MAP_SHARED, in, 0)) == MAP_FAILED)
 		errf("mmap: %s: %s\n", filename[0], strerror(errno));
 	else {
-		/* decompile mmap */
-		close(fd[0]);
+		/* close and decompile mmap */
+		close(in);
 
-		ret = decompile(p, sb.st_size, fd[1], filename[1]);
+		ret = decompile(p, sb.st_size, out);
 		if (munmap(p, sb.st_size) == -1)
 			errf("munmap: %s: %s\n", filename[0], strerror(errno));
 
@@ -128,8 +129,8 @@ int main(int argc, char *argv[])
 usage:
 	errf("Usage: %s [<script.bin> [<script.fex>]]\n", argv[0]);
 
-	if (fd[0] > 2) close(fd[0]);
+	if (in > 2) close(in);
 done:
-	if (fd[1] > 2) close(fd[1]);
+	if (out != stdout) fclose(out);
 	return ret;
 }
