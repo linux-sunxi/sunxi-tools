@@ -14,9 +14,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "fex2bin.h"
+#ifndef _SUNXI_TOOLS_FEX2BIN_H
+#define _SUNXI_TOOLS_FEX2BIN_H
 
-int main(int UNUSED(argc), char *UNUSED(argv[]))
-{
-	return 0;
-}
+#include "sunxi-tools.h"
+
+#endif
