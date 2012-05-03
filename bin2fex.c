@@ -26,7 +26,6 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 
-#define errf(...)	fprintf(stderr, __VA_ARGS__)
 #define pr_info(F, ...)	fprintf(out, "; bin2fex: " F, __VA_ARGS__)
 #define pr_err(F, ...)	pr_info("ERROR: " F, __VA_ARGS__)
 

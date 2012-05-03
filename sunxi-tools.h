@@ -24,4 +24,6 @@
 #	define UNUSED(x) UNUSED_ ## x
 #endif
 
+#define errf(...)	fprintf(stderr, __VA_ARGS__)
+
 #endif
