@@ -47,7 +47,7 @@ static inline void list_init(struct list_entry *self)
 	self->prev = self->next = self;
 }
 
-/** append a list hook @l1 at the end of the list @l0 */
+/** appends a list hook @l1 at the end of the list @l0 */
 static inline void list_append(struct list_entry *l0, struct list_entry *l1)
 {
 	l1->next = l0;
@@ -55,10 +55,24 @@ static inline void list_append(struct list_entry *l0, struct list_entry *l1)
 	l0->prev = l1;
 }
 
-/** returns list element of a list */
+/** removes an entry for the list where it's contained */
+static inline void list_remove(struct list_entry *l)
+{
+	struct list_entry *prev = l->prev, *next = l->next;
+	next->prev = prev;
+	prev->next = next;
+}
+
+/** returns last element of a list */
 static inline struct list_entry *list_last(struct list_entry *l)
 {
 	return (l->prev == l) ? NULL : l->prev;
+}
+
+/** returns first element of a list */
+static inline struct list_entry *list_next(struct list_entry *l)
+{
+	return (l->next == l) ? NULL : l->next;
 }
 
 /** is list empty? */
