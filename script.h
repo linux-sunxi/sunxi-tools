@@ -67,6 +67,14 @@ struct script_string_entry {
 	char string[];
 };
 
+/** entry describing a GPIO */
+struct script_gpio_entry {
+	struct script_entry entry;
+
+	unsigned port, port_num;
+	unsigned data[4];
+};
+
 /** create a new script tree */
 struct script *script_new(void);
 /** deletes a tree recursively */
@@ -92,5 +100,10 @@ struct script_single_entry *script_single_entry_append(struct script *script,
 struct script_string_entry *script_string_entry_append(struct script *script,
 						       const char *name,
 						       size_t l, const char *s);
+/** create a new GPIO entry appended to the last section of a tree */
+struct script_gpio_entry *script_gpio_entry_append(struct script *script,
+						   const char *name,
+						   unsigned port, unsigned num,
+						   unsigned data[4]);
 
 #endif

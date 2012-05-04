@@ -126,6 +126,7 @@ void script_entry_delete(struct script_entry *entry)
 	assert(entry);
 	assert(entry->type == SCRIPT_VALUE_TYPE_SINGLE_WORD ||
 	       entry->type == SCRIPT_VALUE_TYPE_STRING ||
+	       entry->type == SCRIPT_VALUE_TYPE_GPIO ||
 	       entry->type == SCRIPT_VALUE_TYPE_NULL);
 
 	if (!list_empty(&entry->entries))
@@ -137,6 +138,9 @@ void script_entry_delete(struct script_entry *entry)
 		break;
 	case SCRIPT_VALUE_TYPE_STRING:
 		container = container_of(entry, struct script_string_entry, entry);
+		break;
+	case SCRIPT_VALUE_TYPE_GPIO:
+		container = container_of(entry, struct script_gpio_entry, entry);
 		break;
 	case SCRIPT_VALUE_TYPE_NULL:
 		container = container_of(entry, struct script_null_entry, entry);
@@ -203,6 +207,30 @@ struct script_string_entry *script_string_entry_append(struct script *script,
 
 		script_entry_append(script, &entry->entry,
 				    SCRIPT_VALUE_TYPE_STRING, name);
+	}
+
+	return entry;
+}
+
+struct script_gpio_entry *script_gpio_entry_append(struct script *script,
+						   const char *name,
+						   unsigned port, unsigned num,
+						   unsigned data[4])
+{
+	struct script_gpio_entry *entry;
+
+	assert(script);
+	assert(!list_empty(&script->sections));
+	assert(name && *name);
+
+	if ((entry = malloc(sizeof(*entry)))) {
+		entry->port = port;
+		entry->port_num = num;
+		for (int i=0; i<4; i++)
+			entry->data[i] = data[i];
+
+		script_entry_append(script, &entry->entry,
+				    SCRIPT_VALUE_TYPE_GPIO, name);
 	}
 
 	return entry;
