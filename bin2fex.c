@@ -146,11 +146,10 @@ static int decompile_section(void *bin, size_t UNUSED(bin_size),
 			     FILE *out)
 {
 	struct script_section_entry *entry = PTR(bin,  section->offset<<2);
-	int i = section->length;
 	int ok = 1;
 
 	fprintf(out, "[%s]\n", section->name);
-	for (; i--; entry++) {
+	for (int i = section->length; i--; entry++) {
 		void *data = PTR(bin, entry->offset<<2);
 		unsigned type, length;
 		type	= (entry->pattern >> 16) & 0xffff;

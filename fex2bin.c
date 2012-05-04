@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
 	script_delete(script);
 	goto done;
 usage:
-	errf("Usage: %s [<script.fex> [<script.bin>]\n", argv[0]);
+	errf("Usage: %s [<script.fex> [<script.bin>]]\n", argv[0]);
 
 done:
 	if (in && in != stdin) fclose(in);
