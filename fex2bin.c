@@ -27,6 +27,7 @@ int main(int argc, char *argv[])
 	int ret = -1;
 	FILE *in = stdin, *out = stdout;
 	const char *fn[] = {"stdin", "stdout"};
+	struct script *script;
 
 	if (argc>1) {
 		if (strcmp(argv[1],"-") == 0)
@@ -46,6 +47,13 @@ int main(int argc, char *argv[])
 			}
 		}
 	}
+
+	if ((script = script_new()) == NULL) {
+		errf("malloc: %s\n", strerror(errno));
+		goto done;
+	}
+
+	script_delete(script);
 	goto done;
 usage:
 	errf("Usage: %s [<script.fex> [<script.bin>]\n", argv[0]);

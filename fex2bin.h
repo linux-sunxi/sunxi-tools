@@ -19,4 +19,6 @@
 
 #include "sunxi-tools.h"
 
+#include "script.h"
+
 #endif

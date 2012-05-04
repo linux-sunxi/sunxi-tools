@@ -13,6 +13,8 @@ clean:
 
 $(TOOLS): Makefile sunxi-tools.h
 
+fex2bin: script.c script.h
+
 %: %.c %.h
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(filter %.c,$^) $(LIBS)
 
@@ -20,4 +22,3 @@ $(TOOLS): Makefile sunxi-tools.h
 	@for x in $(TOOLS) '*.o' '*.swp'; do \
 		echo $$x; \
 	done > $@
-
