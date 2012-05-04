@@ -52,6 +52,13 @@ struct script_null_entry {
 	struct script_entry entry;
 };
 
+/** entry with 32b value */
+struct script_single_entry {
+	struct script_entry entry;
+
+	uint32_t value;
+};
+
 /** create a new script tree */
 struct script *script_new(void);
 /** deletes a tree recursively */
@@ -69,5 +76,9 @@ void script_entry_delete(struct script_entry *entry);
 /** create a new empty/null entry appended to the last section of a tree */
 struct script_null_entry *script_null_entry_append(struct script *script,
 						   const char *name);
+/** create a new single word entry appended to the last section of a tree */
+struct script_single_entry *script_single_entry_append(struct script *script,
+						       const char *name,
+						       uint32_t value);
 
 #endif

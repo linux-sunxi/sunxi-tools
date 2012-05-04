@@ -18,6 +18,7 @@
 #include "sunxi-tools.h"
 
 #include <assert.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -123,12 +124,16 @@ void script_entry_delete(struct script_entry *entry)
 	void *container;
 
 	assert(entry);
-	assert(entry->type == SCRIPT_VALUE_TYPE_NULL);
+	assert(entry->type == SCRIPT_VALUE_TYPE_SINGLE_WORD ||
+	       entry->type == SCRIPT_VALUE_TYPE_NULL);
 
 	if (!list_empty(&entry->entries))
 		list_remove(&entry->entries);
 
 	switch(entry->type) {
+	case SCRIPT_VALUE_TYPE_SINGLE_WORD:
+		container = container_of(entry, struct script_single_entry, entry);
+		break;
 	case SCRIPT_VALUE_TYPE_NULL:
 		container = container_of(entry, struct script_null_entry, entry);
 		break;
@@ -151,6 +156,26 @@ struct script_null_entry *script_null_entry_append(struct script *script,
 	if ((entry = malloc(sizeof(*entry)))) {
 		script_entry_append(script, &entry->entry,
 				    SCRIPT_VALUE_TYPE_NULL, name);
+	}
+
+	return entry;
+}
+
+struct script_single_entry *script_single_entry_append(struct script *script,
+						       const char *name,
+						       uint32_t value)
+{
+	struct script_single_entry *entry;
+
+	assert(script);
+	assert(!list_empty(&script->sections));
+	assert(name && *name);
+
+	if ((entry = malloc(sizeof(*entry)))) {
+		entry->value = value;
+
+		script_entry_append(script, &entry->entry,
+				    SCRIPT_VALUE_TYPE_SINGLE_WORD, name);
 	}
 
 	return entry;
