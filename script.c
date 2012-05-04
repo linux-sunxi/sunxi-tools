@@ -193,7 +193,7 @@ struct script_string_entry *script_string_entry_append(struct script *script,
 
 	assert(script);
 	assert(!list_empty(&script->sections));
-	assert(name && *name);
+	assert(name);
 	assert(s);
 
 	if ((entry = malloc(sizeof(*entry)+l+1))) {
