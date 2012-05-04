@@ -267,6 +267,6 @@ usage:
 
 	if (in > 2) close(in);
 done:
-	if (out != stdout) fclose(out);
+	if (out && out != stdout) fclose(out);
 	return ret;
 }
