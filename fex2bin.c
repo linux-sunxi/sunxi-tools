@@ -16,7 +16,42 @@
  */
 #include "fex2bin.h"
 
-int main(int UNUSED(argc), char *UNUSED(argv[]))
+#include <errno.h>
+#include <stdio.h>
+#include <string.h>
+
+/**
+ */
+int main(int argc, char *argv[])
 {
-	return 0;
+	int ret = -1;
+	FILE *in = stdin, *out = stdout;
+	const char *fn[] = {"stdin", "stdout"};
+
+	if (argc>1) {
+		if (strcmp(argv[1],"-") == 0)
+			; /* we are using stdin anyway */
+		else if ((fn[0] = argv[1]) &&
+			 (in = fopen(fn[0], "r")) == NULL) {
+			errf("%s: %s\n", fn[0], strerror(errno));
+			goto usage;
+		}
+
+		if (argc>2) {
+			fn[1] = argv[2];
+
+			if ((out = fopen(fn[1], "w")) == NULL) {
+				errf("%s: %s\n", fn[1], strerror(errno));
+				goto usage;
+			}
+		}
+	}
+	goto done;
+usage:
+	errf("Usage: %s [<script.fex> [<script.bin>]\n", argv[0]);
+
+done:
+	if (in != stdin) fclose(in);
+	if (out != stdout) fclose(out);
+	return ret;
 }
