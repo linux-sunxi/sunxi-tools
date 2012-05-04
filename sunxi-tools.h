@@ -17,12 +17,19 @@
 #ifndef _SUNXI_TOOLS_H
 #define _SUNXI_TOOLS_H
 
+#include <stddef.h> /* offsetof */
+
 /** flat function argument as unused */
 #ifdef UNUSED
 #elif defined(__GNUC__)
 #	define UNUSED(x) UNUSED_ ## x __attribute__((unused))
 #else
 #	define UNUSED(x) UNUSED_ ## x
+#endif
+
+/** finds the parent of an struct member */
+#ifndef container_of
+#define container_of(P,T,M)	(T *)((char *)(P) - offsetof(T, M))
 #endif
 
 /** shortcut to printf to stderr */
@@ -51,7 +58,7 @@ static inline void list_append(struct list_entry *l0, struct list_entry *l1)
 /** returns list element of a list */
 static inline struct list_entry *list_last(struct list_entry *l)
 {
-	return (l->prev == l) ? (void*)0 : l->prev;
+	return (l->prev == l) ? NULL : l->prev;
 }
 
 /** is list empty? */
