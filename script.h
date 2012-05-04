@@ -54,10 +54,17 @@ struct script_null_entry {
 
 /** create a new script tree */
 struct script *script_new(void);
+/** deletes a tree recursively */
+void script_delete(struct script *);
 
 /** create a new section appended to a given tree */
 struct script_section *script_section_append(struct script *script,
 					     const char *name);
+/** deletes a section recursvely and removes it from the script */
+void script_section_delete(struct script_section *section);
+
+/** deletes an entry and removes it from the section */
+void script_entry_delete(struct script_entry *entry);
 
 /** create a new empty/null entry appended to the last section of a tree */
 struct script_null_entry *script_null_entry_append(struct script *script,

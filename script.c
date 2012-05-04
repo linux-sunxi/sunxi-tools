@@ -33,6 +33,22 @@ struct script *script_new(void)
 	return script;
 }
 
+void script_delete(struct script *script)
+{
+	struct list_entry *o;
+
+	assert(script);
+
+	while ((o = list_last(&script->sections))) {
+		struct script_section *section = container_of(o,
+			       struct script_section, sections);
+
+		script_section_delete(section);
+	}
+
+	free(script);
+}
+
 /*
  */
 struct script_section *script_section_append(struct script *script,
@@ -40,8 +56,8 @@ struct script_section *script_section_append(struct script *script,
 {
 	struct script_section *section;
 
-	assert(script != NULL);
-	assert(name != NULL);
+	assert(script);
+	assert(name);
 
 	if ((section = malloc(sizeof(*section)))) {
 		size_t l = strlen(name);
@@ -56,6 +72,23 @@ struct script_section *script_section_append(struct script *script,
 	return section;
 }
 
+void script_section_delete(struct script_section *section)
+{
+	struct list_entry *o;
+
+	assert(section);
+
+	while ((o = list_last(&section->entries))) {
+		struct script_entry *entry = container_of(o,
+			       struct script_entry, entries);
+
+		script_entry_delete(entry);
+	}
+
+	if (!list_empty(&section->sections))
+		list_remove(&section->sections);
+}
+
 /*
  */
 static inline void script_entry_append(struct script *script,
@@ -66,10 +99,10 @@ static inline void script_entry_append(struct script *script,
 	size_t l;
 	struct script_section *section;
 
-	assert(script != NULL);
+	assert(script);
 	assert(!list_empty(&script->sections));
-	assert(entry != NULL);
-	assert(name != NULL);
+	assert(entry);
+	assert(name);
 
 	section = container_of(list_last(&script->sections),
 			       struct script_section, sections);
@@ -85,14 +118,35 @@ static inline void script_entry_append(struct script *script,
 	list_append(&section->entries, &entry->entries);
 }
 
+void script_entry_delete(struct script_entry *entry)
+{
+	void *container;
+
+	assert(entry);
+	assert(entry->type == SCRIPT_VALUE_TYPE_NULL);
+
+	if (!list_empty(&entry->entries))
+		list_remove(&entry->entries);
+
+	switch(entry->type) {
+	case SCRIPT_VALUE_TYPE_NULL:
+		container = container_of(entry, struct script_null_entry, entry);
+		break;
+	default:
+		abort();
+	}
+
+	free(container);
+}
+
 struct script_null_entry *script_null_entry_append(struct script *script,
 						   const char *name)
 {
 	struct script_null_entry *entry;
 
-	assert(script != NULL);
+	assert(script);
 	assert(!list_empty(&script->sections));
-	assert(name != NULL);
+	assert(name);
 
 	if ((entry = malloc(sizeof(*entry)))) {
 		script_entry_append(script, &entry->entry,
