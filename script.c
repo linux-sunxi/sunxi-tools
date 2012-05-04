@@ -57,7 +57,7 @@ struct script_section *script_section_append(struct script *script,
 	struct script_section *section;
 
 	assert(script);
-	assert(name);
+	assert(name && *name);
 
 	if ((section = malloc(sizeof(*section)))) {
 		size_t l = strlen(name);
@@ -146,7 +146,7 @@ struct script_null_entry *script_null_entry_append(struct script *script,
 
 	assert(script);
 	assert(!list_empty(&script->sections));
-	assert(name);
+	assert(name && *name);
 
 	if ((entry = malloc(sizeof(*entry)))) {
 		script_entry_append(script, &entry->entry,
