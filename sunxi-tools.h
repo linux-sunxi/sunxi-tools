@@ -28,4 +28,30 @@
 /** shortcut to printf to stderr */
 #define errf(...)	fprintf(stderr, __VA_ARGS__)
 
+/** a list hook */
+struct list_entry {
+	struct list_entry *prev;
+	struct list_entry *next;
+};
+
+/** initialize an empty list hook */
+static inline void list_init(struct list_entry *self)
+{
+	self->prev = self->next = self;
+}
+
+/** append a list hook @l1 at the end of the list @l0 */
+static inline void list_append(struct list_entry *l0, struct list_entry *l1)
+{
+	l1->next = l0;
+	l1->prev = l0->prev;
+	l0->prev = l1;
+}
+
+/** is list empty? */
+static inline int list_empty(struct list_entry *l)
+{
+	return (l->prev == l);
+}
+
 #endif
