@@ -125,6 +125,7 @@ void script_entry_delete(struct script_entry *entry)
 
 	assert(entry);
 	assert(entry->type == SCRIPT_VALUE_TYPE_SINGLE_WORD ||
+	       entry->type == SCRIPT_VALUE_TYPE_STRING ||
 	       entry->type == SCRIPT_VALUE_TYPE_NULL);
 
 	if (!list_empty(&entry->entries))
@@ -133,6 +134,9 @@ void script_entry_delete(struct script_entry *entry)
 	switch(entry->type) {
 	case SCRIPT_VALUE_TYPE_SINGLE_WORD:
 		container = container_of(entry, struct script_single_entry, entry);
+		break;
+	case SCRIPT_VALUE_TYPE_STRING:
+		container = container_of(entry, struct script_string_entry, entry);
 		break;
 	case SCRIPT_VALUE_TYPE_NULL:
 		container = container_of(entry, struct script_null_entry, entry);
@@ -176,6 +180,29 @@ struct script_single_entry *script_single_entry_append(struct script *script,
 
 		script_entry_append(script, &entry->entry,
 				    SCRIPT_VALUE_TYPE_SINGLE_WORD, name);
+	}
+
+	return entry;
+}
+
+struct script_string_entry *script_string_entry_append(struct script *script,
+						       const char *name,
+						       size_t l, const char *s)
+{
+	struct script_string_entry *entry;
+
+	assert(script);
+	assert(!list_empty(&script->sections));
+	assert(name && *name);
+	assert(s);
+
+	if ((entry = malloc(sizeof(*entry)+l+1))) {
+		entry->l = l;
+		memcpy(entry->string, s, l);
+		entry->string[l] = '\0';
+
+		script_entry_append(script, &entry->entry,
+				    SCRIPT_VALUE_TYPE_STRING, name);
 	}
 
 	return entry;

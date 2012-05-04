@@ -59,6 +59,14 @@ struct script_single_entry {
 	uint32_t value;
 };
 
+/** entry with string value */
+struct script_string_entry {
+	struct script_entry entry;
+
+	size_t l;
+	char string[];
+};
+
 /** create a new script tree */
 struct script *script_new(void);
 /** deletes a tree recursively */
@@ -80,5 +88,9 @@ struct script_null_entry *script_null_entry_append(struct script *script,
 struct script_single_entry *script_single_entry_append(struct script *script,
 						       const char *name,
 						       uint32_t value);
+/** create a new string entry appended to the last section of a tree */
+struct script_string_entry *script_string_entry_append(struct script *script,
+						       const char *name,
+						       size_t l, const char *s);
 
 #endif
