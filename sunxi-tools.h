@@ -70,7 +70,7 @@ static inline struct list_entry *list_last(struct list_entry *l)
 }
 
 /** returns first element of a list */
-static inline struct list_entry *list_next(struct list_entry *l)
+static inline struct list_entry *list_first(struct list_entry *l)
 {
 	return (l->next == l) ? NULL : l->next;
 }
