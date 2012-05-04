@@ -48,6 +48,12 @@ static inline void list_append(struct list_entry *l0, struct list_entry *l1)
 	l0->prev = l1;
 }
 
+/** returns list element of a list */
+static inline struct list_entry *list_last(struct list_entry *l)
+{
+	return (l->prev == l) ? (void*)0 : l->prev;
+}
+
 /** is list empty? */
 static inline int list_empty(struct list_entry *l)
 {
