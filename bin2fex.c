@@ -141,7 +141,7 @@ static inline int decompile_single(struct script_section *section,
 
 /**
  */
-static int decompile_section(void *bin, size_t bin_size,
+static int decompile_section(void *bin, size_t UNUSED(bin_size),
 			     struct script_section *section,
 			     FILE *out)
 {

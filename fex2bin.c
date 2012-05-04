@@ -54,7 +54,8 @@ static inline char *alltrim(char *s, size_t *l)
 
 /**
  */
-static int parse_fex(FILE *in, const char *filename, struct script *script)
+static int parse_fex(FILE *in, const char *UNUSED(filename),
+		     struct script *UNUSED(script))
 {
 	char buffer[MAX_LINE+1];
 	int ok = 1;
@@ -66,6 +67,8 @@ static int parse_fex(FILE *in, const char *filename, struct script *script)
 
 		fputs(p, stdout);
 		fputc('\n', stdout);
+
+		(void)col;
 	};
 
 	if (ferror(in))
