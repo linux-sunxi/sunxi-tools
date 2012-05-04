@@ -20,6 +20,59 @@
 #include <stdio.h>
 #include <string.h>
 
+#define MAX_LINE	127
+
+/**
+ */
+static inline char *alltrim(char *s, size_t *l)
+{
+	char *p;
+	while (*s == ' ' || *s == '\t')
+		s++;
+	p = s;
+	while (*++p)
+		; /* seek \0 */
+
+	if (p>s && p[-1] == '\n') {
+		if (p>s+1 && p[-2] == '\r')
+			p-=2;
+		else
+			p-=1;
+	}
+
+	while (p>s) {
+		if (*p == ' ' || *p == '\t')
+			p--;
+		else
+			break;
+	}
+
+	*p = '\0';
+	*l = p-s;
+	return s;
+}
+
+/**
+ */
+static int parse_fex(FILE *in, const char *filename, struct script *script)
+{
+	char buffer[MAX_LINE+1];
+	int ok = 1;
+
+	for(size_t line = 1; fgets(buffer, sizeof(buffer), in); line++) {
+		size_t l, col;
+		char *p = alltrim(buffer, &l);
+		col = p-buffer+1;
+
+		fputs(p, stdout);
+		fputc('\n', stdout);
+	};
+
+	if (ferror(in))
+		ok = 0;
+	return ok;
+}
+
 /**
  */
 int main(int argc, char *argv[])
@@ -53,13 +106,16 @@ int main(int argc, char *argv[])
 		goto done;
 	}
 
+	if (parse_fex(in, fn[0], script)) {
+		ret = 0;
+	}
 	script_delete(script);
 	goto done;
 usage:
 	errf("Usage: %s [<script.fex> [<script.bin>]\n", argv[0]);
 
 done:
-	if (in != stdin) fclose(in);
-	if (out != stdout) fclose(out);
+	if (in && in != stdin) fclose(in);
+	if (out && out != stdout) fclose(out);
 	return ret;
 }
