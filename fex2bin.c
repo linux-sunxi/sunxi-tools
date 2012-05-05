@@ -18,7 +18,9 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define MAX_LINE	255
@@ -108,9 +110,27 @@ static int parse_fex(FILE *in, const char *filename,
 				/* string */
 				p++; *--pe = '\0';
 				fprintf(stdout, "%s = \"%s\"\n", key, p);
-			} else {
-				errf("I: key:%s value: %s (%zu)\n",
+			} else if (memcmp("port:P", p, 6) == 0) {
+				/* GPIO */
+				p += 6;
+				errf("I: key:%s GPIO:%s (%zu)\n",
 				     key, p, pe-p);
+			} else if (isdigit(*p)) {
+				long long v = 0;
+				char *end;
+				v = strtoll(p, &end, 0);
+				if (end != pe) {
+					errf("E: %s:%zu: invalid character at %zu.\n",
+					     filename, line, end-buffer+1);
+					goto parse_error;
+				} else if (v > UINT32_MAX) {
+					errf("E: %s:%zu: value out of range %lld.\n",
+					     filename, line, v);
+				}
+				fprintf(stdout, "%s = %llu\n", key, v);
+			} else {
+				errf("E: %s:%zu: invalid character at %zu.\n",
+				     filename, line, p-buffer+1);
 			}
 
 		}
