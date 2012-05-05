@@ -16,6 +16,7 @@
  */
 #include "fex2bin.h"
 
+#include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
@@ -27,28 +28,22 @@
 static inline char *alltrim(char *s, size_t *l)
 {
 	char *p;
-	while (*s == ' ' || *s == '\t')
+	while (isblank(*s))
 		s++;
 	p = s;
 	while (*++p)
 		; /* seek \0 */
 
-	if (p>s && p[-1] == '\n') {
-		if (p>s+1 && p[-2] == '\r')
-			p-=2;
-		else
-			p-=1;
-	}
+	if (p>s+1 && p[-2] == '\r' && p[-1] == '\n')
+		p -= 2;
+	else if (p>s && p[-1] == '\n')
+		p -= 1;
+	*p-- = '\0';
 
-	while (p>s) {
-		if (*p == ' ' || *p == '\t')
-			p--;
-		else
-			break;
-	}
+	while (p>s && isblank(*p))
+		*p-- = '\0';
 
-	*p = '\0';
-	*l = p-s;
+	*l = p-s+1;
 	return s;
 }
 
