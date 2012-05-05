@@ -21,7 +21,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#define MAX_LINE	127
+#define MAX_LINE	255
 
 /**
  */
@@ -49,25 +49,45 @@ static inline char *alltrim(char *s, size_t *l)
 
 /**
  */
-static int parse_fex(FILE *in, const char *UNUSED(filename),
+static int parse_fex(FILE *in, const char *filename,
 		     struct script *UNUSED(script))
 {
 	char buffer[MAX_LINE+1];
 	int ok = 1;
 
+	/* TODO: deal with longer lines correctly (specially in comments) */
 	for(size_t line = 1; fgets(buffer, sizeof(buffer), in); line++) {
-		size_t l, col;
-		char *p = alltrim(buffer, &l);
-		col = p-buffer+1;
+		size_t l;
+		char *s = alltrim(buffer, &l);
 
-		fputs(p, stdout);
-		fputc('\n', stdout);
+		if (l == 0 || *s == ';' || *s == '#')
+			;
+		else if (*s == '[') {
+			/* section */
+			char *p = ++s;
+			while (isalnum(*p) || *p == '_')
+				p++;
 
-		(void)col;
+			if (*p == ']' && *(p+1) == '\0') {
+				*p = '\0';
+				errf("I: %s:%zu: [%s]\n", filename, line, s);
+			} else if (*p) {
+				errf("E: %s:%zu: invalid character at %zu.\n",
+				     filename, line, p-buffer+1);
+				goto parse_error;
+			}
+		} else {
+			/* key = value */
+			fprintf(stdout, "%s:%zu: ", filename, line);
+			fputs(s, stdout);
+			fputc('\n', stdout);
+		}
 	};
 
-	if (ferror(in))
+	if (ferror(in)) {
+parse_error:
 		ok = 0;
+	}
 	return ok;
 }
 
