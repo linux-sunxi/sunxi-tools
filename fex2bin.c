@@ -23,28 +23,23 @@
 
 #define MAX_LINE	255
 
-/**
- */
-static inline char *alltrim(char *s, size_t *l)
+/** find first not blank char */
+static inline char *skip_blank(char *p)
 {
-	char *p;
-	while (isblank(*s))
-		s++;
-	p = s;
-	while (*++p)
-		; /* seek \0 */
+	while(isblank(*p))
+		p++;
+	return p;
+}
 
-	if (p>s+1 && p[-2] == '\r' && p[-1] == '\n')
-		p -= 2;
-	else if (p>s && p[-1] == '\n')
-		p -= 1;
-	*p-- = '\0';
-
-	while (p>s && isblank(*p))
-		*p-- = '\0';
-
-	*l = p-s+1;
-	return s;
+/** trim out blank chars at the end of a string */
+static inline char *rtrim(const char *s, char *p)
+{
+	if (p>s) {
+		while (p!=s && isblank(*--p))
+			;
+		*++p='\0';
+	}
+	return p;
 }
 
 /**
@@ -57,11 +52,24 @@ static int parse_fex(FILE *in, const char *filename,
 
 	/* TODO: deal with longer lines correctly (specially in comments) */
 	for(size_t line = 1; fgets(buffer, sizeof(buffer), in); line++) {
-		size_t l;
-		char *s = alltrim(buffer, &l);
+		char *s = skip_blank(buffer); /* beginning */
+		char *pe = s; /* \0... to be found */
 
-		if (l == 0 || *s == ';' || *s == '#')
+		if (*pe) while (*++pe)
 			;
+
+		if (pe>s && pe[-1] == '\n') {
+			if (pe>s+1 && pe[-2] == '\r')
+				pe -= 2;
+			else
+				pe -= 1;
+			*pe = '\0';
+		}
+
+		pe = rtrim(s, pe);
+
+		if (pe == s || *s == ';' || *s == '#')
+			; /* empty */
 		else if (*s == '[') {
 			/* section */
 			char *p = ++s;
@@ -70,7 +78,7 @@ static int parse_fex(FILE *in, const char *filename,
 
 			if (*p == ']' && *(p+1) == '\0') {
 				*p = '\0';
-				errf("I: %s:%zu: [%s]\n", filename, line, s);
+				fprintf(stdout, "[%s]\n", s);
 			} else if (*p) {
 				errf("E: %s:%zu: invalid character at %zu.\n",
 				     filename, line, p-buffer+1);
@@ -78,9 +86,33 @@ static int parse_fex(FILE *in, const char *filename,
 			}
 		} else {
 			/* key = value */
-			fprintf(stdout, "%s:%zu: ", filename, line);
-			fputs(s, stdout);
-			fputc('\n', stdout);
+			const char *key = s;
+			char *mark, *p = s;
+
+			while (isalnum(*p) || *p == '_')
+				p++;
+			mark = p;
+			p = skip_blank(p);
+			if (*p != '=') {
+				errf("E: %s:%zu: invalid character at %zu.\n",
+				     filename, line, p-buffer+1);
+				goto parse_error;
+			}
+			*mark = '\0'; /* truncate key */
+			p = skip_blank(p+1);
+
+			if (*p == '\0') {
+				/* NULL */
+				fprintf(stdout, "%s = NULL\n", key);
+			} else if (pe > p+1 && *p == '"' && pe[-1] == '"') {
+				/* string */
+				p++; *--pe = '\0';
+				fprintf(stdout, "%s = \"%s\"\n", key, p);
+			} else {
+				errf("I: key:%s value: %s (%zu)\n",
+				     key, p, pe-p);
+			}
+
 		}
 	};
 
