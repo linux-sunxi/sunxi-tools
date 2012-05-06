@@ -53,7 +53,7 @@ static int parse_fex(FILE *in, const char *filename, struct script *script)
 	struct script_section *last_section = NULL;
 
 	/* TODO: deal with longer lines correctly (specially in comments) */
-	for(size_t line = 1; fgets(buffer, sizeof(buffer), in); line++) {
+	for(size_t line = 1; ok && fgets(buffer, sizeof(buffer), in); line++) {
 		char *s = skip_blank(buffer); /* beginning */
 		char *pe = s; /* \0... to be found */
 
@@ -91,6 +91,7 @@ static int parse_fex(FILE *in, const char *filename, struct script *script)
 				errf("E: %s:%zu: incomplete section declaration.\n",
 				     filename, line);
 			}
+			ok = 0;
 		} else {
 			/* key = value */
 			const char *key = s;
@@ -177,7 +178,7 @@ static int parse_fex(FILE *in, const char *filename, struct script *script)
 				errf("E: %s:%zu: invalid character at %zu.\n",
 				     filename, line, p-buffer+1);
 			}
-
+			ok = 0;
 		}
 	};
 
