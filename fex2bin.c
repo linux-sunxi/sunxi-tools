@@ -100,20 +100,15 @@ static int parse_fex(FILE *in, const char *filename, struct script *script)
 			if (!last_section) {
 				errf("E: %s:%zu: data must follow a section.\n",
 				     filename, line);
-				ok = 0;
-				break;
+				goto parse_error;
 			};
 
 			while (isalnum(*p) || *p == '_')
 				p++;
 			mark = p;
 			p = skip_blank(p);
-			if (*p != '=') {
-				errf("E: %s:%zu: invalid character at %zu.\n",
-				     filename, line, p-buffer+1);
-				ok = 0;
-				break;
-			}
+			if (*p != '=')
+				goto invalid_char_at_p;
 			*mark = '\0'; /* truncate key */
 			p = skip_blank(p+1);
 
@@ -147,8 +142,7 @@ static int parse_fex(FILE *in, const char *filename, struct script *script)
 					else if (port_num<0 || port_num>255) {
 						errf("E: %s:%zu: port out of range at %zu.\n",
 						     filename, line, p-buffer+1);
-						ok = 0;
-						break;
+						goto parse_error;
 					} else {
 						p = end;
 						errf("%s.%s = GPIO %d.%ld (%s)\n",
@@ -157,27 +151,27 @@ static int parse_fex(FILE *in, const char *filename, struct script *script)
 						continue;
 					}
 				}
-				errf("E: %s:%zu: invalid character at %zu.\n",
-				     filename, line, p-buffer+1);
 			} else if (isdigit(*p)) {
 				long long v = 0;
 				char *end;
 				v = strtoll(p, &end, 0);
-				if (end != pe) {
-					errf("E: %s:%zu: invalid character at %zu.\n",
-					     filename, line, end-buffer+1);
+				p = end;
+				if (p != pe) {
+					;
 				} else if (v > UINT32_MAX) {
 					errf("E: %s:%zu: value out of range %lld.\n",
 					     filename, line, v);
+					goto parse_error;
 				} else if (script_single_entry_new(last_section, key, v)) {
 					errf("%s.%s = %lld\n",
 					     last_section->name, key, v);
 					continue;
 				}
-			} else {
-				errf("E: %s:%zu: invalid character at %zu.\n",
-				     filename, line, p-buffer+1);
 			}
+invalid_char_at_p:
+			errf("E: %s:%zu: invalid character at %zu.\n",
+			     filename, line, p-buffer+1);
+parse_error:
 			ok = 0;
 		}
 	};
