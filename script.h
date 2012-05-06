@@ -89,21 +89,21 @@ void script_section_delete(struct script_section *section);
 /** deletes an entry and removes it from the section */
 void script_entry_delete(struct script_entry *entry);
 
-/** create a new empty/null entry appended to the last section of a tree */
-struct script_null_entry *script_null_entry_append(struct script *script,
-						   const char *name);
-/** create a new single word entry appended to the last section of a tree */
-struct script_single_entry *script_single_entry_append(struct script *script,
-						       const char *name,
-						       uint32_t value);
-/** create a new string entry appended to the last section of a tree */
-struct script_string_entry *script_string_entry_append(struct script *script,
-						       const char *name,
-						       size_t l, const char *s);
-/** create a new GPIO entry appended to the last section of a tree */
-struct script_gpio_entry *script_gpio_entry_append(struct script *script,
-						   const char *name,
-						   unsigned port, unsigned num,
-						   unsigned data[4]);
+/** create a new empty/null entry appended to a section */
+struct script_null_entry *script_null_entry_new(struct script_section *section,
+						const char *name);
+/** create a new single word entry appended to a section */
+struct script_single_entry *script_single_entry_new(struct script_section *section,
+						    const char *name,
+						    uint32_t value);
+/** create a new string entry appended to a section */
+struct script_string_entry *script_string_entry_new(struct script_section *section,
+						    const char *name,
+						    size_t l, const char *s);
+/** create a new GPIO entry appended to a section */
+struct script_gpio_entry *script_gpio_entry_new(struct script_section *script,
+						const char *name,
+						unsigned port, unsigned num,
+						unsigned data[4]);
 
 #endif

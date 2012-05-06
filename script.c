@@ -92,21 +92,16 @@ void script_section_delete(struct script_section *section)
 
 /*
  */
-static inline void script_entry_append(struct script *script,
+static inline void script_entry_append(struct script_section *section,
 				       struct script_entry *entry,
 				       enum script_value_type type,
 				       const char *name)
 {
 	size_t l;
-	struct script_section *section;
 
-	assert(script);
-	assert(!list_empty(&script->sections));
+	assert(section);
 	assert(entry);
 	assert(name);
-
-	section = container_of(list_last(&script->sections),
-			       struct script_section, sections);
 
 	l = strlen(name);
 	if (l>31) /* truncate */
@@ -152,51 +147,48 @@ void script_entry_delete(struct script_entry *entry)
 	free(container);
 }
 
-struct script_null_entry *script_null_entry_append(struct script *script,
-						   const char *name)
+struct script_null_entry *script_null_entry_new(struct script_section *section,
+						const char *name)
 {
 	struct script_null_entry *entry;
 
-	assert(script);
-	assert(!list_empty(&script->sections));
+	assert(section);
 	assert(name && *name);
 
 	if ((entry = malloc(sizeof(*entry)))) {
-		script_entry_append(script, &entry->entry,
+		script_entry_append(section, &entry->entry,
 				    SCRIPT_VALUE_TYPE_NULL, name);
 	}
 
 	return entry;
 }
 
-struct script_single_entry *script_single_entry_append(struct script *script,
-						       const char *name,
-						       uint32_t value)
+struct script_single_entry *script_single_entry_new(struct script_section *section,
+						    const char *name,
+						    uint32_t value)
 {
 	struct script_single_entry *entry;
 
-	assert(script);
-	assert(!list_empty(&script->sections));
+	assert(section);
 	assert(name && *name);
 
 	if ((entry = malloc(sizeof(*entry)))) {
 		entry->value = value;
 
-		script_entry_append(script, &entry->entry,
+		script_entry_append(section, &entry->entry,
 				    SCRIPT_VALUE_TYPE_SINGLE_WORD, name);
 	}
 
 	return entry;
 }
 
-struct script_string_entry *script_string_entry_append(struct script *script,
+struct script_string_entry *script_string_entry_new(struct script_section *section,
 						       const char *name,
 						       size_t l, const char *s)
 {
 	struct script_string_entry *entry;
 
-	assert(script);
-	assert(!list_empty(&script->sections));
+	assert(section);
 	assert(name);
 	assert(s);
 
@@ -205,22 +197,21 @@ struct script_string_entry *script_string_entry_append(struct script *script,
 		memcpy(entry->string, s, l);
 		entry->string[l] = '\0';
 
-		script_entry_append(script, &entry->entry,
+		script_entry_append(section, &entry->entry,
 				    SCRIPT_VALUE_TYPE_STRING, name);
 	}
 
 	return entry;
 }
 
-struct script_gpio_entry *script_gpio_entry_append(struct script *script,
-						   const char *name,
-						   unsigned port, unsigned num,
-						   unsigned data[4])
+struct script_gpio_entry *script_gpio_entry_new(struct script_section *section,
+						const char *name,
+						unsigned port, unsigned num,
+						unsigned data[4])
 {
 	struct script_gpio_entry *entry;
 
-	assert(script);
-	assert(!list_empty(&script->sections));
+	assert(section);
 	assert(name && *name);
 
 	if ((entry = malloc(sizeof(*entry)))) {
@@ -229,7 +220,7 @@ struct script_gpio_entry *script_gpio_entry_append(struct script *script,
 		for (int i=0; i<4; i++)
 			entry->data[i] = data[i];
 
-		script_entry_append(script, &entry->entry,
+		script_entry_append(section, &entry->entry,
 				    SCRIPT_VALUE_TYPE_GPIO, name);
 	}
 
