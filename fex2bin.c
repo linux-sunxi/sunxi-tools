@@ -152,6 +152,8 @@ int main(int argc, char *argv[])
 	const char *fn[] = {"stdin", "stdout"};
 	struct script *script;
 
+	errf("WARNING: this tool is still not functional, sorry\n");
+
 	if (argc>1) {
 		if (strcmp(argv[1],"-") == 0)
 			; /* we are using stdin anyway */
