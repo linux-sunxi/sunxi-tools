@@ -124,8 +124,12 @@ static int parse_fex(FILE *in, const char *filename, struct script *script)
 			} else if (pe > p+1 && *p == '"' && pe[-1] == '"') {
 				/* string */
 				p++; *--pe = '\0';
-				if (script_string_entry_new(last_section, key, pe-p, p))
+				if (script_string_entry_new(last_section, key, pe-p, p)) {
+					errf("%s.%s = \"%.*s\"\n",
+					     last_section->name, key,
+					     (int)(pe-p), p);
 					continue;
+				}
 
 				perror("malloc");
 			} else if (memcmp("port:P", p, 6) == 0) {
@@ -165,6 +169,8 @@ static int parse_fex(FILE *in, const char *filename, struct script *script)
 					errf("E: %s:%zu: value out of range %lld.\n",
 					     filename, line, v);
 				} else if (script_single_entry_new(last_section, key, v)) {
+					errf("%s.%s = %lld\n",
+					     last_section->name, key, v);
 					continue;
 				}
 			} else {
