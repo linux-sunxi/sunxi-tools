@@ -131,9 +131,29 @@ static int parse_fex(FILE *in, const char *filename, struct script *script)
 			} else if (memcmp("port:P", p, 6) == 0) {
 				/* GPIO */
 				p += 6;
-				errf("I: key:%s GPIO:%s (%zu)\n",
-				     key, p, pe-p);
-				continue;
+				if (*p < 'A' || *p > 'Z')
+					;
+				else {
+					char *end;
+					int port = *p++ - 'A';
+					long port_num = strtol(p, &end, 10);
+					if (end == p)
+						;
+					else if (port_num<0 || port_num>255) {
+						errf("E: %s:%zu: port out of range at %zu.\n",
+						     filename, line, p-buffer+1);
+						ok = 0;
+						break;
+					} else {
+						p = end;
+						errf("%s.%s = GPIO %d.%ld (%s)\n",
+						     last_section->name, key,
+						     port, port_num, p);
+						continue;
+					}
+				}
+				errf("E: %s:%zu: invalid character at %zu.\n",
+				     filename, line, p-buffer+1);
 			} else if (isdigit(*p)) {
 				long long v = 0;
 				char *end;
