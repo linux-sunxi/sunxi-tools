@@ -126,7 +126,6 @@ static int parse_fex(FILE *in, const char *filename, struct script *script)
 					     (int)(pe-p), p);
 					continue;
 				}
-
 				perror("malloc");
 			} else if (memcmp("port:P", p, 6) == 0) {
 				/* GPIO */
@@ -136,19 +135,50 @@ static int parse_fex(FILE *in, const char *filename, struct script *script)
 				else {
 					char *end;
 					int port = *p++ - 'A';
-					long port_num = strtol(p, &end, 10);
+					long v = strtol(p, &end, 10);
 					if (end == p)
-						;
-					else if (port_num<0 || port_num>255) {
-						errf("E: %s:%zu: port out of range at %zu.\n",
-						     filename, line, p-buffer+1);
+						goto invalid_char_at_p;
+					else if (v<0 || v>255) {
+						errf("E: %s:%zu: port out of range at %zu (%ld).\n",
+						     filename, line, p-buffer+1, v);
 						goto parse_error;
 					} else {
+						int data[] = {-1,-1,-1,-1};
+						int port_num = v;
 						p = end;
-						errf("%s.%s = GPIO %d.%ld (%s)\n",
-						     last_section->name, key,
-						     port, port_num, p);
-						continue;
+						for (int i=0; *p && i<4; i++) {
+							if (memcmp(p, "<default>", 9) == 0) {
+								p += 9;
+								continue;
+							} else if (*p == '<') {
+								v = strtol(++p, &end, 10);
+								if (end == p) {
+									;
+								} else if (v<0 || v>INT32_MAX) {
+									errf("E: %s:%zu: value out of range at %zu (%ld).\n",
+									     filename, line, p-buffer+1, v);
+									goto parse_error;
+								} else if (*end != '>') {
+									p = end;
+								} else {
+									p = end+1;
+									data[i] = v;
+									continue;
+								}
+							}
+							break;
+						}
+						if (*p)
+							goto invalid_char_at_p;
+						if (script_gpio_entry_new(last_section, key,
+									  port, port_num, data)) {
+							errf("%s.%s = GPIO %d.%d (%d,%d,%d,%d)\n",
+							     last_section->name, key,
+							     port, port_num,
+							     data[0], data[1], data[2], data[3]);
+							continue;
+						}
+						perror("malloc");
 					}
 				}
 			} else if (isdigit(*p)) {
@@ -157,17 +187,17 @@ static int parse_fex(FILE *in, const char *filename, struct script *script)
 				v = strtoll(p, &end, 0);
 				p = end;
 				if (p != pe) {
-					;
+					goto invalid_char_at_p;
 				} else if (v > UINT32_MAX) {
 					errf("E: %s:%zu: value out of range %lld.\n",
 					     filename, line, v);
-					goto parse_error;
 				} else if (script_single_entry_new(last_section, key, v)) {
 					errf("%s.%s = %lld\n",
 					     last_section->name, key, v);
 					continue;
 				}
 			}
+			goto parse_error;
 invalid_char_at_p:
 			errf("E: %s:%zu: invalid character at %zu.\n",
 			     filename, line, p-buffer+1);
