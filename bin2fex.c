@@ -26,7 +26,11 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 
-#define pr_info(F, ...)	fprintf(out, "; bin2fex: " F, __VA_ARGS__)
+#define pr_info(F, ...)	do { \
+	fprintf(stderr, "bin2fex: " F, __VA_ARGS__); \
+	fprintf(out, "; bin2fex: " F, __VA_ARGS__); \
+	} while(0)
+
 #define pr_err(F, ...)	pr_info("ERROR: " F, __VA_ARGS__)
 
 #define PTR(B, OFF)	(void*)((char*)(B)+(OFF))
