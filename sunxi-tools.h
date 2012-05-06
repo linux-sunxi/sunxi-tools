@@ -47,13 +47,20 @@ static inline void list_init(struct list_entry *self)
 	self->prev = self->next = self;
 }
 
-/** appends a list hook @l1 at the end of the list @l0 */
-static inline void list_append(struct list_entry *l0, struct list_entry *l1)
+/** puts an entry between two other on a list */
+static inline void list_inject(struct list_entry *l,
+			       struct list_entry *prev,
+			       struct list_entry *next)
 {
-	l1->next = l0;
-	l1->prev = l0->prev;
-	l0->prev = l1;
+	l->prev = prev;
+	l->next = next;
+
+	next->prev = l;
+	prev->next = l;
 }
+
+#define list_insert(H, E)	list_inject((E), (H), (H)->next)
+#define list_append(H, E)	list_inject((E), (H)->prev, (H))
 
 /** removes an entry for the list where it's contained */
 static inline void list_remove(struct list_entry *l)
@@ -63,16 +70,23 @@ static inline void list_remove(struct list_entry *l)
 	prev->next = next;
 }
 
+/** returns first element of a list */
+static inline struct list_entry *list_first(struct list_entry *l)
+{
+	return (l->next == l) ? NULL : l->next;
+}
+
 /** returns last element of a list */
 static inline struct list_entry *list_last(struct list_entry *l)
 {
 	return (l->prev == l) ? NULL : l->prev;
 }
 
-/** returns first element of a list */
-static inline struct list_entry *list_first(struct list_entry *l)
+/** returns next element on a list */
+static inline struct list_entry *list_next(struct list_entry *l,
+					   struct list_entry *e)
 {
-	return (l->next == l) ? NULL : l->next;
+	return (e->next == l) ? NULL : e->next;
 }
 
 /** is list empty? */
