@@ -52,8 +52,8 @@ void script_delete(struct script *script)
 
 /*
  */
-struct script_section *script_section_append(struct script *script,
-					     const char *name)
+struct script_section *script_section_new(struct script *script,
+					  const char *name)
 {
 	struct script_section *section;
 

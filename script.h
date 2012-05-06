@@ -81,8 +81,8 @@ struct script *script_new(void);
 void script_delete(struct script *);
 
 /** create a new section appended to a given tree */
-struct script_section *script_section_append(struct script *script,
-					     const char *name);
+struct script_section *script_section_new(struct script *script,
+					  const char *name);
 /** deletes a section recursvely and removes it from the script */
 void script_section_delete(struct script_section *section);
 
