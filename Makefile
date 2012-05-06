@@ -14,6 +14,7 @@ clean:
 $(TOOLS): Makefile sunxi-tools.h
 
 fex2bin: script.c script.h
+bin2fex: script.h
 
 %: %.c %.h
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(filter %.c,$^) $(LIBS)

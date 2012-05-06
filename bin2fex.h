@@ -18,39 +18,6 @@
 #define _SUNXI_TOOLS_BIN2FEX_H
 
 #include <stdint.h>
+#include "script.h"
 
-struct script_bin_section {
-	char name[32];
-	int32_t length;
-	int32_t offset;
-};
-
-struct script_bin_head {
-	int32_t sections;
-	int32_t version[3];
-	struct script_bin_section section[];
-};
-
-struct script_bin_entry {
-	char name[32];
-	int32_t offset;
-	int32_t pattern;
-};
-
-struct script_bin_gpio_value {
-	int32_t port;
-	int32_t port_num;
-	int32_t mul_sel;
-	int32_t pull;
-	int32_t drv_level;
-	int32_t data;
-};
-
-enum script_value_type {
-	SCRIPT_VALUE_TYPE_SINGLE_WORD = 1,
-	SCRIPT_VALUE_TYPE_STRING,
-	SCRIPT_VALUE_TYPE_MULTI_WORD,
-	SCRIPT_VALUE_TYPE_GPIO,
-	SCRIPT_VALUE_TYPE_NULL,
-};
 #endif
