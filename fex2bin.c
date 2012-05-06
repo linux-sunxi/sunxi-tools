@@ -121,9 +121,11 @@ static int parse_fex(FILE *in, const char *filename, struct script *script)
 				/* string */
 				p++; *--pe = '\0';
 				if (script_string_entry_new(last_section, key, pe-p, p)) {
+#ifdef VERBOSE
 					errf("%s.%s = \"%.*s\"\n",
 					     last_section->name, key,
 					     (int)(pe-p), p);
+#endif
 					continue;
 				}
 				perror("malloc");
@@ -141,7 +143,6 @@ static int parse_fex(FILE *in, const char *filename, struct script *script)
 					else if (v<0 || v>255) {
 						errf("E: %s:%zu: port out of range at %zu (%ld).\n",
 						     filename, line, p-buffer+1, v);
-						goto parse_error;
 					} else {
 						int data[] = {-1,-1,-1,-1};
 						int port_num = v;
@@ -172,10 +173,12 @@ static int parse_fex(FILE *in, const char *filename, struct script *script)
 							goto invalid_char_at_p;
 						if (script_gpio_entry_new(last_section, key,
 									  port, port_num, data)) {
+#ifdef VERBOSE
 							errf("%s.%s = GPIO %d.%d (%d,%d,%d,%d)\n",
 							     last_section->name, key,
 							     port, port_num,
 							     data[0], data[1], data[2], data[3]);
+#endif
 							continue;
 						}
 						perror("malloc");
@@ -192,8 +195,10 @@ static int parse_fex(FILE *in, const char *filename, struct script *script)
 					errf("E: %s:%zu: value out of range %lld.\n",
 					     filename, line, v);
 				} else if (script_single_entry_new(last_section, key, v)) {
+#ifdef VERBOSE
 					errf("%s.%s = %lld\n",
 					     last_section->name, key, v);
+#endif
 					continue;
 				}
 			}
