@@ -44,6 +44,63 @@ static inline char *rtrim(const char *s, char *p)
 	return p;
 }
 
+#define WORDS(S)	(((S)+(sizeof(uint32_t)-1))/(sizeof(uint32_t)))
+/**
+ */
+static int generate_bin(FILE *UNUSED(out), const char *UNUSED(filename),
+			struct script *script)
+{
+	size_t sections = 0, entries = 0, words = 0;
+	struct list_entry *ls, *le;
+	struct script_section *section;
+	struct script_entry *entry;
+	struct script_string_entry *string;
+
+	/* count */
+	for (ls = list_first(&script->sections); ls;
+	     ls = list_next(&script->sections, ls)) {
+		section = container_of(ls, struct script_section, sections);
+		size_t c = 0;
+
+		for (le = list_first(&section->entries); le;
+		     le = list_next(&section->entries, le)) {
+			size_t size = 0;
+			entry = container_of(le, struct script_entry, entries);
+			c++;
+
+			switch(entry->type) {
+			case SCRIPT_VALUE_TYPE_NULL:
+			case SCRIPT_VALUE_TYPE_SINGLE_WORD:
+				size = sizeof(uint32_t);
+				break;
+			case SCRIPT_VALUE_TYPE_STRING:
+				string = container_of(entry, struct script_string_entry,
+						      entry);
+				size = string->l;
+				break;
+			case SCRIPT_VALUE_TYPE_GPIO:
+				size = sizeof(struct script_bin_gpio_value);
+				break;
+			default:
+				abort();
+			}
+			words += WORDS(size);
+		}
+		if (c>0) {
+			sections++;
+			entries += c;
+		}
+	}
+
+	errf("sections:%zu entries:%zu data:%zu/%zu -> %zu\n", sections, entries,
+	     words, words*sizeof(uint32_t),
+	     sizeof(struct script_bin_head) +
+	     sections*sizeof(struct script_bin_section) +
+	     entries*sizeof(struct script_bin_entry) +
+	     words*sizeof(uint32_t));
+	return 0;
+}
+
 /**
  */
 static int parse_fex(FILE *in, const char *filename, struct script *script)
@@ -251,9 +308,10 @@ int main(int argc, char *argv[])
 		goto done;
 	}
 
-	if (parse_fex(in, fn[0], script)) {
+	if (parse_fex(in, fn[0], script) &&
+	    generate_bin(out, fn[1], script))
 		ret = 0;
-	}
+
 	script_delete(script);
 	goto done;
 usage:
