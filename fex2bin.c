@@ -46,11 +46,11 @@ static inline char *rtrim(const char *s, char *p)
 
 /**
  */
-static int parse_fex(FILE *in, const char *filename,
-		     struct script *UNUSED(script))
+static int parse_fex(FILE *in, const char *filename, struct script *script)
 {
 	char buffer[MAX_LINE+1];
 	int ok = 1;
+	struct script_section *last_section = NULL;
 
 	/* TODO: deal with longer lines correctly (specially in comments) */
 	for(size_t line = 1; fgets(buffer, sizeof(buffer), in); line++) {
@@ -71,7 +71,7 @@ static int parse_fex(FILE *in, const char *filename,
 		pe = rtrim(s, pe);
 
 		if (pe == s || *s == ';' || *s == '#')
-			; /* empty */
+			continue; /* empty */
 		else if (*s == '[') {
 			/* section */
 			char *p = ++s;
@@ -80,16 +80,28 @@ static int parse_fex(FILE *in, const char *filename,
 
 			if (*p == ']' && *(p+1) == '\0') {
 				*p = '\0';
-				fprintf(stdout, "[%s]\n", s);
+				if ((last_section = script_section_new(script, s)))
+					continue;
+
+				perror("malloc");
 			} else if (*p) {
 				errf("E: %s:%zu: invalid character at %zu.\n",
 				     filename, line, p-buffer+1);
-				goto parse_error;
+			} else {
+				errf("E: %s:%zu: incomplete section declaration.\n",
+				     filename, line);
 			}
 		} else {
 			/* key = value */
 			const char *key = s;
 			char *mark, *p = s;
+
+			if (!last_section) {
+				errf("E: %s:%zu: data must follow a section.\n",
+				     filename, line);
+				ok = 0;
+				break;
+			};
 
 			while (isalnum(*p) || *p == '_')
 				p++;
@@ -98,23 +110,30 @@ static int parse_fex(FILE *in, const char *filename,
 			if (*p != '=') {
 				errf("E: %s:%zu: invalid character at %zu.\n",
 				     filename, line, p-buffer+1);
-				goto parse_error;
+				ok = 0;
+				break;
 			}
 			*mark = '\0'; /* truncate key */
 			p = skip_blank(p+1);
 
 			if (*p == '\0') {
 				/* NULL */
-				fprintf(stdout, "%s = NULL\n", key);
+				if (script_null_entry_new(last_section, key))
+					continue;
+				perror("malloc");
 			} else if (pe > p+1 && *p == '"' && pe[-1] == '"') {
 				/* string */
 				p++; *--pe = '\0';
-				fprintf(stdout, "%s = \"%s\"\n", key, p);
+				if (script_string_entry_new(last_section, key, pe-p, p))
+					continue;
+
+				perror("malloc");
 			} else if (memcmp("port:P", p, 6) == 0) {
 				/* GPIO */
 				p += 6;
 				errf("I: key:%s GPIO:%s (%zu)\n",
 				     key, p, pe-p);
+				continue;
 			} else if (isdigit(*p)) {
 				long long v = 0;
 				char *end;
@@ -122,12 +141,12 @@ static int parse_fex(FILE *in, const char *filename,
 				if (end != pe) {
 					errf("E: %s:%zu: invalid character at %zu.\n",
 					     filename, line, end-buffer+1);
-					goto parse_error;
 				} else if (v > UINT32_MAX) {
 					errf("E: %s:%zu: value out of range %lld.\n",
 					     filename, line, v);
+				} else if (script_single_entry_new(last_section, key, v)) {
+					continue;
 				}
-				fprintf(stdout, "%s = %llu\n", key, v);
 			} else {
 				errf("E: %s:%zu: invalid character at %zu.\n",
 				     filename, line, p-buffer+1);
@@ -136,10 +155,8 @@ static int parse_fex(FILE *in, const char *filename,
 		}
 	};
 
-	if (ferror(in)) {
-parse_error:
+	if (ferror(in))
 		ok = 0;
-	}
 	return ok;
 }
 
