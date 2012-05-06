@@ -19,24 +19,24 @@
 
 #include <stdint.h>
 
-struct script_head {
+struct script_bin_head {
 	int32_t sections;
 	int32_t version[3];
 };
 
-struct script_section {
+struct script_bin_section {
 	char name[32];
 	int32_t length;
 	int32_t offset;
 };
 
-struct script_section_entry {
+struct script_bin_entry {
 	char name[32];
 	int32_t offset;
 	int32_t pattern;
 };
 
-struct script_gpio_value {
+struct script_bin_gpio_value {
 	int32_t port;
 	int32_t port_num;
 	int32_t mul_sel;

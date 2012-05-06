@@ -57,9 +57,9 @@ static int find_full_match(const char *s, size_t l, const char **list)
 
 /**
  */
-static inline int decompile_gpio(struct script_section *section,
-				 struct script_section_entry *entry,
-				 struct script_gpio_value *gpio,
+static inline int decompile_gpio(struct script_bin_section *section,
+				 struct script_bin_entry *entry,
+				 struct script_bin_gpio_value *gpio,
 				 int length, FILE *out)
 {
 	int ok = 1;
@@ -110,8 +110,8 @@ static int decompile_single_mode(const char *name)
 	else
 		return -1;
 }
-static inline int decompile_single(struct script_section *section,
-				   struct script_section_entry *entry,
+static inline int decompile_single(struct script_bin_section *section,
+				   struct script_bin_entry *entry,
 				   int32_t *d,
 				   int length, FILE *out)
 {
@@ -142,10 +142,10 @@ static inline int decompile_single(struct script_section *section,
 /**
  */
 static int decompile_section(void *bin, size_t UNUSED(bin_size),
-			     struct script_section *section,
+			     struct script_bin_section *section,
 			     FILE *out)
 {
-	struct script_section_entry *entry = PTR(bin,  section->offset<<2);
+	struct script_bin_entry *entry = PTR(bin,  section->offset<<2);
 	int ok = 1;
 
 	fprintf(out, "[%s]\n", section->name);
@@ -195,8 +195,8 @@ static int decompile(void *bin, size_t bin_size, FILE *out)
 {
 	int i;
 	struct {
-		struct script_head head;
-		struct script_section sections[];
+		struct script_bin_head head;
+		struct script_bin_section sections[];
 	} *script = bin;
 
 	pr_info("version: %d.%d.%d\n", script->head.version[0],
@@ -206,7 +206,7 @@ static int decompile(void *bin, size_t bin_size, FILE *out)
 
 	/* TODO: SANITY: compare head.sections with bin_size */
 	for (i=0; i < script->head.sections; i++) {
-		struct script_section *section = &script->sections[i];
+		struct script_bin_section *section = &script->sections[i];
 
 		if (!decompile_section(bin, bin_size, section, out))
 			return 1; /* failure */
