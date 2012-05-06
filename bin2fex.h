@@ -19,15 +19,16 @@
 
 #include <stdint.h>
 
-struct script_bin_head {
-	int32_t sections;
-	int32_t version[3];
-};
-
 struct script_bin_section {
 	char name[32];
 	int32_t length;
 	int32_t offset;
+};
+
+struct script_bin_head {
+	int32_t sections;
+	int32_t version[3];
+	struct script_bin_section section[];
 };
 
 struct script_bin_entry {

@@ -194,19 +194,16 @@ static int decompile_section(void *bin, size_t UNUSED(bin_size),
 static int decompile(void *bin, size_t bin_size, FILE *out)
 {
 	int i;
-	struct {
-		struct script_bin_head head;
-		struct script_bin_section sections[];
-	} *script = bin;
+	struct script_bin_head *script = bin;
 
-	pr_info("version: %d.%d.%d\n", script->head.version[0],
-		script->head.version[1], script->head.version[2]);
+	pr_info("version: %d.%d.%d\n", script->version[0],
+		script->version[1], script->version[2]);
 	pr_info("size: %zu (%d sections)\n", bin_size,
-		script->head.sections);
+		script->sections);
 
 	/* TODO: SANITY: compare head.sections with bin_size */
-	for (i=0; i < script->head.sections; i++) {
-		struct script_bin_section *section = &script->sections[i];
+	for (i=0; i < script->sections; i++) {
+		struct script_bin_section *section = &script->section[i];
 
 		if (!decompile_section(bin, bin_size, section, out))
 			return 1; /* failure */
