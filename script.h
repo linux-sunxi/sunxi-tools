@@ -72,7 +72,7 @@ struct script_gpio_entry {
 	struct script_entry entry;
 
 	unsigned port, port_num;
-	unsigned data[4];
+	int32_t data[4];
 };
 
 /** create a new script tree */
@@ -104,6 +104,6 @@ struct script_string_entry *script_string_entry_new(struct script_section *secti
 struct script_gpio_entry *script_gpio_entry_new(struct script_section *script,
 						const char *name,
 						unsigned port, unsigned num,
-						unsigned data[4]);
+						int32_t data[4]);
 
 #endif

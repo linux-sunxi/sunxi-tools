@@ -207,7 +207,7 @@ struct script_string_entry *script_string_entry_new(struct script_section *secti
 struct script_gpio_entry *script_gpio_entry_new(struct script_section *section,
 						const char *name,
 						unsigned port, unsigned num,
-						unsigned data[4])
+						int32_t data[4])
 {
 	struct script_gpio_entry *entry;
 
