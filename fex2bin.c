@@ -144,7 +144,7 @@ static int parse_fex(FILE *in, const char *filename, struct script *script)
 					;
 				else {
 					char *end;
-					int port = *p++ - 'A';
+					int port = *p++ - 'A' + 1;
 					long v = strtol(p, &end, 10);
 					if (end == p)
 						goto invalid_char_at_p;
