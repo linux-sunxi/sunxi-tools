@@ -88,9 +88,37 @@ size_t calculate_bin_size(struct script *script,
 	return bin_size;
 }
 
-int generate_bin(void *bin, size_t bin_size, struct script *script,
+int generate_bin(void *bin, size_t UNUSED(bin_size), struct script *script,
 		 size_t sections, size_t entries)
 {
+	struct script_bin_head *head;
+	struct script_bin_section *section;
+	struct script_bin_entry *entry;
+	void *data;
+
+	struct list_entry *ls, *le;
+
 	pr_err("bin generation not yet implemented\n");
+
+	head = bin;
+	section = head->section;
+	entry = (void*)section+sections*sizeof(*section);
+	data = (void*)entry+entries*sizeof(*entry);
+
+	pr_info("head....:%p\n", head);
+	pr_info("section.:%p (offset:%zu, each:%zu)\n", section,
+		(void*)section-bin,
+		sizeof(*section));
+	pr_info("entry...:%p (offset:%zu, each:%zu)\n", entry,
+		(void*)entry-bin,
+		sizeof(*entry));
+	pr_info("data....:%p (offset:%zu)\n", data,
+		(void*)data-bin);
+
+	head->sections = sections;
+	head->version[0] = 0;
+	head->version[1] = 1;
+	head->version[2] = 2;
+
 	return 0;
 }
