@@ -87,4 +87,10 @@ size_t calculate_bin_size(struct script *script,
 		bin_size);
 	return bin_size;
 }
-#undef WORDS
+
+int generate_bin(void *bin, size_t bin_size, struct script *script,
+		 size_t sections, size_t entries)
+{
+	pr_err("bin generation not yet implemented\n");
+	return 0;
+}

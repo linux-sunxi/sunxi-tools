@@ -234,8 +234,6 @@ int main(int argc, char *argv[])
 	const char *fn[] = {"stdin", "stdout"};
 	struct script *script;
 
-	pr_info("WARNING: this tool is still not functional, sorry\n");
-
 	if (argc>1) {
 		if (strcmp(argv[1],"-") == 0)
 			; /* we are using stdin anyway */
@@ -262,11 +260,29 @@ int main(int argc, char *argv[])
 
 	if (parse_fex(in, fn[0], script)) {
 		size_t sections, entries, bin_size;
+		void *bin;
 
 		bin_size = calculate_bin_size(script, &sections, &entries);
-		ret = 0;
+		bin = calloc(1, bin_size);
+		if (!bin)
+			perror("malloc");
+		else if (generate_bin(bin, bin_size, script, sections, entries)) {
 
-		(void)bin_size;
+			while(bin_size) {
+				ssize_t wc = write(out, bin, bin_size);
+
+				if (wc>0) {
+					bin += wc;
+					bin_size -= wc;
+				} else if (wc < 0 && errno != EINTR) {
+					pr_err("%s: write: %s\n", fn[2],
+					       strerror(errno));
+					break;
+				}
+			}
+			if (bin_size == 0)
+				ret = 0;
+		}
 	}
 
 	script_delete(script);
