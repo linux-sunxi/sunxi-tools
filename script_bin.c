@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "script.h"
 #include "script_bin.h"
@@ -82,9 +83,11 @@ size_t calculate_bin_size(struct script *script,
 		(*sections)*sizeof(struct script_bin_section) +
 		(*entries)*sizeof(struct script_bin_entry) +
 		words*sizeof(uint32_t);
+#ifdef VERBOSE
 	pr_info("sections:%zu entries:%zu data:%zu/%zu -> %zu\n",
 		*sections, *entries, words, words*sizeof(uint32_t),
 		bin_size);
+#endif
 	return bin_size;
 }
 
@@ -98,13 +101,12 @@ int generate_bin(void *bin, size_t UNUSED(bin_size), struct script *script,
 
 	struct list_entry *ls, *le;
 
-	pr_err("bin generation not yet implemented\n");
-
 	head = bin;
 	section = head->section;
 	entry = (void*)section+sections*sizeof(*section);
 	data = (void*)entry+entries*sizeof(*entry);
 
+#ifdef VERBOSE
 	pr_info("head....:%p\n", head);
 	pr_info("section.:%p (offset:%zu, each:%zu)\n", section,
 		(void*)section-bin,
@@ -114,11 +116,94 @@ int generate_bin(void *bin, size_t UNUSED(bin_size), struct script *script,
 		sizeof(*entry));
 	pr_info("data....:%p (offset:%zu)\n", data,
 		(void*)data-bin);
+#endif
 
 	head->sections = sections;
 	head->version[0] = 0;
 	head->version[1] = 1;
 	head->version[2] = 2;
 
-	return 0;
+	for (ls = list_first(&script->sections); ls;
+	     ls = list_next(&script->sections, ls)) {
+		struct script_section *s;
+		size_t c = 0;
+		s = container_of(ls, struct script_section, sections);
+
+		/* skip empty sections */
+		if (list_empty(&s->entries))
+			continue;
+		memcpy(section->name, s->name, strlen(s->name));
+		section->offset = ((void*)entry-bin)>>2;
+
+		for (le = list_first(&s->entries); le;
+		     le = list_next(&s->entries, le)) {
+			struct script_entry *e;
+			e = container_of(le, struct script_entry, entries);
+			size_t size = 0;
+
+			memcpy(entry->name, e->name, strlen(e->name));
+			entry->offset = ((void*)data-bin)>>2;
+			entry->pattern = (e->type<<16);
+
+			switch(e->type) {
+			case SCRIPT_VALUE_TYPE_SINGLE_WORD: {
+				struct script_single_entry *single;
+				int32_t *bdata = data;
+				single = container_of(e, struct script_single_entry, entry);
+
+				*bdata = single->value;
+				size = sizeof(*bdata);
+				}; break;
+			case SCRIPT_VALUE_TYPE_STRING: {
+				struct script_string_entry *string;
+				string = container_of(e, struct script_string_entry, entry);
+				size = string->l;
+				memcpy(data, string->string, size);
+				/* align */
+				size += sizeof(uint32_t)-1;
+				size /= sizeof(uint32_t);
+				size *= sizeof(uint32_t);
+				}; break;
+			case SCRIPT_VALUE_TYPE_MULTI_WORD:
+				abort();
+			case SCRIPT_VALUE_TYPE_GPIO: {
+				struct script_gpio_entry *gpio;
+				struct script_bin_gpio_value *bdata = data;
+				gpio = container_of(e, struct script_gpio_entry, entry);
+				bdata->port = gpio->port;
+				bdata->port_num = gpio->port_num;
+				bdata->mul_sel = gpio->data[0];
+				bdata->pull = gpio->data[1];
+				bdata->drv_level = gpio->data[2];
+				bdata->data = gpio->data[3];
+				size = sizeof(*bdata);
+				}; break;
+			case SCRIPT_VALUE_TYPE_NULL:
+				size = sizeof(uint32_t);
+				break;
+			}
+
+			data += size;
+			entry->pattern |= (size>>2);
+#ifdef VERBOSE
+			pr_info("%s.%s <%p> (type:%d, words:%d (%zu), offset:%d)\n",
+				section->name, entry->name,
+				entry,
+				(entry->pattern>>16) & 0xffff,
+				(entry->pattern>>0) & 0xffff, size,
+				entry->offset);
+#endif
+			c++;
+			entry++;
+		}
+
+		section->length = c;
+#ifdef VERBOSE
+		pr_info("%s <%p> (length:%d, offset:%d)\n",
+			section->name, section, section->length, section->offset);
+#endif
+
+		section++;
+	}
+	return 1;
 }
