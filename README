@@ -1,0 +1,14 @@
+sunxi-tools
+Tools to help hacking Allwinner A10 (aka sun4i) based devices and possibly
+it's successors, that's why the 'x' in the package name.
+
+bin2fex:
+	decompiles an script.bin blob into the .ini format used by
+	allwinner's SDK to configure the boards.
+
+fex2bin:
+	compiles a .fex file back into the binary form used by the sun4i
+	kernels.
+
+This software is licensed under the terms of GPLv3 as defined by the
+Free Software Foundation, details can be read in the COPYING file.
