@@ -22,6 +22,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <fcntl.h>
 
 #include "script_bin.h"
 
@@ -226,7 +229,8 @@ parse_error:
 int main(int argc, char *argv[])
 {
 	int ret = 1;
-	FILE *in = stdin, *out = stdout;
+	FILE *in = stdin;
+	int out = 1;
 	const char *fn[] = {"stdin", "stdout"};
 	struct script *script;
 
@@ -244,7 +248,7 @@ int main(int argc, char *argv[])
 		if (argc>2) {
 			fn[1] = argv[2];
 
-			if ((out = fopen(fn[1], "w")) == NULL) {
+			if ((out = open(fn[1], O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0) {
 				errf("%s: %s\n", fn[1], strerror(errno));
 				goto usage;
 			}
@@ -272,6 +276,6 @@ usage:
 
 done:
 	if (in && in != stdin) fclose(in);
-	if (out && out != stdout) fclose(out);
+	if (out > 2) close(out);
 	return ret;
 }
