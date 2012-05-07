@@ -13,7 +13,7 @@ clean:
 
 $(TOOLS): Makefile sunxi-tools.h
 
-fex2bin: script.c script.h
+fex2bin: script.c script.h script_bin.h script_bin.c
 bin2fex: script.h
 
 %: %.c %.h

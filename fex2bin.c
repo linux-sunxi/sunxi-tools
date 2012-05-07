@@ -23,7 +23,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "script_bin.h"
+
 #define MAX_LINE	255
+
+#define pr_info(...)	fprintf(stderr, "fex2bin: " __VA_ARGS__)
+#define pr_err(...)	pr_info("E: " __VA_ARGS__)
 
 /** find first not blank char */
 static inline char *skip_blank(char *p)
@@ -42,63 +47,6 @@ static inline char *rtrim(const char *s, char *p)
 		*++p='\0';
 	}
 	return p;
-}
-
-#define WORDS(S)	(((S)+(sizeof(uint32_t)-1))/(sizeof(uint32_t)))
-/**
- */
-static int generate_bin(FILE *UNUSED(out), const char *UNUSED(filename),
-			struct script *script)
-{
-	size_t sections = 0, entries = 0, words = 0;
-	struct list_entry *ls, *le;
-	struct script_section *section;
-	struct script_entry *entry;
-	struct script_string_entry *string;
-
-	/* count */
-	for (ls = list_first(&script->sections); ls;
-	     ls = list_next(&script->sections, ls)) {
-		section = container_of(ls, struct script_section, sections);
-		size_t c = 0;
-
-		for (le = list_first(&section->entries); le;
-		     le = list_next(&section->entries, le)) {
-			size_t size = 0;
-			entry = container_of(le, struct script_entry, entries);
-			c++;
-
-			switch(entry->type) {
-			case SCRIPT_VALUE_TYPE_NULL:
-			case SCRIPT_VALUE_TYPE_SINGLE_WORD:
-				size = sizeof(uint32_t);
-				break;
-			case SCRIPT_VALUE_TYPE_STRING:
-				string = container_of(entry, struct script_string_entry,
-						      entry);
-				size = string->l;
-				break;
-			case SCRIPT_VALUE_TYPE_GPIO:
-				size = sizeof(struct script_bin_gpio_value);
-				break;
-			default:
-				abort();
-			}
-			words += WORDS(size);
-		}
-		if (c>0) {
-			sections++;
-			entries += c;
-		}
-	}
-
-	errf("sections:%zu entries:%zu data:%zu/%zu -> %zu\n", sections, entries,
-	     words, words*sizeof(uint32_t),
-	     sizeof(struct script_bin_head) +
-	     sections*sizeof(struct script_bin_section) +
-	     entries*sizeof(struct script_bin_entry) +
-	     words*sizeof(uint32_t));
-	return 0;
 }
 
 /**
@@ -277,12 +225,12 @@ parse_error:
  */
 int main(int argc, char *argv[])
 {
-	int ret = -1;
+	int ret = 1;
 	FILE *in = stdin, *out = stdout;
 	const char *fn[] = {"stdin", "stdout"};
 	struct script *script;
 
-	errf("WARNING: this tool is still not functional, sorry\n");
+	pr_info("WARNING: this tool is still not functional, sorry\n");
 
 	if (argc>1) {
 		if (strcmp(argv[1],"-") == 0)
@@ -308,9 +256,14 @@ int main(int argc, char *argv[])
 		goto done;
 	}
 
-	if (parse_fex(in, fn[0], script) &&
-	    generate_bin(out, fn[1], script))
+	if (parse_fex(in, fn[0], script)) {
+		size_t sections, entries, bin_size;
+
+		bin_size = calculate_bin_size(script, &sections, &entries);
 		ret = 0;
+
+		(void)bin_size;
+	}
 
 	script_delete(script);
 	goto done;
