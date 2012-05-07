@@ -64,14 +64,14 @@ static int find_full_match(const char *s, size_t l, const char **list)
 static inline int decompile_gpio(struct script_bin_section *section,
 				 struct script_bin_entry *entry,
 				 struct script_bin_gpio_value *gpio,
-				 int length, FILE *out)
+				 int words, FILE *out)
 {
 	int ok = 1;
 	char port = '?';
 
-	if (length != 6) {
+	if (words != 6) {
 		pr_err("%s.%s: invalid length %d (assuming %d)\n",
-		       section->name, entry->name, length, 6);
+		       section->name, entry->name, words, 6);
 		ok = 0;
 	}
 
@@ -117,14 +117,14 @@ static int decompile_single_mode(const char *name)
 static inline int decompile_single(struct script_bin_section *section,
 				   struct script_bin_entry *entry,
 				   int32_t *d,
-				   int length, FILE *out)
+				   int words, FILE *out)
 {
 	int ok = 1;
 	int mode;
 
-	if (length != 1) {
+	if (words != 1) {
 		pr_err("%s.%s: invalid length %d (assuming %d)\n",
-		section->name, entry->name, length, 1);
+		section->name, entry->name, words, 1);
 		ok = 0;
 	}
 
@@ -155,17 +155,17 @@ static int decompile_section(void *bin, size_t UNUSED(bin_size),
 	fprintf(out, "[%s]\n", section->name);
 	for (int i = section->length; i--; entry++) {
 		void *data = PTR(bin, entry->offset<<2);
-		unsigned type, length;
+		unsigned type, words;
 		type	= (entry->pattern >> 16) & 0xffff;
-		length	= (entry->pattern >>  0) & 0xffff;
+		words	= (entry->pattern >>  0) & 0xffff;
 
 		switch(type) {
 		case SCRIPT_VALUE_TYPE_SINGLE_WORD:
-			if (!decompile_single(section, entry, data, length, out))
+			if (!decompile_single(section, entry, data, words, out))
 				ok = 0;
 			break;
 		case SCRIPT_VALUE_TYPE_STRING: {
-			size_t bytes = length << 2;
+			size_t bytes = words << 2;
 			const char *p, *pe, *s = data;
 
 			for(p=s, pe=s+bytes; *p && p!=pe; p++)
@@ -175,7 +175,7 @@ static int decompile_section(void *bin, size_t UNUSED(bin_size),
 				(int)(p-s), s);
 			}; break;
 		case SCRIPT_VALUE_TYPE_GPIO:
-			if (!decompile_gpio(section, entry, data, length, out))
+			if (!decompile_gpio(section, entry, data, words, out))
 			    ok = 0;
 			break;
 		case SCRIPT_VALUE_TYPE_NULL:
