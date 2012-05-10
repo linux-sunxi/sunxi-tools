@@ -17,7 +17,7 @@
 #ifndef _SUNXI_TOOLS_FEX2BIN_H
 #define _SUNXI_TOOLS_FEX2BIN_H
 
-#include "sunxi-tools.h"
+#include "common.h"
 
 #include <stdint.h>
 

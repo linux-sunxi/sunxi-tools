@@ -11,7 +11,7 @@ clean:
 	@rm -vf $(TOOLS)
 
 
-$(TOOLS): Makefile sunxi-tools.h
+$(TOOLS): Makefile common.h
 
 fex2bin: script.c script.h script_bin.h script_bin.c
 bin2fex: script.h

@@ -14,8 +14,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef _SUNXI_TOOLS_H
-#define _SUNXI_TOOLS_H
+#ifndef _SUNXI_TOOLS_COMMON_H
+#define _SUNXI_TOOLS_COMMON_H
 
 #include <stddef.h> /* offsetof */
 
@@ -34,6 +34,10 @@
 
 /** shortcut to printf to stderr */
 #define errf(...)	fprintf(stderr, __VA_ARGS__)
+
+/*
+ * list
+ */
 
 /** a list hook */
 struct list_entry {
