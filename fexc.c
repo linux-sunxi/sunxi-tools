@@ -60,6 +60,9 @@ int main(int argc, char *argv[])
 	int opt;
 	int verbose = 0;
 
+	if (app_mode == 2) /* bin2fex */
+		infmt = 1, outfmt = 0;
+
 	while ((opt = getopt(argc, argv, opt_string)) != -1) {
 		switch (opt) {
 		case 'I':
@@ -89,11 +92,18 @@ int main(int argc, char *argv[])
 		case 'v':
 			verbose++;
 			break;
+		case 'q':
+			verbose--;
+			break;
 		default:
 show_usage:
 			app_usage(argv[0], app_mode);
 			exit(1);
 		}
 	}
+
+	if (verbose>0)
+		errf("%s: %s -> %s\n", argv[0],
+		     formats[infmt], formats[outfmt]);
 	return 1;
 }
