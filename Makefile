@@ -1,5 +1,6 @@
 CC = gcc
-CFLAGS = -g -O2 -Wall -Wextra -std=c99
+CFLAGS = -g -O2 -Wall -Wextra
+CFLAGS += -std=c99 -D_POSIX_C_SOURCE=200112L
 
 TOOLS = fexc bin2fex fex2bin
 
