@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -g -O2 -Wall -Wextra -std=c99
 
-TOOLS = bin2fex fex2bin
+TOOLS = fexc bin2fex fex2bin
 
 .PHONY: all clean
 
