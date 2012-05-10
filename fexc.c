@@ -53,6 +53,7 @@ int main(int argc, char *argv[])
 {
 	static const char *formats[] = { "fex", "bin", NULL };
 	int infmt=0, outfmt=1;
+	const char *filename[] = { "stdin", "stdout" };
 
 	int app_mode = app_choose_mode(argv[0]);
 
@@ -102,8 +103,22 @@ show_usage:
 		}
 	}
 
+	switch (argc - optind) {
+	case 2:
+		filename[1] = argv[optind+1]; /* out */
+	case 1:
+		if (strcmp(argv[optind], "-") != 0)
+			filename[0] = argv[optind]; /* in */
+	case 0:
+		break;
+	default:
+		goto show_usage;
+	}
+
 	if (verbose>0)
-		errf("%s: %s -> %s\n", argv[0],
-		     formats[infmt], formats[outfmt]);
-	return 1;
+		errf("%s: %s:%s -> %s:%s\n", argv[0],
+		     formats[infmt], filename[0],
+		     formats[outfmt], filename[1]);
+
+	return 0;
 }
