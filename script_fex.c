@@ -14,19 +14,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "fex2bin.h"
+#include "common.h"
 
 #include <ctype.h>
-#include <errno.h>
-#include <limits.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <fcntl.h>
 
-#include "script_bin.h"
+#include "script.h"
+#include "script_fex.h"
 
 #define MAX_LINE	255
 
@@ -54,7 +51,7 @@ static inline char *rtrim(const char *s, char *p)
 
 /**
  */
-static int parse_fex(FILE *in, const char *filename, struct script *script)
+int script_parse_fex(FILE *in, const char *filename, struct script *script)
 {
 	char buffer[MAX_LINE+1];
 	int ok = 1;

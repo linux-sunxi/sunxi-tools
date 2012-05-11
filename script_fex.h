@@ -14,16 +14,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef _SUNXI_TOOLS_FEXC_H
-#define _SUNXI_TOOLS_FEXC_H
+#ifndef _SUBXI_TOOLS_SCRIPT_FEX_H
+#define _SUBXI_TOOLS_SCRIPT_FEX_H
 
-#include "common.h"
-
-#include <stdint.h>
-#include <stdio.h>
-
-#include "script.h"
-#include "script_bin.h"
-#include "script_fex.h"
+int script_parse_fex(FILE *in, const char *filename, struct script *script);
 
 #endif

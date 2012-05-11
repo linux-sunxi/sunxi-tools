@@ -19,7 +19,6 @@
 
 #include <errno.h>
 #include <libgen.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -32,14 +31,6 @@ enum script_format {
 	FEX_SCRIPT_FORMAT,
 	BIN_SCRIPT_FORMAT,
 };
-
-/*
- */
-static int script_parse_fex(FILE *UNUSED(in), const char *UNUSED(filename),
-			    struct script *UNUSED(script))
-{
-	return 0;
-}
 
 /*
  */
