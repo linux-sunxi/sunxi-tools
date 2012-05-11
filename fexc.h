@@ -22,5 +22,6 @@
 #include <stdint.h>
 
 #include "script.h"
+#include "script_bin.h"
 
 #endif

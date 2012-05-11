@@ -41,21 +41,6 @@ static int script_parse_fex(FILE *UNUSED(in), const char *UNUSED(filename),
 	return 0;
 }
 
-static size_t script_bin_size(struct script *UNUSED(script),
-			      size_t *UNUSED(sections),
-			      size_t *UNUSED(entries))
-{
-	return 0;
-}
-
-static int script_generate_bin(void *UNUSED(bin), size_t UNUSED(bin_size),
-			       struct script *UNUSED(script),
-			       size_t UNUSED(sections),
-			       size_t UNUSED(entries))
-{
-	return 0;
-}
-
 /*
  */
 static inline int script_parse(enum script_format format,

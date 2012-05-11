@@ -17,7 +17,8 @@ $(TOOLS): Makefile common.h
 fex2bin bin2fex: fexc
 	ln -s $< $@
 
-fexc: script.h script.c
+fexc: script.h script.c \
+	script_bin.h script_bin.c
 
 %: %.c %.h
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(filter %.c,$^) $(LIBS)

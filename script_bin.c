@@ -32,8 +32,8 @@
 
 /**
  */
-size_t calculate_bin_size(struct script *script,
-			  size_t *sections, size_t *entries)
+size_t script_bin_size(struct script *script,
+		       size_t *sections, size_t *entries)
 {
 	size_t words = 0, bin_size = 0;
 	struct list_entry *ls, *le;
@@ -91,8 +91,9 @@ size_t calculate_bin_size(struct script *script,
 	return bin_size;
 }
 
-int generate_bin(void *bin, size_t UNUSED(bin_size), struct script *script,
-		 size_t sections, size_t entries)
+int script_generate_bin(void *bin, size_t UNUSED(bin_size),
+			struct script *script,
+			size_t sections, size_t entries)
 {
 	struct script_bin_head *head;
 	struct script_bin_section *section;

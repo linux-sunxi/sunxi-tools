@@ -17,9 +17,10 @@
 #ifndef _SUBXI_TOOLS_SCRIPT_BIN_H
 #define _SUBXI_TOOLS_SCRIPT_BIN_H
 
-size_t calculate_bin_size(struct script *script,
-			  size_t *sections, size_t *entries);
+size_t script_bin_size(struct script *script,
+		       size_t *sections, size_t *entries);
 
-int generate_bin(void *bin, size_t bin_size, struct script *script,
-		 size_t sections, size_t entries);
+int script_generate_bin(void *bin, size_t bin_size, struct script *script,
+			size_t sections, size_t entries);
+
 #endif
