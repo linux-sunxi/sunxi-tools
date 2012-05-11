@@ -36,6 +36,52 @@ enum script_format {
 
 /*
  */
+static inline char *read_all(int fd, const char *filename, size_t *size)
+{
+	size_t buf_size = 4096, count = 0;
+	char *p, *buf = malloc(buf_size);
+	if (!buf) {
+		pr_err("%s: %s\n", "malloc", strerror(errno));
+		return NULL;
+	}
+	p = buf;
+	while (1) {
+		ssize_t rc = read(fd, p, buf_size-count);
+		if (rc == 0)
+			break;
+		else if (rc > 0) {
+			count += rc;
+			p += rc;
+
+			if (count == buf_size) {
+				char *new;
+				buf_size *= 2;
+				new = realloc(buf, buf_size);
+				if (!new) {
+					pr_err("%s: %s\n", "realloc",
+					       strerror(errno));
+					free(buf);
+					return NULL;
+				} else if (new != buf) {
+					buf = new;
+					p = buf + count;
+				}
+			}
+		} else if (errno != EAGAIN ||
+			   errno != EINTR) {
+			pr_err("%s: %s: %s\n", filename,
+			       "read", strerror(errno));
+			free(buf);
+			return NULL;
+		}
+	}
+
+	*size = count;
+	return buf;
+}
+
+/*
+ */
 static inline int script_parse(enum script_format format,
 			       const char *filename,
 			       struct script *script)
@@ -57,13 +103,17 @@ static inline int script_parse(enum script_format format,
 		int in = 0; /* stdin */
 		struct stat sb;
 		void *bin = NULL;
+		size_t bin_size;
+		int allocated = 1;
 
 		if (!filename)
 			filename = "<stdin>";
 		else if ((in = open(filename, O_RDONLY)) < 0) {
 			pr_err("%s: %s\n", filename, strerror(errno));
 			break;
-		} else if (fstat(in, &sb) == -1) {
+		}
+
+		if (fstat(in, &sb) == -1) {
 			pr_err("%s: %s: %s\n", filename,
 			       "fstat", strerror(errno));
 			goto bin_close;
@@ -75,14 +125,20 @@ static inline int script_parse(enum script_format format,
 				       "mmap", strerror(errno));
 				goto bin_close;
 			}
+			bin_size = sb.st_size;
+			allocated = 0;
 		} else {
-			pr_err("%s: not a regular file (mode:%d).\n",
-			       filename, sb.st_mode);
-			goto bin_close;
+			/* something else... just read it all! */
+			bin = read_all(in, filename, &bin_size);
+			if (bin == NULL)
+				goto bin_close;
+			allocated = 1;
 		}
 
-		ret = script_decompile_bin(bin, sb.st_size, filename, script);
-		if (munmap(bin, sb.st_size) == -1) {
+		ret = script_decompile_bin(bin, bin_size, filename, script);
+		if (allocated)
+			free(bin);
+		else if (munmap(bin, bin_size) == -1) {
 			pr_err("%s: %s: %s\n", filename,
 			       "munmap", strerror(errno));
 		}
@@ -128,11 +184,12 @@ static inline int script_generate(enum script_format format,
 		if (!bin)
 			pr_err("%s: %s\n", "malloc", strerror(errno));
 		else if (script_generate_bin(bin, bin_size, script, sections, entries)) {
+			char *p = bin;
 			while(bin_size) {
-				ssize_t wc = write(out, bin, bin_size);
+				ssize_t wc = write(out, p, bin_size);
 
 				if (wc>0) {
-					bin += wc;
+					p += wc;
 					bin_size -= wc;
 				} else if (wc < 0 && errno != EINTR) {
 					pr_err("%s: %s: %s\n", filename,
@@ -245,9 +302,9 @@ show_usage:
 	}
 
 	if (verbose>0)
-		errf("%s: %s:%s -> %s:%s\n", argv[0],
-		     formats[infmt], filename[0],
-		     formats[outfmt], filename[1]);
+		errf("%s: from %s:%s to %s:%s\n", argv[0],
+		     formats[infmt], filename[0]?filename[0]:"<stdin>",
+		     formats[outfmt], filename[1]?filename[1]:"<stdout>");
 
 	if ((script = script_new()) == NULL) {
 		perror("malloc");
