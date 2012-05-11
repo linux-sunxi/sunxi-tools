@@ -14,17 +14,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "common.h"
-#include "bin2fex.h"
-
-#include <errno.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/mman.h>
-#include <fcntl.h>
 
 #define pr_info(F, ...)	do { \
 	fprintf(stderr, "bin2fex: " F, __VA_ARGS__); \
@@ -213,60 +207,4 @@ static int decompile(void *bin, size_t bin_size, FILE *out)
 			return 1; /* failure */
 	}
 	return 0; /* success */
-}
-
-/**
- */
-int main(int argc, char *argv[])
-{
-	struct stat sb;
-	int ret = -1;
-	int in = 0;
-	FILE *out = stdout;
-	const char *filename[] = {"stdin", "stdout"};
-	void *p;
-
-	/* open */
-	if (argc>1) {
-		filename[0] = argv[1];
-
-		if ((in = open(filename[0], O_RDONLY)) < 0) {
-			errf("%s: %s\n", filename[0], strerror(errno));
-			goto usage;
-		}
-		if (argc > 2) {
-			filename[1] = argv[2];
-
-			if ((out = fopen(filename[1], "w")) == NULL) {
-				errf("%s: %s\n", filename[1], strerror(errno));
-				goto usage;
-			}
-		}
-	}
-
-	/* mmap input */
-	if (fstat(in, &sb) == -1)
-		errf("fstat: %s: %s\n", filename[0], strerror(errno));
-	else if (!S_ISREG(sb.st_mode))
-		errf("%s: not a regular file (mode:%d).\n", filename[0], sb.st_mode);
-	else if ((p = mmap(0, sb.st_size, PROT_READ, MAP_SHARED, in, 0)) == MAP_FAILED)
-		errf("mmap: %s: %s\n", filename[0], strerror(errno));
-	else {
-		/* close and decompile mmap */
-		close(in);
-
-		ret = decompile(p, sb.st_size, out);
-		if (munmap(p, sb.st_size) == -1)
-			errf("munmap: %s: %s\n", filename[0], strerror(errno));
-
-		goto done;
-	}
-
-usage:
-	errf("Usage: %s [<script.bin> [<script.fex>]]\n", argv[0]);
-
-	if (in > 2) close(in);
-done:
-	if (out && out != stdout) fclose(out);
-	return ret;
 }

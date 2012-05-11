@@ -18,5 +18,6 @@
 #define _SUBXI_TOOLS_SCRIPT_FEX_H
 
 int script_parse_fex(FILE *in, const char *filename, struct script *script);
+int script_generate_fex(FILE *out, const char *filename, struct script *script);
 
 #endif

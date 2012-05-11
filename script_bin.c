@@ -208,3 +208,10 @@ int script_generate_bin(void *bin, size_t UNUSED(bin_size),
 	}
 	return 1;
 }
+
+int script_decompile_bin(void *UNUSED(bin), size_t UNUSED(bin_size),
+			 const char *UNUSED(filename),
+			 struct script *UNUSED(script))
+{
+	return 0;
+}

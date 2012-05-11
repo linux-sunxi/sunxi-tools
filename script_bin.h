@@ -22,5 +22,7 @@ size_t script_bin_size(struct script *script,
 
 int script_generate_bin(void *bin, size_t bin_size, struct script *script,
 			size_t sections, size_t entries);
-
+int script_decompile_bin(void *bin, size_t bin_size,
+			 const char *filename,
+			 struct script *script);
 #endif

@@ -220,3 +220,9 @@ parse_error:
 		ok = 0;
 	return ok;
 }
+
+int script_generate_fex(FILE *UNUSED(out), const char *UNUSED(filename),
+			struct script *UNUSED(script))
+{
+	return 0;
+}

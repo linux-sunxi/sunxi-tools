@@ -21,6 +21,8 @@
 #include <libgen.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
 
@@ -42,15 +44,50 @@ static inline int script_parse(enum script_format format,
 	switch (format) {
 	case FEX_SCRIPT_FORMAT: {
 		FILE *in = stdin;
-		if (filename && (in = fopen(filename, "r")) == NULL) {
-			errf("%s: %s\n", filename, strerror(errno));
+		if (!filename)
+			filename = "<stdin>";
+		else if ((in = fopen(filename, "r")) == NULL) {
+			pr_err("%s: %s\n", filename, strerror(errno));
 			break;
 		}
-		ret = script_parse_fex(in, filename ? filename : "<stdin>",
-				       script);
+		ret = script_parse_fex(in, filename, script);
 		fclose(in);
 		}; break;
 	case BIN_SCRIPT_FORMAT: {
+		int in = 0; /* stdin */
+		struct stat sb;
+		void *bin = NULL;
+
+		if (!filename)
+			filename = "<stdin>";
+		else if ((in = open(filename, O_RDONLY)) < 0) {
+			pr_err("%s: %s\n", filename, strerror(errno));
+			break;
+		} else if (fstat(in, &sb) == -1) {
+			pr_err("%s: %s: %s\n", filename,
+			       "fstat", strerror(errno));
+			goto bin_close;
+		} else if (S_ISREG(sb.st_mode)) {
+			/* regular file, mmap it */
+			bin = mmap(0, sb.st_size, PROT_READ, MAP_SHARED, in, 0);
+			if (bin == MAP_FAILED) {
+				pr_err("%s: %s: %s\n", filename,
+				       "mmap", strerror(errno));
+				goto bin_close;
+			}
+		} else {
+			pr_err("%s: not a regular file (mode:%d).\n",
+			       filename, sb.st_mode);
+			goto bin_close;
+		}
+
+		ret = script_decompile_bin(bin, sb.st_size, filename, script);
+		if (munmap(bin, sb.st_size) == -1) {
+			pr_err("%s: %s: %s\n", filename,
+			       "munmap", strerror(errno));
+		}
+bin_close:
+		close(in);
 		}; break;
 	}
 	return ret;
@@ -62,6 +99,17 @@ static inline int script_generate(enum script_format format,
 	int ret = 0;
 	switch (format) {
 	case FEX_SCRIPT_FORMAT: {
+		FILE *out = stdout;
+
+		if (!filename)
+			filename = "<stdout>";
+		else if ((out = fopen(filename, "w")) == NULL) {
+			pr_err("%s: %s\n", filename, strerror(errno));
+			break;
+		}
+
+		ret = script_generate_fex(out, filename, script);
+		fclose(out);
 		}; break;
 	case BIN_SCRIPT_FORMAT: {
 		int out = 1; /* stdout */
@@ -71,14 +119,14 @@ static inline int script_generate(enum script_format format,
 		if (!filename)
 			filename = "<stdout>";
 		else if ((out = open(filename, O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0) {
-			errf("%s: %s\n", filename, strerror(errno));
+			pr_err("%s: %s\n", filename, strerror(errno));
 			break;
 		}
 
 		bin_size = script_bin_size(script, &sections, &entries);
 		bin = calloc(1, bin_size);
 		if (!bin)
-			perror("malloc");
+			pr_err("%s: %s\n", "malloc", strerror(errno));
 		else if (script_generate_bin(bin, bin_size, script, sections, entries)) {
 			while(bin_size) {
 				ssize_t wc = write(out, bin, bin_size);
@@ -87,14 +135,16 @@ static inline int script_generate(enum script_format format,
 					bin += wc;
 					bin_size -= wc;
 				} else if (wc < 0 && errno != EINTR) {
-					pr_err("%s: write: %s\n", filename,
-					       strerror(errno));
+					pr_err("%s: %s: %s\n", filename,
+					       "write", strerror(errno));
 					break;
 				}
 			}
 			if (bin_size == 0)
 				ret = 0;
 		}
+		free(bin);
+		close(out);
 		}; break;
 	}
 	return ret;
