@@ -17,23 +17,111 @@
 
 #include "fexc.h"
 
+#include <errno.h>
 #include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
+
+#define pr_info(...)	errf("fexc: " __VA_ARGS__)
+#define pr_err(...)	pr_info("E: " __VA_ARGS__)
+
+enum script_format {
+	FEX_SCRIPT_FORMAT,
+	BIN_SCRIPT_FORMAT,
+};
 
 /*
  */
-static int script_parse(int UNUSED(mode), const char *UNUSED(filename),
-			struct script *UNUSED(script))
+static int script_parse_fex(FILE *UNUSED(in), const char *UNUSED(filename),
+			    struct script *UNUSED(script))
 {
 	return 0;
 }
-static int script_generate(int UNUSED(mode), const char *UNUSED(filename),
-			   struct script *UNUSED(script))
+
+static size_t script_bin_size(struct script *UNUSED(script),
+			      size_t *UNUSED(sections),
+			      size_t *UNUSED(entries))
 {
 	return 0;
+}
+
+static int script_generate_bin(void *UNUSED(bin), size_t UNUSED(bin_size),
+			       struct script *UNUSED(script),
+			       size_t UNUSED(sections),
+			       size_t UNUSED(entries))
+{
+	return 0;
+}
+
+/*
+ */
+static inline int script_parse(enum script_format format,
+			       const char *filename,
+			       struct script *script)
+{
+	int ret = 0;
+	switch (format) {
+	case FEX_SCRIPT_FORMAT: {
+		FILE *in = stdin;
+		if (filename && (in = fopen(filename, "r")) == NULL) {
+			errf("%s: %s\n", filename, strerror(errno));
+			break;
+		}
+		ret = script_parse_fex(in, filename ? filename : "<stdin>",
+				       script);
+		fclose(in);
+		}; break;
+	case BIN_SCRIPT_FORMAT: {
+		}; break;
+	}
+	return ret;
+}
+static inline int script_generate(enum script_format format,
+				  const char *filename,
+				  struct script *script)
+{
+	int ret = 0;
+	switch (format) {
+	case FEX_SCRIPT_FORMAT: {
+		}; break;
+	case BIN_SCRIPT_FORMAT: {
+		int out = 1; /* stdout */
+		size_t sections, entries, bin_size;
+		void *bin;
+
+		if (!filename)
+			filename = "<stdout>";
+		else if ((out = open(filename, O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0) {
+			errf("%s: %s\n", filename, strerror(errno));
+			break;
+		}
+
+		bin_size = script_bin_size(script, &sections, &entries);
+		bin = calloc(1, bin_size);
+		if (!bin)
+			perror("malloc");
+		else if (script_generate_bin(bin, bin_size, script, sections, entries)) {
+			while(bin_size) {
+				ssize_t wc = write(out, bin, bin_size);
+
+				if (wc>0) {
+					bin += wc;
+					bin_size -= wc;
+				} else if (wc < 0 && errno != EINTR) {
+					pr_err("%s: write: %s\n", filename,
+					       strerror(errno));
+					break;
+				}
+			}
+			if (bin_size == 0)
+				ret = 0;
+		}
+		}; break;
+	}
+	return ret;
 }
 
 /*
@@ -65,8 +153,9 @@ static inline int app_choose_mode(char *arg0)
 int main(int argc, char *argv[])
 {
 	static const char *formats[] = { "fex", "bin", NULL };
-	int infmt=0, outfmt=1;
-	const char *filename[] = { "stdin", "stdout" };
+	enum script_format infmt=FEX_SCRIPT_FORMAT;
+	enum script_format outfmt=BIN_SCRIPT_FORMAT;
+	const char *filename[] = { NULL /*stdin*/, NULL /*stdout*/};
 	struct script *script;
 
 	int app_mode = app_choose_mode(argv[0]);
