@@ -4,13 +4,22 @@ Copyright (C) 2012  Alejandro Mery <amery@geeks.cl>
 Tools to help hacking Allwinner A10 (aka sun4i) based devices and possibly
 it's successors, that's why the 'x' in the package name.
 
+fexc:
+	`.fex` file (de)compiler
+
+	Usage: ./fexc [-vq] [-I <infmt>] [-O <outfmt>] [<input> [<output>]]
+
+	infmt:  fex, bin  (default:fex)
+	outfmt: fex, bin  (default:bin)
+
 bin2fex:
-	decompiles an script.bin blob into the .ini format used by
-	allwinner's SDK to configure the boards.
+	compatibility shortcut to call `fexc` to decompile an script.bin
+	blob back into `.fex` format used by allwinner's SDK to configure
+	the boards.
 
 fex2bin:
-	compiles a .fex file back into the binary form used by the sun4i
-	kernels.
+	compatiblity shortcut to call `fexc` to compile a `.fex` file into
+	the binary form used by the sun4i kernel.
 
 This software is licensed under the terms of GPLv3 as defined by the
 Free Software Foundation, details can be read in the COPYING file.
