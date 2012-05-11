@@ -19,4 +19,8 @@
 
 #include "common.h"
 
+#include <stdint.h>
+
+#include "script.h"
+
 #endif

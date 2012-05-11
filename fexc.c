@@ -25,14 +25,6 @@
 
 /*
  */
-static struct script *script_new(void)
-{
-	return NULL;
-}
-static void script_delete(struct script *UNUSED(script))
-{
-}
-
 static int script_parse(int UNUSED(mode), const char *UNUSED(filename),
 			struct script *UNUSED(script))
 {
