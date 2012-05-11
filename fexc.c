@@ -25,6 +25,27 @@
 
 /*
  */
+static struct script *script_new(void)
+{
+	return NULL;
+}
+static void script_delete(struct script *UNUSED(script))
+{
+}
+
+static int script_parse(int UNUSED(mode), const char *UNUSED(filename),
+			struct script *UNUSED(script))
+{
+	return 0;
+}
+static int script_generate(int UNUSED(mode), const char *UNUSED(filename),
+			   struct script *UNUSED(script))
+{
+	return 0;
+}
+
+/*
+ */
 static inline void app_usage(const char *arg0, int mode)
 {
 	errf("Usage: %s [-vq]%s[<input> [<output>]]\n", arg0,
@@ -54,11 +75,12 @@ int main(int argc, char *argv[])
 	static const char *formats[] = { "fex", "bin", NULL };
 	int infmt=0, outfmt=1;
 	const char *filename[] = { "stdin", "stdout" };
+	struct script *script;
 
 	int app_mode = app_choose_mode(argv[0]);
 
 	const char *opt_string = "I:O:vq?"+ ((app_mode == 0)? 0: 4);
-	int opt;
+	int opt, ret = 1;
 	int verbose = 0;
 
 	if (app_mode == 2) /* bin2fex */
@@ -99,7 +121,7 @@ int main(int argc, char *argv[])
 		default:
 show_usage:
 			app_usage(argv[0], app_mode);
-			exit(1);
+			goto done;
 		}
 	}
 
@@ -120,5 +142,14 @@ show_usage:
 		     formats[infmt], filename[0],
 		     formats[outfmt], filename[1]);
 
-	return 0;
+	if ((script = script_new()) == NULL) {
+		perror("malloc");
+		goto done;
+	} else if (script_parse(infmt, filename[0], script) &&
+		   script_generate(outfmt, filename[1], script)) {
+		ret = 0;
+	}
+	script_delete(script);
+done:
+	return ret;
 }
