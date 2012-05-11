@@ -30,6 +30,119 @@
 #define pr_info(...)	fprintf(stderr, "fex2bin: " __VA_ARGS__)
 #define pr_err(...)	pr_info("E: " __VA_ARGS__)
 
+/*
+ * generator
+ */
+static inline size_t strlen2(const char *s)
+{
+	size_t l = strlen(s);
+	const char *p = &s[l-1];
+	while (l && *p >= '0' && *p <= '9') {
+		l--;
+		p--;
+	}
+	return l;
+}
+
+static int find_full_match(const char *s, size_t l, const char **list)
+{
+	while (*list) {
+		if (memcmp(s, *list, l) == 0)
+			return 1;
+		list++;
+	}
+
+	return 0;
+}
+
+/**
+ */
+static int decompile_single_mode(const char *name)
+{
+	static const char *hexa_entries[] = {
+		"dram_baseaddr", "dram_zq", "dram_tpr", "dram_emr",
+		"g2d_size",
+		"rtp_press_threshold", "rtp_sensitive_level",
+		"ctp_twi_addr", "csi_twi_addr", "csi_twi_addr_b", "tkey_twi_addr",
+		"lcd_gamma_tbl_",
+		"gsensor_twi_addr",
+		NULL };
+	size_t l = strlen2(name);
+
+	if (find_full_match(name, l, hexa_entries))
+		return 0;
+	else
+		return -1;
+}
+
+int script_generate_fex(FILE *out, const char *UNUSED(filename),
+			struct script *script)
+{
+	struct list_entry *ls, *le;
+	struct script_section *section;
+	struct script_entry *entry;
+
+	for (ls = list_first(&script->sections); ls;
+	     ls = list_next(&script->sections, ls)) {
+		section = container_of(ls, struct script_section, sections);
+
+		fprintf(out, "[%s]\n", section->name);
+		for (le = list_first(&section->entries); le;
+		     le = list_next(&section->entries, le)) {
+			entry = container_of(le, struct script_entry, entries);
+
+			switch(entry->type) {
+			case SCRIPT_VALUE_TYPE_SINGLE_WORD: {
+				int mode = decompile_single_mode(entry->name);
+				struct script_single_entry *single;
+				single = container_of(entry, struct script_single_entry, entry);
+
+				fprintf(out, "%s\t= ", entry->name);
+				if (mode < 0)
+					fprintf(out, "%d", single->value);
+				else if (mode > 0)
+					fprintf(out, "0x%0*x", mode, single->value);
+				else
+					fprintf(out, "0x%x", single->value);
+				fputc('\n', out);
+				}; break;
+			case SCRIPT_VALUE_TYPE_STRING: {
+				struct script_string_entry *string;
+				string = container_of(entry, struct script_string_entry, entry);
+				fprintf(out, "%s\t= \"%.*s\"\n", entry->name,
+					(int)string->l, string->string);
+				}; break;
+			case SCRIPT_VALUE_TYPE_MULTI_WORD:
+				abort();
+			case SCRIPT_VALUE_TYPE_GPIO: {
+				char port = 'A'-1;
+				struct script_gpio_entry *gpio;
+				gpio = container_of(entry, struct script_gpio_entry, entry);
+
+				port += gpio->port;
+				fprintf(out, "%s\t= port:P%c%02d", entry->name, port, gpio->port_num);
+				for (const int *p = gpio->data, *pe = p+4; p != pe; p++) {
+					if (*p == -1)
+						fputs("<default>", out);
+					else
+						fprintf(out, "<%d>", *p);
+				}
+				fputc('\n', out);
+				}; break;
+			case SCRIPT_VALUE_TYPE_NULL:
+				fprintf(out, "%s\t=\n", entry->name);
+				break;
+			}
+		}
+		fputc('\n', out);
+	}
+	return 0;
+}
+
+/*
+ * parser
+ */
+
 /** find first not blank char */
 static inline char *skip_blank(char *p)
 {
@@ -219,10 +332,4 @@ parse_error:
 	if (ferror(in))
 		ok = 0;
 	return ok;
-}
-
-int script_generate_fex(FILE *UNUSED(out), const char *UNUSED(filename),
-			struct script *UNUSED(script))
-{
-	return 0;
 }

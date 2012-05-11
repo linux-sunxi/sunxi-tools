@@ -17,6 +17,7 @@
 
 #include "common.h"
 
+#include <errno.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -28,9 +29,11 @@
 #define pr_info(...)	fprintf(stderr, "fex2bin: " __VA_ARGS__)
 #define pr_err(...)	pr_info("E: " __VA_ARGS__)
 
+#define PTR(B, OFF)	(void*)((char*)(B)+(OFF))
 #define WORDS(S)	(((S)+(sizeof(uint32_t)-1))/(sizeof(uint32_t)))
 
-/**
+/*
+ * generator
  */
 size_t script_bin_size(struct script *script,
 		       size_t *sections, size_t *entries)
@@ -209,9 +212,105 @@ int script_generate_bin(void *bin, size_t UNUSED(bin_size),
 	return 1;
 }
 
-int script_decompile_bin(void *UNUSED(bin), size_t UNUSED(bin_size),
-			 const char *UNUSED(filename),
-			 struct script *UNUSED(script))
+/*
+ * decompiler
+ */
+static int decompile_section(void *bin, size_t UNUSED(bin_size),
+			     const char *filename,
+			     struct script_bin_section *section,
+			     struct script *script)
 {
+	struct script_bin_entry *entry = PTR(bin,  section->offset<<2);
+	struct script_section *s;
+
+	if ((s = script_section_new(script, section->name)) == NULL)
+		goto malloc_error;
+
+	for (int i = section->length; i--; entry++) {
+		void *data = PTR(bin, entry->offset<<2);
+		unsigned type, words;
+		type	= (entry->pattern >> 16) & 0xffff;
+		words	= (entry->pattern >>  0) & 0xffff;
+
+		switch(type) {
+		case SCRIPT_VALUE_TYPE_SINGLE_WORD: {
+			uint32_t *v = data;
+			if (words != 1) {
+				pr_err("%s: %s.%s: invalid length %d (assuming %d)\n",
+				filename, section->name, entry->name, words, 1);
+			}
+			if (!script_single_entry_new(s, entry->name, *v))
+				goto malloc_error;
+			}; break;
+		case SCRIPT_VALUE_TYPE_STRING: {
+			size_t bytes = words << 2;
+			const char *p, *pe, *v = data;
+
+			for(p=v, pe=v+bytes; *p && p!=pe; p++)
+				; /* seek end-of-string */
+
+			if (!script_string_entry_new(s, entry->name, p-v, v))
+				goto malloc_error;
+			}; break;
+		case SCRIPT_VALUE_TYPE_GPIO: {
+			struct script_bin_gpio_value *gpio = data;
+			int32_t v[4];
+			if (words != 6) {
+				pr_err("%s: %s.%s: invalid length %d (assuming %d)\n",
+				       filename, section->name, entry->name, words, 6);
+			} else if (gpio->port < 1 || gpio->port > 10) {
+				pr_err("%s: %s.%s: unknown GPIO port type %d\n",
+				       filename, section->name, entry->name, gpio->port);
+				goto failure;
+			}
+			v[0] = gpio->mul_sel;
+			v[1] = gpio->pull;
+			v[2] = gpio->drv_level;
+			v[3] = gpio->data;
+
+			if (!script_gpio_entry_new(s, entry->name,
+						   gpio->port, gpio->port_num,
+						   v))
+				goto malloc_error;
+			}; break;
+		case SCRIPT_VALUE_TYPE_NULL:
+			if (!script_null_entry_new(s, entry->name))
+				goto malloc_error;
+			break;
+		default:
+			pr_err("%s: %s.%s: unknown type %d\n",
+			       filename, section->name, entry->name, type);
+			goto failure;
+		}
+	}
+	return 1;
+
+malloc_error:
+	pr_err("%s: %s\n", "malloc", strerror(errno));
+failure:
 	return 0;
+}
+
+int script_decompile_bin(void *bin, size_t bin_size,
+			 const char *filename,
+			 struct script *script)
+{
+	int i;
+	struct script_bin_head *head = bin;
+
+	pr_info("%s: version: %d.%d.%d\n", filename,
+		head->version[0], head->version[1],
+		head->version[2]);
+	pr_info("%s: size: %zu (%d sections)\n", filename,
+		bin_size, head->sections);
+
+	/* TODO: SANITY: compare head.sections with bin_size */
+	for (i=0; i < head->sections; i++) {
+		struct script_bin_section *section = &head->section[i];
+
+		if (!decompile_section(bin, bin_size, filename,
+				       section, script))
+			return 0;
+	}
+	return 1;
 }
