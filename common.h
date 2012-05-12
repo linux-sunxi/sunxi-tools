@@ -32,6 +32,11 @@
 #define container_of(P,T,M)	(T *)((char *)(P) - offsetof(T, M))
 #endif
 
+/** calculate number of elements of an array */
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE(A)		(sizeof(A)/sizeof((A)[0]))
+#endif
+
 /** shortcut to printf to stderr */
 #define errf(...)	fprintf(stderr, __VA_ARGS__)
 
