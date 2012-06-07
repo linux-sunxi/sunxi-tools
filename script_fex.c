@@ -97,7 +97,7 @@ int script_generate_fex(FILE *out, const char *UNUSED(filename),
 				struct script_single_entry *single;
 				single = container_of(entry, struct script_single_entry, entry);
 
-				fprintf(out, "%s\t= ", entry->name);
+				fprintf(out, "%s = ", entry->name);
 				if (mode < 0)
 					fprintf(out, "%d", single->value);
 				else if (mode > 0)
@@ -109,7 +109,7 @@ int script_generate_fex(FILE *out, const char *UNUSED(filename),
 			case SCRIPT_VALUE_TYPE_STRING: {
 				struct script_string_entry *string;
 				string = container_of(entry, struct script_string_entry, entry);
-				fprintf(out, "%s\t= \"%.*s\"\n", entry->name,
+				fprintf(out, "%s = \"%.*s\"\n", entry->name,
 					(int)string->l, string->string);
 				}; break;
 			case SCRIPT_VALUE_TYPE_MULTI_WORD:
@@ -120,7 +120,7 @@ int script_generate_fex(FILE *out, const char *UNUSED(filename),
 				gpio = container_of(entry, struct script_gpio_entry, entry);
 
 				port += gpio->port;
-				fprintf(out, "%s\t= port:P%c%02d", entry->name, port, gpio->port_num);
+				fprintf(out, "%s = port:P%c%02d", entry->name, port, gpio->port_num);
 				for (const int *p = gpio->data, *pe = p+4; p != pe; p++) {
 					if (*p == -1)
 						fputs("<default>", out);
@@ -130,7 +130,7 @@ int script_generate_fex(FILE *out, const char *UNUSED(filename),
 				fputc('\n', out);
 				}; break;
 			case SCRIPT_VALUE_TYPE_NULL:
-				fprintf(out, "%s\t=\n", entry->name);
+				fprintf(out, "%s =\n", entry->name);
 				break;
 			}
 		}
