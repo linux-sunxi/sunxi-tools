@@ -27,7 +27,7 @@
 #include <fcntl.h>
 
 #define pr_info(...)	errf("fexc: " __VA_ARGS__)
-#define pr_err(...)	pr_info("E: " __VA_ARGS__)
+#define pr_err(...)	errf("E: fexc: " __VA_ARGS__)
 
 enum script_format {
 	FEX_SCRIPT_FORMAT,
@@ -197,8 +197,7 @@ static inline int script_generate(enum script_format format,
 					break;
 				}
 			}
-			if (bin_size == 0)
-				ret = 0;
+			ret = (bin_size == 0);
 		}
 		free(bin);
 		close(out);

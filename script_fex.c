@@ -142,7 +142,7 @@ int script_generate_fex(FILE *out, const char *UNUSED(filename),
 		}
 		fputc('\n', out);
 	}
-	return 0;
+	return 1;
 }
 
 /*
