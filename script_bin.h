@@ -14,8 +14,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef _SUBXI_TOOLS_SCRIPT_BIN_H
-#define _SUBXI_TOOLS_SCRIPT_BIN_H
+#ifndef _SUNXI_TOOLS_SCRIPT_BIN_H
+#define _SUNXI_TOOLS_SCRIPT_BIN_H
 
 /** binary representation of the head of a section */
 struct script_bin_section {
