@@ -26,8 +26,14 @@
 #include "script.h"
 #include "script_bin.h"
 
-#define pr_info(...)	fprintf(stderr, "fex2bin: " __VA_ARGS__)
-#define pr_err(...)	pr_info("E: " __VA_ARGS__)
+#define pr_info(...)	errf("fexc-bin: " __VA_ARGS__)
+#define pr_err(...)	errf("E: fexc-bin: " __VA_ARGS__)
+
+#ifdef DEBUG
+#define pr_debug(...)	errf("D: fexc-bin: " __VA_ARGS__)
+#else
+#define pr_debug(...)
+#endif
 
 #define PTR(B, OFF)	(void*)((char*)(B)+(OFF))
 #define WORDS(S)	(((S)+(sizeof(uint32_t)-1))/(sizeof(uint32_t)))
@@ -86,11 +92,9 @@ size_t script_bin_size(struct script *script,
 		(*sections)*sizeof(struct script_bin_section) +
 		(*entries)*sizeof(struct script_bin_entry) +
 		words*sizeof(uint32_t);
-#ifdef VERBOSE
-	pr_info("sections:%zu entries:%zu data:%zu/%zu -> %zu\n",
-		*sections, *entries, words, words*sizeof(uint32_t),
-		bin_size);
-#endif
+	pr_debug("sections:%zu entries:%zu data:%zu/%zu -> %zu\n",
+		 *sections, *entries, words, words*sizeof(uint32_t),
+		 bin_size);
 	return bin_size;
 }
 
@@ -110,17 +114,13 @@ int script_generate_bin(void *bin, size_t UNUSED(bin_size),
 	entry = (void*)section+sections*sizeof(*section);
 	data = (void*)entry+entries*sizeof(*entry);
 
-#ifdef VERBOSE
-	pr_info("head....:%p\n", head);
-	pr_info("section.:%p (offset:%zu, each:%zu)\n", section,
-		(void*)section-bin,
-		sizeof(*section));
-	pr_info("entry...:%p (offset:%zu, each:%zu)\n", entry,
-		(void*)entry-bin,
-		sizeof(*entry));
-	pr_info("data....:%p (offset:%zu)\n", data,
-		(void*)data-bin);
-#endif
+	pr_debug("head....:%p\n", head);
+	pr_debug("section.:%p (offset:%zu, each:%zu)\n", section,
+		 (void*)section-bin, sizeof(*section));
+	pr_debug("entry...:%p (offset:%zu, each:%zu)\n", entry,
+		 (void*)entry-bin, sizeof(*entry));
+	pr_debug("data....:%p (offset:%zu)\n", data,
+		 (void*)data-bin);
 
 	head->sections = sections;
 	head->version[0] = 0;
@@ -189,23 +189,18 @@ int script_generate_bin(void *bin, size_t UNUSED(bin_size),
 
 			data += size;
 			entry->pattern |= (size>>2);
-#ifdef VERBOSE
-			pr_info("%s.%s <%p> (type:%d, words:%d (%zu), offset:%d)\n",
-				section->name, entry->name,
-				entry,
-				(entry->pattern>>16) & 0xffff,
-				(entry->pattern>>0) & 0xffff, size,
-				entry->offset);
-#endif
+			pr_debug("%s.%s <%p> (type:%d, words:%d (%zu), offset:%d)\n",
+				 section->name, entry->name, entry,
+				 (entry->pattern>>16) & 0xffff,
+				 (entry->pattern>>0) & 0xffff, size,
+				 entry->offset);
 			c++;
 			entry++;
 		}
 
 		section->length = c;
-#ifdef VERBOSE
-		pr_info("%s <%p> (length:%d, offset:%d)\n",
-			section->name, section, section->length, section->offset);
-#endif
+		pr_debug("%s <%p> (length:%d, offset:%d)\n",
+			 section->name, section, section->length, section->offset);
 
 		section++;
 	}
