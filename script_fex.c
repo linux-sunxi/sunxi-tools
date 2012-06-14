@@ -27,8 +27,14 @@
 
 #define MAX_LINE	255
 
-#define pr_info(...)	fprintf(stderr, "fex2bin: " __VA_ARGS__)
-#define pr_err(...)	pr_info("E: " __VA_ARGS__)
+#define pr_info(...)	errf("fexc-fex: " __VA_ARGS__)
+#define pr_err(...)	errf("E: fexc-fex: " __VA_ARGS__)
+
+#ifdef DEBUG
+#define pr_debug(...)	errf("D: fexc-fex: " __VA_ARGS__)
+#else
+#define pr_debug(...)
+#endif
 
 /*
  * generator
@@ -239,11 +245,9 @@ int script_parse_fex(FILE *in, const char *filename, struct script *script)
 				/* string */
 				p++; *--pe = '\0';
 				if (script_string_entry_new(last_section, key, pe-p, p)) {
-#ifdef VERBOSE
-					errf("%s.%s = \"%.*s\"\n",
-					     last_section->name, key,
-					     (int)(pe-p), p);
-#endif
+					pr_debug("%s.%s = \"%.*s\"\n",
+						 last_section->name, key,
+						 (int)(pe-p), p);
 					continue;
 				}
 				perror("malloc");
@@ -291,12 +295,10 @@ int script_parse_fex(FILE *in, const char *filename, struct script *script)
 							goto invalid_char_at_p;
 						if (script_gpio_entry_new(last_section, key,
 									  port, port_num, data)) {
-#ifdef VERBOSE
-							errf("%s.%s = GPIO %d.%d (%d,%d,%d,%d)\n",
-							     last_section->name, key,
-							     port, port_num,
-							     data[0], data[1], data[2], data[3]);
-#endif
+							pr_debug("%s.%s = GPIO %d.%d (%d,%d,%d,%d)\n",
+								 last_section->name, key,
+								 port, port_num,
+								 data[0], data[1], data[2], data[3]);
 							continue;
 						}
 						perror("malloc");
@@ -313,10 +315,8 @@ int script_parse_fex(FILE *in, const char *filename, struct script *script)
 					errf("E: %s:%zu: value out of range %lld.\n",
 					     filename, line, v);
 				} else if (script_single_entry_new(last_section, key, v)) {
-#ifdef VERBOSE
-					errf("%s.%s = %lld\n",
-					     last_section->name, key, v);
-#endif
+					pr_debug("%s.%s = %lld\n",
+						 last_section->name, key, v);
 					continue;
 				}
 			}
