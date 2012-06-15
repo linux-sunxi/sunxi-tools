@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -g -O2 -Wall -Wextra
 CFLAGS += -std=c99 -D_POSIX_C_SOURCE=200112L
 
-TOOLS = fexc bin2fex fex2bin
+TOOLS = fexc bin2fex fex2bin fel
 
 .PHONY: all clean
 
@@ -20,6 +20,13 @@ fex2bin bin2fex: fexc
 fexc: script.h script.c \
 	script_bin.h script_bin.c \
 	script_fex.h script_fex.c
+
+LIBUSB = libusb-1.0
+LIBUSB_CFLAGS = `pkg-config --cflags $(LIBUSB)`
+LIBUSB_LIBS = `pkg-config --libs $(LIBUSB)`
+
+fel: fel.c
+	$(CC) $(CFLAGS) $(LIBUSB_CFLAGS) $(LDFLAGS) -o $@ $(filter %.c,$^) $(LIBS) $(LIBUSB_LIBS)
 
 %: %.c %.h
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(filter %.c,$^) $(LIBS)
