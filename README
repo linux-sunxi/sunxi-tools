@@ -21,5 +21,5 @@ fex2bin:
 	compatiblity shortcut to call `fexc` to compile a `.fex` file into
 	the binary form used by the sun4i kernel.
 
-This software is licensed under the terms of GPLv3 as defined by the
+This software is licensed under the terms of GPLv2+ as defined by the
 Free Software Foundation, details can be read in the COPYING file.
