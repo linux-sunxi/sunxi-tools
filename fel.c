@@ -257,10 +257,10 @@ void aw_fel_dump(libusb_device_handle *usb, uint32_t offset, size_t size)
 	aw_fel_read(usb, offset, buf, size);
 	fwrite(buf, size, 1, stdout);
 }
-void aw_fel_clear(libusb_device_handle *usb, uint32_t offset, size_t size)
+void aw_fel_fill(libusb_device_handle *usb, uint32_t offset, size_t size, unsigned char value)
 {
 	unsigned char buf[size];
-	memset(buf, 0, size);
+	memset(buf, value, size);
 	aw_fel_write(usb, buf, offset, size);
 }
 
@@ -279,6 +279,7 @@ int main(int argc, char **argv)
 			"	write address file		Store file contents into memory\n"
 			"	ver[sion]			Show BROM version\n"
 			"	clear address length		Clear memory\n"
+			"	fill address length value	Fill memory\n"
 			, argv[0]
 		);
 	}
@@ -313,8 +314,11 @@ int main(int argc, char **argv)
 			free(buf);
 			skip=3;
 		} else if (strcmp(argv[1], "clear") == 0 && argc > 2) {
-			aw_fel_clear(handle, strtoul(argv[2], NULL, 0), strtoul(argv[3], NULL, 0));
+			aw_fel_fill(handle, strtoul(argv[2], NULL, 0), strtoul(argv[3], NULL, 0), 0);
 			skip=3;
+		} else if (strcmp(argv[1], "fill") == 0 && argc > 3) {
+			aw_fel_fill(handle, strtoul(argv[2], NULL, 0), strtoul(argv[3], NULL, 0), (unsigned char)strtoul(argv[4], NULL, 0));
+			skip=4;
 		} else {
 			fprintf(stderr,"Invalid command %s\n", argv[1]);
 			exit(1);
