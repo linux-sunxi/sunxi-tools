@@ -1,15 +1,19 @@
 CC = gcc
-CFLAGS = -g -O2 -Wall -Wextra
+CFLAGS = -g -O0 -Wall -Wextra
 CFLAGS += -std=c99 -D_POSIX_C_SOURCE=200112L
 
 TOOLS = fexc bin2fex fex2bin fel
+
+MISC_TOOLS = phoenix_info
 
 .PHONY: all clean
 
 all: $(TOOLS)
 
+misc: $(MISC_TOOLS)
+
 clean:
-	@rm -vf $(TOOLS)
+	@rm -vf $(TOOLS) $(MISC_TOOLS)
 
 
 $(TOOLS): Makefile common.h
