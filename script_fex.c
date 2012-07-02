@@ -319,6 +319,8 @@ int script_parse_fex(FILE *in, const char *filename, struct script *script)
 						 last_section->name, key, v);
 					continue;
 				}
+			} else {
+				goto invalid_char_at_p;
 			}
 			goto parse_error;
 invalid_char_at_p:
