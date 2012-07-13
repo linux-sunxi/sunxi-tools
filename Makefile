@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -g -O0 -Wall -Wextra
 CFLAGS += -std=c99 -D_POSIX_C_SOURCE=200112L
 
-TOOLS = fexc bin2fex fex2bin fel
+TOOLS = fexc bin2fex fex2bin bootinfo fel
 
 MISC_TOOLS = phoenix_info
 
@@ -21,9 +21,11 @@ $(TOOLS): Makefile common.h
 fex2bin bin2fex: fexc
 	ln -s $< $@
 
-fexc: script.h script.c \
+fexc: fexc.h script.h script.c \
 	script_bin.h script_bin.c \
 	script_fex.h script_fex.c
+
+bootinfo: bootinfo.c
 
 LIBUSB = libusb-1.0
 LIBUSB_CFLAGS = `pkg-config --cflags $(LIBUSB)`
@@ -32,7 +34,7 @@ LIBUSB_LIBS = `pkg-config --libs $(LIBUSB)`
 fel: fel.c
 	$(CC) $(CFLAGS) $(LIBUSB_CFLAGS) $(LDFLAGS) -o $@ $(filter %.c,$^) $(LIBS) $(LIBUSB_LIBS)
 
-%: %.c %.h
+%: %.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(filter %.c,$^) $(LIBS)
 
 .gitignore: Makefile

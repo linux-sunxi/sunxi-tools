@@ -26,6 +26,9 @@ fel:
 	th CPU. You activate FEL mode by pushing the usboot/recovery
 	button at poweron.
 
+bootinfo:
+	Dump information from Allwinner boot files (boot0/boot1)
+
 phoenix_info:
 	gives information about a phoenix image created by the
 	phoenixcard utility and optionally extracts the embedded boot
