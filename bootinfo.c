@@ -286,7 +286,7 @@ int main(int argc, char * argv[])
 	} hdr;
 	int len;
 
-	len = fread(&hdr, 1, sizeof(hdr), stdin);
+	len = fread(&hdr, 1, sizeof(hdr), in);
 	if (len < (int)sizeof(boot_file_head_t))
 		fail("Failed to read header:");
 	if (strncmp((char *)hdr.boot.magic, BOOT0_MAGIC, strlen(BOOT0_MAGIC)) == 0) {
