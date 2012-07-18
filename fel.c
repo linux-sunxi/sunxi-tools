@@ -27,8 +27,17 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <endian.h>
 #include <errno.h>
+
+#ifdef __APPLE__ 
+#include <CoreFoundation/CoreFoundation.h>
+#define htole32(x) CFSwapInt32HostToLittle(x)
+#define le32toh(x) CFSwapInt32LittleToHost(x)
+#define htole16(x) CFSwapInt16HostToLittle(x)
+#define le16toh(x) CFSwapInt16LittleToHost(x)
+#elif
+#include <endian.h>
+#endif
 
 int errno;
 
