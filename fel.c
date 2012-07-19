@@ -35,7 +35,7 @@
 #define le32toh(x) CFSwapInt32LittleToHost(x)
 #define htole16(x) CFSwapInt16HostToLittle(x)
 #define le16toh(x) CFSwapInt16LittleToHost(x)
-#elif
+#else
 #include <endian.h>
 #endif
 
