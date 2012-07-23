@@ -253,8 +253,10 @@ static int decompile_section(void *bin, size_t UNUSED(bin_size),
 			if (words != 6) {
 				pr_err("%s: %s.%s: invalid length %d (assuming %d)\n",
 				       filename, section->name, entry->name, words, 6);
+			} else if (gpio->port == 0xffff) {
+				; /* port:power */
 			} else if (gpio->port < 1 || gpio->port > 10) {
-				pr_err("%s: %s.%s: unknown GPIO port type %d\n",
+				pr_err("%s: %s.%s: unknown GPIO port type %u\n",
 				       filename, section->name, entry->name, gpio->port);
 				goto failure;
 			}

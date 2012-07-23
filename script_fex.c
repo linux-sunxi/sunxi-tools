@@ -125,8 +125,14 @@ int script_generate_fex(FILE *out, const char *UNUSED(filename),
 				struct script_gpio_entry *gpio;
 				gpio = container_of(entry, struct script_gpio_entry, entry);
 
-				port += gpio->port;
-				fprintf(out, "%s = port:P%c%02d", entry->name, port, gpio->port_num);
+				if (gpio->port == 0xffff) {
+					fprintf(out, "%s = port:power%u", entry->name,
+						gpio->port_num);
+				} else {
+					port += gpio->port;
+					fprintf(out, "%s = port:P%c%02u", entry->name,
+						port, gpio->port_num);
+				}
 				for (const int *p = gpio->data, *pe = p+4; p != pe; p++) {
 					if (*p == -1)
 						fputs("<default>", out);
