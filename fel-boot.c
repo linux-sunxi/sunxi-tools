@@ -25,7 +25,7 @@ arm-none-linux-gnueabi-gcc  -g  -Os   -fno-common -ffixed-r8 -msoft-float -fno-b
 
 arm-none-linux-gnueabi-objcopy -O binary fel-boot.o fel-boot.bin
 
-mksunxiboot fel.bin fel-boot.sunxi
+mksunxiboot fel-boot.bin fel-boot.sunxi
 
 Install instructions:
 
