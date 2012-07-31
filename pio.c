@@ -77,10 +77,10 @@ static int pio_get(const char *buf, uint32_t port, uint32_t port_num, struct pio
 	uint32_t offset_func, offset_pull;
 
 	port_num_func = port_num >> 3;
-	offset_func = ((port_num - (port_num_func << 3)) << 2);
+	offset_func = ((port_num & 0x07) << 2);
 
 	port_num_pull = port_num >> 4;
-	offset_pull = ((port_num - (port_num_pull << 4)) << 1);
+	offset_pull = ((port_num & 0x0f) << 1);
 
 	/* func */
 	val = LE32TOH(PIO_REG_CFG(buf, port, port_num_func));
@@ -111,10 +111,10 @@ static int pio_set(char *buf, uint32_t port, uint32_t port_num, struct pio_statu
 	uint32_t offset_func, offset_pull;
 
 	port_num_func = port_num >> 3;
-	offset_func = ((port_num - (port_num_func << 3)) << 2);
+	offset_func = ((port_num & 0x07) << 2);
 
 	port_num_pull = port_num >> 4;
-	offset_pull = ((port_num - (port_num_pull << 4)) << 1);
+	offset_pull = ((port_num & 0x0f) << 1);
 
 	/* func */
 	if (pio->mul_sel >= 0) {
