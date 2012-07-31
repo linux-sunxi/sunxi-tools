@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 #include <endian.h>
 
@@ -13,48 +14,6 @@
 #define PIO_PORT_SIZE 0x24
 
 #define errf(...)	fprintf(stderr, __VA_ARGS__)
-
-static inline int _read(int fd, char *buf, size_t l)
-{
-	ssize_t rc = 0;
-	while (l > 0) {
-		rc = read(fd, buf, l);
-		if (rc >= 0)
-			break;
-		else if (rc < 0 && errno != EINTR) {
-			errf("read: %s\n", strerror(errno));
-			break;
-		}
-	}
-
-	return rc;
-}
-
-static int read_fixed_stdin(char *buf, size_t wanted)
-{
-	ssize_t rc;
-	char eof;
-
-	while (wanted > 0) {
-		rc = _read(0, buf, wanted);
-		if (rc > 0) {
-			wanted -= rc;
-			buf += rc;
-		} else if (rc == 0) {
-			errf("read: input too small\n");
-			goto fail;
-		} else if (rc < 0) {
-			goto fail;
-		}
-	}
-
-	if (_read(0, &eof, 1) == 0)
-		return 1;
-
-	errf("read: input too large\n");
-fail:
-	return 0;
-}
 
 struct pio_status {
 	int mul_sel;
@@ -67,6 +26,7 @@ struct pio_status {
 #define PIO_REG_DLEVEL(B, N, I)	((B) + (N)*0x24 + ((I)<<2) + 0x14)
 #define PIO_REG_PULL(B, N, I)	((B) + (N)*0x24 + ((I)<<2) + 0x1C)
 #define PIO_REG_DATA(B, N)	((B) + (N)*0x24 + 0x10)
+#define PIO_NR_PORTS		9 /* A-I */
 
 #define LE32TOH(X)		le32toh(*((uint32_t*)(X)))
 
@@ -157,47 +117,189 @@ static int pio_set(char *buf, uint32_t port, uint32_t port_num, struct pio_statu
 	return 1;
 }
 
+static void pio_print(int port, int port_nr, struct pio_status *pio)
+{
+	printf("P%c%d", 'A'+port, port_nr);
+	printf("<%x>", pio->mul_sel);
+	printf("<%x>", pio->pull);
+	printf("<%x>", pio->drv_level);
+	if (pio->data >= 0)
+		printf("<%x>", pio->data);
+	fputc('\n', stdout);
+}
+
 static void print(const char *buf)
 {
 	int port, i;
 	struct pio_status pio;
-	for (port=0; port < 10 /*PIO_REG_SIZE/0x24*/; port++) {
-		for (i=0; i<28; i++) {
+	for (port=0; port < PIO_NR_PORTS; port++) {
+		for (i=0; i<32; i++) {
 			if (pio_get(buf, port, i, &pio)) {
-				printf("P%c%d", 'A'+port, i+1);
-				printf("<%x>", pio.mul_sel);
-				printf("<%x>", pio.pull);
-				printf("<%x>", pio.drv_level);
-				if (pio.data >= 0)
-					printf("<%x>", pio.data);
-
-				fputc('\n', stdout);
+				pio_print(port, i, &pio);
 			}
 		}
 	}
 }
-static int read_and_print(void)
-{
-	char buf[PIO_REG_SIZE];
 
-	if (read_fixed_stdin(buf, PIO_REG_SIZE)) {
-		print(buf);
-		return 0;
-	}
-	return -1;
+static const char *argv0;
+
+static void usage(int rc )
+{
+	fprintf(stderr, "usage: %s -i input [-o output] pin..\n", argv0);
+	fprintf(stderr,	"	print		Show all pins\n");
+	fprintf(stderr,	"	Pxx		Show pin\n");
+	fprintf(stderr,	"	Pxx<mode><pull><drive><data>\n			Configure pin\n");
+	fprintf(stderr, "	clean		Clean input pins\n");
+	fprintf(stderr, "\n	mode 0-7, 0=input, 1=ouput, 2-7 I/O\n");
+	fprintf(stderr, "	pull 0=none, 1=up, 2=down\n");
+	fprintf(stderr, "	drive 0-3, I/O drive level\n");
+	
+	exit(rc);
 }
 
-static inline int usage(const char *argv0)
+static void parse_pin(int *port, int *pin, const char *name)
 {
-	fprintf(stderr, "usage: %s print < PIO\n", argv0);
+	if (*name == 'P') name++;
+	*port = *name++ - 'A';
+	*pin = atoi(name);
+}
+
+static void cmd_show_pin(char *buf, const char *pin)
+{
+	int port, port_nr;
+	struct pio_status pio;
+	parse_pin(&port, &port_nr, pin);
+	if (!pio_get(buf, port, port_nr, &pio))
+		usage(1);
+    	pio_print(port, port_nr, &pio);
+}
+
+static void cmd_set_pin(char *buf, const char *pin)
+{
+	int port, port_nr;
+	const char *t = pin;
+	struct pio_status pio;
+	parse_pin(&port, &port_nr, pin);
+	if (!pio_get(buf, port, port_nr, &pio))
+		usage(1);
+	t = strchr(t, '<');
+	if (t) {
+		t++;
+		if (*t && *t != '>')
+			pio.mul_sel = atoi(t);
+	}
+	t = strchr(t, '<');
+	if (t) {
+		t++;
+		if (*t && *t != '>')
+			pio.pull = atoi(t);
+	}
+	t = strchr(t, '<');
+	if (t) {
+		t++;
+		if (*t && *t != '>')
+			pio.drv_level = atoi(t);
+	}
+	t = strchr(t, '<');
+	if (t) {
+		t++;
+		if (*t && *t != '>')
+			pio.data = atoi(t);
+	}
+	pio_set(buf, port, port_nr, &pio);
+}
+
+static void cmd_clean(char *buf)
+{
+	int port, i;
+	struct pio_status pio;
+	for (port=0; port < PIO_NR_PORTS; port++) {
+		for (i=0; i<32; i++) {
+			if (pio_get(buf, port, i, &pio)) {
+				if (pio.mul_sel == 0) {
+					pio.data = 0;
+					pio_set(buf, port, i, &pio);
+				}
+			}
+		}
+	}
+}
+
+static int do_command(char *buf, const char **args, int argc)
+{
+	const char *command = args[0];
+	if (strchr(command, '<'))
+		cmd_set_pin(buf, command);
+	else if (*command == 'P')
+		cmd_show_pin(buf, command);
+	else if (strcmp(command, "print") == 0)
+		print(buf);
+	else if (strcmp(command, "clean") == 0)
+		cmd_clean(buf);
+	else	usage(1);
 	return 1;
 }
 
 int main(int argc, char **argv)
 {
-	if (argc == 2 && (strncmp("print", argv[1], 5) == 0))
-		return read_and_print();
-	else
-		return usage(argv[0]);
-}
+	int opt;
+	FILE *in = NULL;
+	FILE *out = NULL;
+	const char *in_name = NULL;
+	const char *out_name = NULL;
+	char buf[PIO_REG_SIZE];
 
+	argv0 = argv[0];
+
+	while ((opt = getopt(argc, argv, "i:o:")) != -1) {
+		switch(opt) {
+		case '?':
+			usage(0);
+		case 'i':
+			in_name = optarg;
+			break;
+		case 'o':
+			out_name = optarg;
+			break;
+		}
+	}
+	if (!in_name)
+		usage(1);
+	if (in_name) {
+		if (strcmp(in_name, "-") == 0) {
+			in = stdin;
+		} else {
+			in = fopen(in_name, "rb");
+			if (!in) {
+				perror("open input");
+				exit(1);
+			}
+		}
+	}
+	if (fread(buf, sizeof(buf), 1, in) != 1) {
+		perror("read input");
+		exit(1);
+	}
+	if (in != stdin)
+		fclose(in);
+
+	while(optind < argc) {
+		optind += do_command(buf, (const char **)(argv + optind), argc - optind);
+	}
+
+	if (out_name) {
+		if (strcmp(out_name, "-") == 0) {
+			out = stdout;
+		} else {
+			out = fopen(out_name, "wb");
+			if (!out) {
+				perror("open output");
+				exit(1);
+			}
+		}
+		if (fwrite(buf, sizeof(buf), 1, out) != 1) {
+			perror("write output");
+			exit(1);
+		}
+	}
+}
