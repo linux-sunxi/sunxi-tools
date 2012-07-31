@@ -104,6 +104,59 @@ static int pio_get(const char *buf, uint32_t port, uint32_t port_num, struct pio
 	return 1;
 }
 
+static int pio_set(char *buf, uint32_t port, uint32_t port_num, struct pio_status *pio)
+{
+	uint32_t *addr, val;
+	uint32_t port_num_func, port_num_pull;
+	uint32_t offset_func, offset_pull;
+
+	port_num_func = port_num >> 3;
+	offset_func = ((port_num - (port_num_func << 3)) << 2);
+
+	port_num_pull = port_num >> 4;
+	offset_pull = ((port_num - (port_num_pull << 4)) << 1);
+
+	/* func */
+	if (pio->mul_sel >= 0) {
+		addr = (uint32_t*)PIO_REG_CFG(buf, port, port_num_func);
+		val = le32toh(*addr);
+		val &= ~(0x07 << offset_func);
+		val |=  (pio->mul_sel & 0x07) << offset_func;
+		*addr = htole32(val);
+	}
+
+	/* pull */
+	if (pio->pull >= 0) {
+		addr = (uint32_t*)PIO_REG_PULL(buf, port, port_num_pull);
+		val = le32toh(*addr);
+		val &= ~(0x03 << offset_pull);
+		val |=  (pio->pull & 0x03) << offset_pull;
+		*addr = htole32(val);
+	}
+
+	/* dlevel */
+	if (pio->drv_level >= 0) {
+		addr = (uint32_t*)PIO_REG_DLEVEL(buf, port, port_num_pull);
+		val = le32toh(*addr);
+		val &= ~(0x03 << offset_pull);
+		val |=  (pio->pull & 0x03) << offset_pull;
+		*addr = htole32(val);
+	}
+
+	/* data */
+	if (pio->data >= 0) {
+		addr = (uint32_t*)PIO_REG_DATA(buf, port);
+		val = le32toh(*addr);
+		if (pio->data)
+			val |= (0x01 << port_num);
+		else
+			val &= ~(0x01 << port_num);
+		*addr = htole32(val);
+	}
+
+	return 1;
+}
+
 static void print(const char *buf)
 {
 	int port, i;
