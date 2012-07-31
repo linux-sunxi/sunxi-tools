@@ -100,7 +100,7 @@ static int pio_set(char *buf, uint32_t port, uint32_t port_num, struct pio_statu
 		addr = (uint32_t*)PIO_REG_DLEVEL(buf, port, port_num_pull);
 		val = le32toh(*addr);
 		val &= ~(0x03 << offset_pull);
-		val |=  (pio->pull & 0x03) << offset_pull;
+		val |=  (pio->drv_level & 0x03) << offset_pull;
 		*addr = htole32(val);
 	}
 
