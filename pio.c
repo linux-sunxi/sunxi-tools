@@ -7,6 +7,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #include <endian.h>
 
@@ -174,6 +175,19 @@ static void cmd_show_pin(char *buf, const char *pin)
     	pio_print(port, port_nr, &pio);
 }
 
+static int parse_int(int *dst, const char *in)
+{
+	int value;
+	char *next;
+	errno = 0;
+	value = strtol(in, &next, 0);
+	if (!errno && next != in) {
+		*dst = value;
+		return 0;
+	}
+	return -1;
+}
+
 static void cmd_set_pin(char *buf, const char *pin)
 {
 	int port, port_nr;
@@ -182,29 +196,29 @@ static void cmd_set_pin(char *buf, const char *pin)
 	parse_pin(&port, &port_nr, pin);
 	if (!pio_get(buf, port, port_nr, &pio))
 		usage(1);
-	t = strchr(t, '<');
+	if (t)
+		t = strchr(t, '<');
 	if (t) {
 		t++;
-		if (*t && *t != '>')
-			pio.mul_sel = atoi(t);
+		parse_int(&pio.mul_sel, t);
 	}
-	t = strchr(t, '<');
+	if (t)
+		t = strchr(t, '<');
 	if (t) {
 		t++;
-		if (*t && *t != '>')
-			pio.pull = atoi(t);
+		parse_int(&pio.pull, t);
 	}
-	t = strchr(t, '<');
+	if (t)
+		t = strchr(t, '<');
 	if (t) {
 		t++;
-		if (*t && *t != '>')
-			pio.drv_level = atoi(t);
+		parse_int(&pio.drv_level, t);
 	}
-	t = strchr(t, '<');
+	if (t)
+		t = strchr(t, '<');
 	if (t) {
 		t++;
-		if (*t && *t != '>')
-			pio.data = atoi(t);
+		parse_int(&pio.data, t);
 	}
 	pio_set(buf, port, port_nr, &pio);
 }
