@@ -39,5 +39,5 @@ fel: fel.c
 
 .gitignore: Makefile
 	@for x in $(TOOLS) '*.o' '*.swp'; do \
-		echo $$x; \
+		echo "$$x"; \
 	done > $@
