@@ -98,7 +98,7 @@ static int pio_get(const char *buf, uint32_t port, uint32_t port_num, struct pio
 	if (pio->mul_sel > 1)
 		pio->data = -1;
 	else {
-		val = LE32TOH(PIO_REG_CFG(buf, port, port_num_func));
+		val = LE32TOH(PIO_REG_DATA(buf, port));
 		pio->data = (val >> port_num) & 0x01;
 	}
 	return 1;
