@@ -150,36 +150,27 @@ void aw_fel_get_version(libusb_device_handle *usb)
 {
 	struct aw_fel_version {
 		char signature[8];
-		uint16_t unknown1;
-		uint16_t unknown2;
-		uint32_t unknown3;
-		uint16_t protocol;
-		uint16_t unknown4;
-		uint16_t unknown5;
-		uint16_t unknown6;
-		uint16_t unknown7;
-		uint16_t unknown8;
-		uint16_t unknown9;
-		uint16_t unknown10;
+		uint32_t unknown_08;	/* 0x00162300 */
+		uint32_t unknown_0a;	/* 1 */
+		uint16_t protocol;	/* 1 */
+		uint8_t  unknown_12;	/* 0x44 */
+		uint8_t  unknown_13;	/* 0x08 */
+		uint32_t scratchpad;	/* 0x7e00 */
+		uint32_t pad[2];	/* unused */
 	} __attribute__((packed)) buf;
 
 	aw_send_fel_request(usb, AW_FEL_VERSION, 0, 0);
 	aw_usb_read(usb, &buf, sizeof(buf));
 	aw_read_fel_status(usb);
 
-	buf.unknown1 = le16toh(buf.unknown1);
-	buf.unknown2 = le16toh(buf.unknown2);
-	buf.unknown3 = le16toh(buf.unknown3);
+	buf.unknown_08 = le32toh(buf.unknown_08);
+	buf.unknown_0a = le32toh(buf.unknown_0a);
 	buf.protocol = le32toh(buf.protocol);
-	buf.unknown4 = le16toh(buf.unknown4);
-	buf.unknown5 = le16toh(buf.unknown5);
-	buf.unknown6 = le16toh(buf.unknown6);
-	buf.unknown7 = le16toh(buf.unknown7);
-	buf.unknown8 = le16toh(buf.unknown8);
-	buf.unknown9 = le16toh(buf.unknown9);
-	buf.unknown10 = le16toh(buf.unknown10);
+	buf.scratchpad = le16toh(buf.scratchpad);
+	buf.pad[0] = le32toh(buf.pad[0]);
+	buf.pad[1] = le32toh(buf.pad[1]);
 
-	printf("%.8s %04x %04x %08x ver=%04x %04x %04x %04x %04x %04x %04x %04x\n", buf.signature, le16toh(buf.unknown1), le16toh(buf.unknown2), le16toh(buf.unknown3), buf.protocol, buf.unknown4, buf.unknown5, buf.unknown6, buf.unknown7, buf.unknown8, buf.unknown9, buf.unknown10);
+	printf("%.8s %08x %08x ver=%04x %02x %02x scratchpad=%08x %08x %08x\n", buf.signature, buf.unknown_08, buf.unknown_0a, buf.protocol, buf.unknown_12, buf.unknown_13, buf.scratchpad, buf.pad[0], buf.pad[1]);
 }
 
 void aw_fel_read(libusb_device_handle *usb, uint32_t offset, void *buf, size_t len)
