@@ -154,7 +154,7 @@ void print_boot_file_head(boot_file_head_t *hdr)
 	printf("FILE ver  : %.4s\n", hdr->file_head_vsn);
 	printf("BOOT ver  : %.4s\n", hdr->Boot_vsn);
 	printf("eGON ver  : %.4s\n", hdr->eGON_vsn);
-	printf("platform  : %.8s\n", hdr->platform);
+	printf("platform  : %c%c%c%c%c%c%c%c\n", hdr->platform[0], hdr->platform[1], hdr->platform[2], hdr->platform[3], hdr->platform[4], hdr->platform[5], hdr->platform[6], hdr->platform[7]);
 }
 
 void print_boot_dram_para(boot_dram_para_t *dram)
