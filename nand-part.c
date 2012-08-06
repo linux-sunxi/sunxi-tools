@@ -49,7 +49,7 @@
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
-#include "mbr.h"
+#include "nand-part.h"
 
 #define MAX_NAME 16
 

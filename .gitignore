@@ -4,6 +4,6 @@ fex2bin
 bootinfo
 fel
 pio
-mbr
+nand-part
 *.o
 *.swp
