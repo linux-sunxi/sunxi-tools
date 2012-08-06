@@ -4,5 +4,6 @@ fex2bin
 bootinfo
 fel
 pio
+mbr
 *.o
 *.swp
