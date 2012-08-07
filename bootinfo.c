@@ -24,12 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-
-typedef unsigned char u8;
-typedef unsigned char __u8;
-typedef unsigned int u32;
-typedef unsigned int __u32;
-typedef signed int __s32;
+#include "types.h"
 
 /* boot_file_head copied from mksunxiboot */
 /* boot head definition from sun4i boot code */
