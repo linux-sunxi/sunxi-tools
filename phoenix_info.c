@@ -21,8 +21,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <endian.h>
 #include <unistd.h>
+
+#include "endian_compat.h"
 
 struct phoenix_ptable {
 	char signature[16];		/* "PHOENIX_CARD_IMG" */

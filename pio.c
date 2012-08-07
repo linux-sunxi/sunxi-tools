@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <errno.h>
 
-#include <endian.h>
+#include "endian_compat.h"
 
 #define PIO_REG_SIZE 0x228 /*0x300*/
 #define PIO_PORT_SIZE 0x24
