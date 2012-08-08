@@ -257,15 +257,31 @@ int script_parse_fex(FILE *in, const char *filename, struct script *script)
 					continue;
 				}
 				perror("malloc");
-			} else if (memcmp("port:P", p, 6) == 0) {
+			} else if (memcmp("port:", p, 5) == 0) {
 				/* GPIO */
-				p += 6;
-				if (*p < 'A' || *p > 'Z')
+				p += 5;
+				if (p[0] == 'P' &&
+				    (p[1] < 'A' || p[1] > 'I'))
+					;
+				else if (*p != 'P' &&
+					 memcmp(p, "power", 5) != 0)
 					;
 				else {
 					char *end;
-					int port = *p++ - 'A' + 1;
-					long v = strtol(p, &end, 10);
+					int port;
+					long v;
+
+					if (*p == 'P') {
+						/* port:PXN */
+						port = p[1] - 'A' + 1;
+						p += 2;
+					} else {
+						/* port:powerN */
+						port = 0xffff;
+						p += 5;
+					}
+
+					v = strtol(p, &end, 10);
 					if (end == p)
 						goto invalid_char_at_p;
 					else if (v<0 || v>255) {
