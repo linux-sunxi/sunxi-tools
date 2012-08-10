@@ -47,12 +47,14 @@ static const int AW_USB_WRITE = 0x12;
 
 static const int AW_USB_FEL_BULK_EP_OUT=0x01;
 static const int AW_USB_FEL_BULK_EP_IN=0x82;
+static const int AW_USB_MAX_BULK_SEND=64*1024; // 64KB per bulk request
 
 void usb_bulk_send(libusb_device_handle *usb, int ep, const void *data, int length)
 {
 	int rc, sent;
 	while (length > 0) {
-		rc = libusb_bulk_transfer(usb, ep, (void *)data, length, &sent, 1000);
+		int len = length < AW_USB_MAX_BULK_SEND ? length : AW_USB_MAX_BULK_SEND;
+		rc = libusb_bulk_transfer(usb, ep, (void *)data, len, &sent, 1000);
 		if (rc != 0) {
 			errno = EIO;
 			perror("usb send");
