@@ -225,12 +225,11 @@ void *load_file(const char *name, size_t *size)
 	assert(in);
 	
 	while(1) {
-		ssize_t n = fread(buf+offset, 1, bufsize - offset, in);
-		assert(n>=0);
+		ssize_t len = bufsize - offset;
+		ssize_t n = fread(buf+offset, 1, len, in);
 		offset += n;
-		if (bufsize >= offset) {
+		if (n < len)
 			break;
-		}
 		bufsize <<= 1;
 		buf = realloc(buf, bufsize);
 	}
