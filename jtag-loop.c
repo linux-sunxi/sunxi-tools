@@ -24,9 +24,9 @@ Build instructions:
 
 arm-none-linux-gnueabi-gcc  -g -fno-common -ffixed-r8 -msoft-float -fno-builtin -ffreestanding -nostdinc -mno-thumb-interwork -Wall -Wstrict-prototypes -fno-stack-protector -Wno-format-nonliteral -Wno-format-security -fno-toplevel-reorder -Os jtag-loop.c -c
 
-arm-none-linux-gnueabi-objcopy -O binary fel-loop.o fel-loop.bin
+arm-none-linux-gnueabi-objcopy -O binary jtag-loop.o jtag-loop.bin
 
-mksunxiboot fel-loop.bin fel-loop.sunxi
+mksunxiboot jtag-loop.bin jtag-loop.sunxi
 */
 
 void _start(void)
