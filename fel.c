@@ -27,11 +27,8 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <errno.h>
 
 #include "endian_compat.h"
-
-int errno;
 
 struct  aw_usb_request {
 	char signature[8];
@@ -55,8 +52,7 @@ void usb_bulk_send(libusb_device_handle *usb, int ep, const void *data, int leng
 	while (length > 0) {
 		rc = libusb_bulk_transfer(usb, ep, (void *)data, length, &sent, timeout);
 		if (rc != 0) {
-			errno = EIO;
-			perror("usb send");
+			fprintf(stderr, "libusb usb_bulk_send error %d\n", rc);
 			exit(2);
 		}
 		length -= sent;
@@ -70,8 +66,7 @@ void usb_bulk_recv(libusb_device_handle *usb, int ep, void *data, int length)
 	while (length > 0) {
 		rc = libusb_bulk_transfer(usb, ep, data, length, &recv, timeout);
 		if (rc != 0) {
-			errno = EIO;
-			perror("usb recv");
+			fprintf(stderr, "usb_bulk_recv error %d\n", rc);
 			exit(2);
 		}
 		length -= recv;
@@ -283,8 +278,7 @@ int main(int argc, char **argv)
 
 	handle = libusb_open_device_with_vid_pid(NULL, 0x1f3a, 0xefe8);
 	if (!handle) {
-		errno = ENODEV;
-		perror("A10 USB FEL device not found!");
+		fprintf(stderr, "A10 USB FEL device not found!");
 		exit(1);
 	}
 	rc = libusb_claim_interface(handle, 0);
