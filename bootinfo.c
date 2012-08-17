@@ -231,7 +231,7 @@ void print_boot0_private_head(boot0_private_head_t *hdr)
 	pprintf(&hdr->enable_jtag,	"JTAG en   : %d\n", hdr->enable_jtag);
 	print_normal_gpio_cfg(hdr->jtag_gpio, 5);
 	pprintf(&hdr->storage_gpio,	"STORAGE   :\n");
-	print_normal_gpio_cfg(hdr->storage_gpio, 2);
+	print_normal_gpio_cfg(hdr->storage_gpio, 32);
 	int i;
 	for (i = 0; i < 256; i++) {
 		if (i % 16 == 0) {
@@ -271,7 +271,9 @@ void print_boot1_private_head(boot1_private_head_t *hdr)
 	pprintf(&hdr->hold_key_min,	"Hold key min : %d\n", hdr->hold_key_min);
 	pprintf(&hdr->hold_key_max,	"Hold key max : %d\n", hdr->hold_key_max);
 	pprintf(&hdr->work_mode,	"Work mode : %d\n", hdr->work_mode);
-	pprintf(&hdr->storage_type,	"Storage   : %d\n", hdr->storage_type);
+	pprintf(&hdr->storage_type,	"STORAGE   :\n");
+	pprintf(&hdr->storage_type,	" type   : %d\n", hdr->storage_type);
+	print_normal_gpio_cfg(hdr->storage_gpio, 32);
 	int i;
 	for (i = 0; i < 256; i++) {
 		if (i % 16 == 0) {
