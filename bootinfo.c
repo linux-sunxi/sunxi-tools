@@ -125,7 +125,7 @@ typedef struct _boot1_private_head_t {
     __u32 work_mode;
     __u32 storage_type;
     normal_gpio_cfg storage_gpio[32];
-    char storage_data[256];
+    __u8 storage_data[256];
 } boot1_private_head_t;
 
 typedef struct _boot1_file_head_t {
