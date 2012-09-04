@@ -8,6 +8,8 @@ TOOLS += nand-part
 
 MISC_TOOLS = phoenix_info
 
+CROSS_COMPILE ?= arm-none-eabi-
+
 .PHONY: all clean
 
 all: $(TOOLS)
@@ -15,7 +17,7 @@ all: $(TOOLS)
 misc: $(MISC_TOOLS)
 
 clean:
-	@rm -vf $(TOOLS) $(MISC_TOOLS) *.o *.elf
+	@rm -vf $(TOOLS) $(MISC_TOOLS) *.o *.elf *.sunxi *.bin *.nm *.orig
 
 
 $(TOOLS): Makefile common.h
@@ -40,13 +42,22 @@ fel: fel.c
 .dummy:	fel-pio.bin
 
 fel-pio.bin: fel-pio.elf fel-pio.nm
-	arm-none-eabi-objcopy -O binary fel-pio.elf fel-pio.bin
+	$(CROSS_COMPILE)objcopy -O binary fel-pio.elf fel-pio.bin
 
-fel-pio.elf: fel-pio.c
-	arm-none-eabi-gcc  -g  -Os   -fno-common -fno-builtin -ffreestanding -nostdinc -mno-thumb-interwork -Wall -Wstrict-prototypes -fno-stack-protector -Wno-format-nonliteral -Wno-format-security -fno-toplevel-reorder  fel-pio.c -nostdlib -o fel-pio.elf -T fel-pio.lds
+fel-pio.elf: fel-pio.c fel-pio.lds
+	$(CROSS_COMPILE)gcc  -g  -Os -fpic  -fno-common -fno-builtin -ffreestanding -nostdinc -mno-thumb-interwork -Wall -Wstrict-prototypes -fno-stack-protector -Wno-format-nonliteral -Wno-format-security -fno-toplevel-reorder  fel-pio.c -nostdlib -o fel-pio.elf -T fel-pio.lds
 
 fel-pio.nm: fel-pio.elf
-	arm-none-eabi-nm fel-pio.elf | grep -v " _" >fel-pio.nm
+	$(CROSS_COMPILE)nm fel-pio.elf | grep -v " _" >fel-pio.nm
+
+jtag-loop.elf: jtag-loop.c jtag-loop.lds
+	$(CROSS_COMPILE)gcc  -g  -Os  -fpic -fno-common -fno-builtin -ffreestanding -nostdinc -mno-thumb-interwork -Wall -Wstrict-prototypes -fno-stack-protector -Wno-format-nonliteral -Wno-format-security -fno-toplevel-reorder  jtag-loop.c -nostdlib -o jtag-loop.elf -T jtag-loop.lds -Wl,-N
+
+jtag-loop.bin: jtag-loop.elf
+	$(CROSS_COMPILE)objcopy -O binary jtag-loop.elf jtag-loop.bin
+
+jtag-loop.sunxi: jtag-loop.bin
+	mksunxiboot jtag-loop.bin jtag-loop.sunxi
 
 bootinfo: bootinfo.c
 
