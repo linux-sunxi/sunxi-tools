@@ -39,8 +39,6 @@ fel: fel.c
 %: %.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(filter %.c,$^) $(LIBS)
 
-.dummy:	fel-pio.bin
-
 fel-pio.bin: fel-pio.elf fel-pio.nm
 	$(CROSS_COMPILE)objcopy -O binary fel-pio.elf fel-pio.bin
 
