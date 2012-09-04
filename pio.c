@@ -146,13 +146,14 @@ static const char *argv0;
 
 static void usage(int rc )
 {
+			
 	fprintf(stderr, "usage: %s -i input [-o output] pin..\n", argv0);
-	fprintf(stderr,	"	print		Show all pins\n");
-	fprintf(stderr,	"	Pxx		Show pin\n");
-	fprintf(stderr,	"	Pxx<mode><pull><drive><data>\n		Configure pin\n");
-	fprintf(stderr,	"	Pxx=data,drive,pull\n			Configure GPIO output\n");
-	fprintf(stderr,	"	Pxx?pull\n				Configure GPIO input\n");
-	fprintf(stderr, "	clean		Clean input pins\n");
+	fprintf(stderr," print				Show all pins\n");
+	fprintf(stderr," Pxx				Show pin\n");
+	fprintf(stderr," Pxx<mode><pull><drive><data>	Configure pin\n");
+	fprintf(stderr," Pxx=data,drive			Configure GPIO output\n");
+	fprintf(stderr," Pxx?pull			Configure GPIO input\n");
+	fprintf(stderr," clean				Clean input pins\n");
 	fprintf(stderr, "\n	mode 0-7, 0=input, 1=ouput, 2-7 I/O function\n");
 	fprintf(stderr, "	pull 0=none, 1=up, 2=down\n");
 	fprintf(stderr, "	drive 0-3, I/O drive level\n");
@@ -210,12 +211,6 @@ static void cmd_set_pin(char *buf, const char *pin)
 			t++;
 			parse_int(&pio.drv_level, t);
 		}
-		if (t)
-			t = strchr(t, ',');
-		if (t) {
-			t++;
-			parse_int(&pio.pull, t);
-		}
 	} else if ((t = strchr(pin, '?'))) {
 		pio.mul_sel = 0;
 		pio.data = 0;
@@ -270,10 +265,16 @@ static void cmd_clean(char *buf)
 static int do_command(char *buf, const char **args, int argc)
 {
 	const char *command = args[0];
-	if (strchr(command, '<'))
-		cmd_set_pin(buf, command);
-	else if (*command == 'P')
-		cmd_show_pin(buf, command);
+	if (*command == 'P') {
+		if (strchr(command, '<'))
+			cmd_set_pin(buf, command);
+		else if (strchr(command, '='))
+			cmd_set_pin(buf, command);
+		else if (strchr(command, '?'))
+			cmd_set_pin(buf, command);
+		else
+			cmd_show_pin(buf, command);
+	}
 	else if (strcmp(command, "print") == 0)
 		print(buf);
 	else if (strcmp(command, "clean") == 0)
