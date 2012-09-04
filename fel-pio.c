@@ -21,15 +21,28 @@
 
 Build instructions:
 
-arm-none-linux-gnueabi-gcc  -g  -Os   -fno-common -ffixed-r8 -msoft-float -fno-builtin -ffreestanding -nostdinc -mno-thumb-interwork -Wall -Wstrict-prototypes -fno-stack-protector -Wno-format-nonliteral -Wno-format-security -fno-toplevel-reorder  fel-pio.c -c
+arm-none-eabi-gcc  -g  -Os   -fno-common -fno-builtin -ffreestanding -nostdinc -mno-thumb-interwork -Wall -Wstrict-prototypes -fno-stack-protector -Wno-format-nonliteral -Wno-format-security -fno-toplevel-reorder  fel-pio.c -nostdlib -o fel-pio.elf
 
-arm-none-linux-gnueabi-objcopy -O binary fel-pio.o fel-pio.bin
+arm-none-eabi-objcopy -O binary fel-pio.elf fel-pio.bin
 
-arm-none-linux-gnueabi-nm fel-pio.o
+arm-none-eabi-nm fel-pio.o
 
 */
 
+void _pio_to_sram(void);
+void _sram_to_pio(void);
+
 void pio_to_sram(void)
+{
+	_pio_to_sram();
+}
+
+void sram_to_pio(void)
+{
+	_sram_to_pio();
+}
+
+void _pio_to_sram(void)
 {
 	unsigned long *a = (void *)0x1c20800;
 	unsigned long *b = (void *)0x3000;
@@ -39,7 +52,7 @@ void pio_to_sram(void)
 	}
 }
 
-void sram_to_pio(void)
+void _sram_to_pio(void)
 {
 	unsigned long *a = (void *)0x1c20800;
 	unsigned long *b = (void *)0x3000;
