@@ -59,6 +59,15 @@ jtag-loop.bin: jtag-loop.elf
 jtag-loop.sunxi: jtag-loop.bin
 	mksunxiboot jtag-loop.bin jtag-loop.sunxi
 
+fel-boot.elf: fel-boot.c fel-boot.lds
+	$(CROSS_COMPILE)gcc  -g  -Os  -fpic -fno-common -fno-builtin -ffreestanding -nostdinc -mno-thumb-interwork -Wall -Wstrict-prototypes -fno-stack-protector -Wno-format-nonliteral -Wno-format-security -fno-toplevel-reorder  fel-boot.c -nostdlib -o fel-boot.elf -T fel-boot.lds -Wl,-N
+
+fel-boot.bin: fel-boot.elf
+	$(CROSS_COMPILE)objcopy -O binary fel-boot.elf fel-boot.bin
+
+fel-boot.sunxi: fel-boot.bin
+	mksunxiboot fel-boot.bin fel-boot.sunxi
+
 bootinfo: bootinfo.c
 
 .gitignore: Makefile
