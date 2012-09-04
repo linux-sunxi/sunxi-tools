@@ -208,6 +208,17 @@ void hexdump(void *data, uint32_t offset, size_t size)
 		printf("\n");
 	}
 }
+
+int save_file(const char *name, void *data, size_t size)
+{
+	FILE *out = fopen(name, "wb");
+	int rc;
+	assert(out);
+	rc = fwrite(data, size, 1, out);
+	fclose(out);
+	return rc;
+}
+
 void *load_file(const char *name, size_t *size)
 {
 	size_t bufsize = 8192;
@@ -268,6 +279,7 @@ int main(int argc, char **argv)
 			"	hex[dump] address length	Dumps memory region in hex\n"
 			"	dump address length		Binary memory dump\n"
 			"	exe[cute] address		Call function address\n"
+			"	read address length file	Write memory contents into file\n"
 			"	write address file		Store file contents into memory\n"
 			"	ver[sion]			Show BROM version\n"
 			"	clear address length		Clear memory\n"
@@ -305,6 +317,13 @@ int main(int argc, char **argv)
 			aw_fel_write(handle, buf, strtoul(argv[2], NULL, 0), size);
 			free(buf);
 			skip=3;
+		} else if (strcmp(argv[1], "read") == 0 && argc > 4) {
+			size_t size = strtoul(argv[3], NULL, 0);
+			void *buf = malloc(size);
+			aw_fel_read(handle, strtoul(argv[2], NULL, 0), buf, size);
+			save_file(argv[4], buf, size);
+			free(buf);
+			skip=4;
 		} else if (strcmp(argv[1], "clear") == 0 && argc > 2) {
 			aw_fel_fill(handle, strtoul(argv[2], NULL, 0), strtoul(argv[3], NULL, 0), 0);
 			skip=3;
