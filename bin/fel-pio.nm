@@ -1,0 +1,2 @@
+00002000 T pio_to_sram
+00002004 T sram_to_pio
