@@ -133,7 +133,7 @@ typedef struct _boot1_file_head_t {
     boot1_private_head_t prvt_head;
 } boot1_file_head_t;
 
-/* Not sure where this is, but should be in STORAGE DATA somewhere */
+/* STORAGE DATA on SD loaders */
 typedef struct _boot_sdcard_info_t {
     __s32 card_ctrl_num;
     __s32 boot_offset;
@@ -153,6 +153,12 @@ union {
 	boot1_file_head_t boot1;
 	brom_file_head_t brom;
 } boot_hdr;
+
+typedef enum {
+	ALLWINNER_UNKNOWN_LOADER=0,
+	ALLWINNER_SD_LOADER,
+	ALLWINNER_NAND_LOADER
+} loader_type;
 
 void fail(char *msg) {
 	perror(msg);
@@ -221,7 +227,23 @@ void print_normal_gpio_cfg(normal_gpio_cfg *gpio, int count)
 			pprintf(&gpio[i], " GPIO %d   : port=%c%d, sel=%d, pull=%d, drv=%d, data=%d, reserved=%02x,%02x\n", i, 'A'+gpio[i].port-1, gpio[i].port_num, gpio[i].mul_sel, gpio[i].pull, gpio[i].drv_level, gpio[i].data, gpio[i].reserved[0], gpio[i].reserved[1]);
 	}
 }
-void print_boot0_private_head(boot0_private_head_t *hdr)
+
+void print_boot_sdcard_info(boot_sdcard_info_t *info)
+{
+	pprintf(&info->card_ctrl_num,	" CARD Ctrl Num: %d\n", info->card_ctrl_num);
+	pprintf(&info->boot_offset,	" BOOT Offset: %08x\n", info->boot_offset);
+
+	for (int i = 0; i < 4; i++) {
+		if (info->card_no[i] == -1)
+			continue;
+		pprintf(&info->card_no[i],    " CARD No  : %d (%d)\n", info->card_no[i], i);
+		pprintf(&info->speed_mode[i], "  Speed   : %d\n", info->speed_mode[i]);
+		pprintf(&info->line_sel[i],   "  Line sel: %d\n", info->line_sel[i]);
+		pprintf(&info->line_count[i], "  Line cnt: %d\n", info->line_count[i]);
+	}
+}
+
+void print_boot0_private_head(boot0_private_head_t *hdr, loader_type type)
 {
 	pprintf(&hdr->prvt_head_size,	"FHSize    : %u\n", hdr->prvt_head_size);
 	pprintf(&hdr->prvt_head_vsn,	"FILE ver  : %.4s\n", hdr->prvt_head_vsn);
@@ -232,10 +254,14 @@ void print_boot0_private_head(boot0_private_head_t *hdr)
 	print_normal_gpio_cfg(hdr->jtag_gpio, 5);
 	pprintf(&hdr->storage_gpio,	"STORAGE   :\n");
 	print_normal_gpio_cfg(hdr->storage_gpio, 32);
-	int i;
-	for (i = 0; i < 256; i++) {
-		if (i % 16 == 0) {
-			if (i) {
+	int i = 0;
+	if (type == ALLWINNER_SD_LOADER) {
+		print_boot_sdcard_info((boot_sdcard_info_t *)hdr->storage_data);
+		i = sizeof(boot_sdcard_info_t);
+	}
+	for (int n = 0; i < 256; i++, n++) {
+		if (n % 16 == 0) {
+			if (n) {
 				printf("\n");
 			}
 			pprintf(&hdr->storage_data[i], " DATA %02x  :", i);
@@ -256,7 +282,7 @@ void print_core_para(boot_core_para_t *core)
 	pprintf(&core->vol_threshold,	"Vol Threshold: %d\n", core->vol_threshold);
 }
 
-void print_boot1_private_head(boot1_private_head_t *hdr)
+void print_boot1_private_head(boot1_private_head_t *hdr, loader_type type)
 {
 	pprintf(&hdr->prvt_head_size,	"FHSize    : %u\n", hdr->prvt_head_size);
 	pprintf(&hdr->prvt_head_vsn,	"FILE ver  : %.4s\n", hdr->prvt_head_vsn);
@@ -274,10 +300,14 @@ void print_boot1_private_head(boot1_private_head_t *hdr)
 	pprintf(&hdr->storage_type,	"STORAGE   :\n");
 	pprintf(&hdr->storage_type,	" type   : %d\n", hdr->storage_type);
 	print_normal_gpio_cfg(hdr->storage_gpio, 32);
-	int i;
-	for (i = 0; i < 256; i++) {
-		if (i % 16 == 0) {
-			if (i) {
+	int i = 0;
+	if (type == ALLWINNER_SD_LOADER) {
+		print_boot_sdcard_info((boot_sdcard_info_t *)hdr->storage_data);
+		i = sizeof(boot_sdcard_info_t);
+	}
+	for (int n = 0; i < 256; i++, n++) {
+		if (n % 16 == 0) {
+			if (n) {
 				printf("\n");
 			}
 			pprintf(&hdr->storage_data[i], " DATA %02x  :", i);
@@ -287,20 +317,20 @@ void print_boot1_private_head(boot1_private_head_t *hdr)
 	printf("\n");
 }
 
-void print_boot0_file_head(boot0_file_head_t *hdr)
+void print_boot0_file_head(boot0_file_head_t *hdr, loader_type type)
 {
 	print_boot_file_head(&hdr->boot_head);
 	if (strncmp((char *)hdr->boot_head.file_head_vsn, "1230", 4) == 0)
-		print_boot0_private_head(&hdr->prvt_head);
+		print_boot0_private_head(&hdr->prvt_head, type);
 	else
 		printf("Unknown boot0 header version\n");
 }
 
-void print_boot1_file_head(boot1_file_head_t *hdr)
+void print_boot1_file_head(boot1_file_head_t *hdr, loader_type type)
 {
 	print_boot_file_head(&hdr->boot_head);
 	if (strncmp((char *)hdr->boot_head.file_head_vsn, "1230", 4) == 0)
-		print_boot1_private_head(&hdr->prvt_head);
+		print_boot1_private_head(&hdr->prvt_head, type);
 	else
 		printf("Unknown boot0 header version\n");
 }
@@ -308,6 +338,17 @@ void print_boot1_file_head(boot1_file_head_t *hdr)
 int main(int argc, char * argv[])
 {
 	FILE *in = stdin;
+	loader_type type = ALLWINNER_UNKNOWN_LOADER;
+	if (argc > 1 && strcmp(argv[1], "--type=sd") == 0) {
+		type = ALLWINNER_SD_LOADER;
+		argc--;
+		argv++;
+	}
+	if (argc > 1 && strcmp(argv[1], "--type=nand") == 0) {
+		type = ALLWINNER_NAND_LOADER;
+		argc--;
+		argv++;
+	}
 	if (argc > 1) {
 		in = fopen(argv[1], "rb");
 		if (!in)
@@ -319,9 +360,9 @@ int main(int argc, char * argv[])
 	if (len < (int)sizeof(boot_file_head_t))
 		fail("Failed to read header:");
 	if (strncmp((char *)boot_hdr.boot.magic, BOOT0_MAGIC, strlen(BOOT0_MAGIC)) == 0) {
-		print_boot0_file_head(&boot_hdr.boot0);
+		print_boot0_file_head(&boot_hdr.boot0, type);
 	} else if (strncmp((char *)boot_hdr.boot.magic, BOOT1_MAGIC, strlen(BOOT1_MAGIC)) == 0) {
-		print_boot1_file_head(&boot_hdr.boot1);
+		print_boot1_file_head(&boot_hdr.boot1, type);
 	} else if (strncmp((char *)boot_hdr.boot.magic, BROM_MAGIC, strlen(BROM_MAGIC)) == 0) {
 		print_brom_file_head(&boot_hdr.brom);
 	} else {
