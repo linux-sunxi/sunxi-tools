@@ -26,8 +26,27 @@ fel:
 	th CPU. You activate FEL mode by pushing the usboot/recovery
 	button at poweron.
 
+fel-gpio:
+	Simple wrapper around fel-pio and fel to allos GPIO manipulations
+	via FEL
+
+fel-pio.bin:
+	ARM native helper for fel-gpio
+
+pio:
+	Manipulate PIO register dumps
+
+nand-part:
+	Tool for manipulating Allwinner NAND partition tables
+
+jtag-loop.sunxi:
+	ARM native boot helper to force the SD port into JTAG
+	and then stop, to ease debugging of bootloaders.
+
 bootinfo:
 	Dump information from Allwinner boot files (boot0/boot1)
+	--type=sd	include SD boot info
+	--type=nand	include NAND boot info (not implemented)
 
 phoenix_info:
 	gives information about a phoenix image created by the
