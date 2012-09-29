@@ -32,11 +32,10 @@
 #define pr_debug(...)
 #endif
 
-static inline void out_dram_member(FILE *out, const char *key, uint32_t val)
+static inline void out_u32_member(FILE *out, const char *key, int hexa, uint32_t val)
 {
 	const char *fmt;
-	if (strncmp(key, "tpr", 3) == 0 ||
-	    strncmp(key, "emr", 3) == 0)
+	if (hexa)
 		fmt = "\t.%s = %#x,\n";
 	else
 		fmt = "\t.%s = %u,\n";
@@ -44,15 +43,18 @@ static inline void out_dram_member(FILE *out, const char *key, uint32_t val)
 	fprintf(out, fmt, key, val);
 }
 
+/*
+ * DRAM
+ */
 static int generate_dram_struct(FILE *out, struct script_section *sp)
 {
 	struct list_entry *le;
 	struct script_entry *ep;
 	struct script_single_entry *val;
 	const char *key;
-	int ret = 1;
+	int ret = 1, hexa;
 
-	fprintf(out, "struct dram_para para = {\n");
+	fprintf(out, "static struct dram_para dram_para = {\n");
 	for (le = list_first(&sp->entries); le;
 	     le = list_next(&sp->entries, le)) {
 		ep = container_of(le, struct script_entry, entries);
@@ -68,11 +70,17 @@ static int generate_dram_struct(FILE *out, struct script_section *sp)
 		else if (strcmp(key, "clk") == 0)
 			key = "clock";
 
+		if (strncmp(key, "tpr", 3) == 0 ||
+		    strncmp(key, "emr", 3) == 0)
+			hexa = 1;
+		else
+			hexa = 0;
+
 		switch (ep->type) {
 		case SCRIPT_VALUE_TYPE_SINGLE_WORD:
 			val = container_of(ep, struct script_single_entry, entry);
 			if (val->value > 0)
-				out_dram_member(out, key, val->value);
+				out_u32_member(out, key, hexa, val->value);
 			/* pass through */
 		case SCRIPT_VALUE_TYPE_NULL:
 			continue;
@@ -93,13 +101,20 @@ int script_generate_uboot(FILE *out, const char *UNUSED(filename),
 	struct script_section *section;
 	const char *section_name;
 
-	fprintf(out, "/* this file is generated, don't edit it yourself */\n\n");
+	fputs("/* this file is generated, don't edit it yourself */\n\n"
+	      "#include <common.h>\n"
+	      "#include <asm/arch/dram.h>\n\n",
+	      out);
 
 	section_name = "dram_para";
 	section = script_find_section(script, section_name);
 	if (!section)
 		goto missing_section;
 	generate_dram_struct(out, section);
+
+	fputs("\nint sunxi_dram_init(void)\n"
+	      "{\n\treturn DRAMC_init(&dram_para);\n}\n",
+	      out);
 
 	return 1;
 missing_section:
