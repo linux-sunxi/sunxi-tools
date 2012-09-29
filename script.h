@@ -86,6 +86,10 @@ struct script_section *script_section_new(struct script *script,
 /** deletes a section recursvely and removes it from the script */
 void script_section_delete(struct script_section *section);
 
+/** find existing section */
+struct script_section *script_find_section(struct script *section,
+					   const char *name);
+
 /** deletes an entry and removes it from the section */
 void script_entry_delete(struct script_entry *entry);
 
