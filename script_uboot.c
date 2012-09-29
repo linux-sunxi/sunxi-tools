@@ -69,6 +69,8 @@ static int generate_dram_struct(FILE *out, struct script_section *sp)
 			continue; /* skip */
 		else if (strcmp(key, "clk") == 0)
 			key = "clock";
+		else if (strcmp(key, "chip_density") == 0)
+			key = "density";
 
 		if (strncmp(key, "tpr", 3) == 0 ||
 		    strncmp(key, "emr", 3) == 0)
