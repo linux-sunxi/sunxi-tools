@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012  Alejandro Mery <amery@geeks.cl>
+ * Copyright (C) 2012 Alejandro Mery <amery@geeks.cl>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,17 +14,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef _SUNXI_TOOLS_FEXC_H
-#define _SUNXI_TOOLS_FEXC_H
+#ifndef _SUBXI_TOOLS_SCRIPT_UBOOT_H
+#define _SUBXI_TOOLS_SCRIPT_UBOOT_H
 
-#include "common.h"
-
-#include <stdint.h>
-#include <stdio.h>
-
-#include "script.h"
-#include "script_bin.h"
-#include "script_fex.h"
-#include "script_uboot.h"
+int script_generate_uboot(FILE *out, const char *filename, struct script *script);
 
 #endif

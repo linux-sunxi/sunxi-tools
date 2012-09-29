@@ -26,6 +26,7 @@ fex2bin bin2fex: fexc
 	ln -s $< $@
 
 fexc: fexc.h script.h script.c \
+	script_uboot.h script_uboot.c \
 	script_bin.h script_bin.c \
 	script_fex.h script_fex.c
 
