@@ -63,7 +63,7 @@ static int generate_dram_struct(FILE *out, struct script_section *sp)
 			goto invalid_field;
 
 		key = ep->name + 5;
-		if (strcmp(key, "") == 0)
+		if (key[0] == '\0')
 			goto invalid_field;
 		else if (strcmp(key, "baseaddr") == 0)
 			continue; /* skip */
@@ -94,6 +94,46 @@ invalid_field:
 
 	}
 	fprintf(out, "};\n");
+	fputs("\nint sunxi_dram_init(void)\n"
+	      "{\n\treturn DRAMC_init(&dram_para);\n}\n",
+	      out);
+
+	return ret;
+}
+
+/*
+ * PMU
+ */
+static int generate_pmu_struct(FILE *out, struct script_section *sp)
+{
+	struct list_entry *le;
+	struct script_entry *ep;
+	struct script_single_entry *val;
+	int ret = 1;
+
+	fputs("\nstatic struct pmu_para pmu_para = {\n", out);
+	for (le = list_first(&sp->entries); le;
+	     le = list_next(&sp->entries, le)) {
+		ep = container_of(le, struct script_entry, entries);
+
+		switch (ep->type) {
+		case SCRIPT_VALUE_TYPE_SINGLE_WORD:
+			val = container_of(ep, struct script_single_entry, entry);
+			if (val->value > 0)
+				out_u32_member(out, ep->name, 0, val->value);
+			/* pass through */
+		case SCRIPT_VALUE_TYPE_NULL:
+			continue;
+		default:
+			pr_err("pmu_para: %s: invalid field\n", ep->name);
+			ret = 0;
+		}
+
+	}
+	fputs("};\n", out);
+	fputs("\nint sunxi_pmu_init(void)\n"
+	      "{\n\treturn PMU_init(&pmu_para);\n}\n",
+	      out);
 	return ret;
 }
 
@@ -105,6 +145,7 @@ int script_generate_uboot(FILE *out, const char *UNUSED(filename),
 
 	fputs("/* this file is generated, don't edit it yourself */\n\n"
 	      "#include <common.h>\n"
+	      "#include <asm/arch/pmu.h>\n"
 	      "#include <asm/arch/dram.h>\n\n",
 	      out);
 
@@ -114,9 +155,11 @@ int script_generate_uboot(FILE *out, const char *UNUSED(filename),
 		goto missing_section;
 	generate_dram_struct(out, section);
 
-	fputs("\nint sunxi_dram_init(void)\n"
-	      "{\n\treturn DRAMC_init(&dram_para);\n}\n",
-	      out);
+	section_name = "target";
+	section = script_find_section(script, section_name);
+	if (!section)
+		goto missing_section;
+	generate_pmu_struct(out, section);
 
 	return 1;
 missing_section:
