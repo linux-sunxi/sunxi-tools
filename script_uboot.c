@@ -69,6 +69,27 @@ static inline void out_null_member(FILE *out, const char *key)
 	fprintf(out, "\t/* %s is NULL */\n", key);
 }
 
+static inline int out_member(FILE *out, const char *key, int mode,
+		      struct script_entry *ep)
+{
+	switch (ep->type) {
+	case SCRIPT_VALUE_TYPE_SINGLE_WORD:
+		out_u32_member(out, key, mode,
+		       container_of(ep, struct script_single_entry, entry));
+		break;
+	case SCRIPT_VALUE_TYPE_NULL:
+		out_null_member(out, key);
+		break;
+	case SCRIPT_VALUE_TYPE_GPIO:
+		out_gpio_member(out, key,
+			container_of(ep, struct script_gpio_entry, entry));
+		break;
+	default:
+		return 0;
+	}
+	return 1;
+}
+
 /*
  * DRAM
  */
@@ -103,18 +124,7 @@ static int generate_dram_struct(FILE *out, struct script_section *sp)
 		else
 			hexa = 0;
 
-		switch (ep->type) {
-		case SCRIPT_VALUE_TYPE_SINGLE_WORD:
-			out_u32_member(out, key, hexa,
-			       container_of(ep, struct script_single_entry, entry));
-			break;
-		case SCRIPT_VALUE_TYPE_NULL:
-			out_null_member(out, key);
-			break;
-		case SCRIPT_VALUE_TYPE_GPIO:
-			out_gpio_member(out, key,
-				container_of(ep, struct script_gpio_entry, entry));
-		default:
+		if (!out_member(out, key, hexa, ep)) {
 invalid_field:
 			pr_err("dram_para: %s: invalid field\n", ep->name);
 			ret = 0;
@@ -148,25 +158,10 @@ static int generate_pmu_struct(FILE *out, struct script_section *target,
 	     le = list_next(&sp->entries, le)) {
 		ep = container_of(le, struct script_entry, entries);
 
-		key = ep->name;
-
-		switch (ep->type) {
-		case SCRIPT_VALUE_TYPE_SINGLE_WORD:
-			out_u32_member(out, key, 0,
-			       container_of(ep, struct script_single_entry, entry));
-			break;
-		case SCRIPT_VALUE_TYPE_NULL:
-			out_null_member(out, key);
-			break;
-		case SCRIPT_VALUE_TYPE_GPIO:
-			out_gpio_member(out, key,
-				container_of(ep, struct script_gpio_entry, entry));
-			break;
-		default:
+		if (!out_member(out, ep->name, 0, ep)) {
 			pr_err("target: %s: invalid field\n", ep->name);
 			ret = 0;
 		}
-
 	}
 
 	sp = pmu_para;
@@ -186,20 +181,9 @@ static int generate_pmu_struct(FILE *out, struct script_section *target,
 		    strcmp(key, "pwroff_vol") == 0 ||
 		    strcmp(key, "pwron_vol") == 0) {
 
-			switch(ep->type) {
-			case SCRIPT_VALUE_TYPE_SINGLE_WORD:
-				out_u32_member(out, key, 0,
-				       container_of(ep, struct script_single_entry, entry));
-				break;
-			case SCRIPT_VALUE_TYPE_NULL:
-				out_null_member(out, key);
-				break;
-			case SCRIPT_VALUE_TYPE_GPIO:
-				out_gpio_member(out, key,
-					container_of(ep, struct script_gpio_entry, entry));
-				break;
-			default:
+			if (!out_member(out, key, 0, ep)) {
 				pr_err("pmu_para: %s: invalid field\n", ep->name);
+				ret = 0;
 			}
 		}
 	}
