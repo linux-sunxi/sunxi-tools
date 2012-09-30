@@ -104,9 +104,11 @@ invalid_field:
 /*
  * PMU
  */
-static int generate_pmu_struct(FILE *out, struct script_section *sp)
+static int generate_pmu_struct(FILE *out, struct script_section *target,
+			       struct script_section *pmu_para)
 {
 	struct list_entry *le;
+	struct script_section *sp = target;
 	struct script_entry *ep;
 	struct script_single_entry *val;
 	int ret = 1;
@@ -135,13 +137,34 @@ static int generate_pmu_struct(FILE *out, struct script_section *sp)
 	      "{\n\treturn PMU_init(&pmu_para);\n}\n",
 	      out);
 	return ret;
+
+	(void) pmu_para;
 }
 
 int script_generate_uboot(FILE *out, const char *UNUSED(filename),
 			  struct script *script)
 {
-	struct script_section *section;
-	const char *section_name;
+	struct {
+		const char *name;
+		struct script_section *sp;
+	} sections[] = {
+		{ "dram_para", NULL },
+		{ "target", NULL },
+		{ "pmu_para", NULL },
+	};
+
+	for (unsigned i=0; i<ARRAY_SIZE(sections); i++) {
+		struct script_section *sp;
+
+		sp = script_find_section(script, sections[i].name);
+		if (sp)
+			sections[i].sp = sp;
+		else {
+			pr_err("%s: critical section missing",
+			       sections[i].name);
+			return 0;
+		}
+	}
 
 	fputs("/* this file is generated, don't edit it yourself */\n\n"
 	      "#include <common.h>\n"
@@ -149,20 +172,8 @@ int script_generate_uboot(FILE *out, const char *UNUSED(filename),
 	      "#include <asm/arch/dram.h>\n\n",
 	      out);
 
-	section_name = "dram_para";
-	section = script_find_section(script, section_name);
-	if (!section)
-		goto missing_section;
-	generate_dram_struct(out, section);
-
-	section_name = "target";
-	section = script_find_section(script, section_name);
-	if (!section)
-		goto missing_section;
-	generate_pmu_struct(out, section);
+	generate_dram_struct(out, sections[0].sp);
+	generate_pmu_struct(out, sections[1].sp, sections[2].sp);
 
 	return 1;
-missing_section:
-	pr_err("%s: critical section missing", section_name);
-	return 0;
 }
