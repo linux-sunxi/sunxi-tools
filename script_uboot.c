@@ -43,6 +43,26 @@ static inline void out_u32_member(FILE *out, const char *key, int hexa, uint32_t
 	fprintf(out, fmt, key, val);
 }
 
+static inline void out_gpio_member(FILE *out, const char *key,
+				   struct script_gpio_entry *gpio)
+{
+	fprintf(out, "\t.%s = ", key);
+
+	if (gpio->port == 0xffff)
+		fprintf(out, "GPIO_AXP_CFG(%u", gpio->port_num);
+	else
+		fprintf(out, "GPIO_CFG(%u, %u", gpio->port, gpio->port_num);
+
+	for (const int *p = gpio->data, *pe = p+4; p != pe; p++) {
+		if (*p == -1)
+			fputs(", 0xff", out);
+		else
+			fprintf(out, ", %u", *p);
+	}
+
+	fputs("),\n", out);
+}
+
 /*
  * DRAM
  */
@@ -108,12 +128,15 @@ static int generate_pmu_struct(FILE *out, struct script_section *target,
 			       struct script_section *pmu_para)
 {
 	struct list_entry *le;
-	struct script_section *sp = target;
+	struct script_section *sp;
 	struct script_entry *ep;
 	struct script_single_entry *val;
+	const char *key;
 	int ret = 1;
 
 	fputs("\nstatic struct pmu_para pmu_para = {\n", out);
+
+	sp = target;
 	for (le = list_first(&sp->entries); le;
 	     le = list_next(&sp->entries, le)) {
 		ep = container_of(le, struct script_entry, entries);
@@ -127,11 +150,46 @@ static int generate_pmu_struct(FILE *out, struct script_section *target,
 		case SCRIPT_VALUE_TYPE_NULL:
 			continue;
 		default:
-			pr_err("pmu_para: %s: invalid field\n", ep->name);
+			pr_err("target: %s: invalid field\n", ep->name);
 			ret = 0;
 		}
 
 	}
+
+	sp = pmu_para;
+	for (le = list_first(&sp->entries); le;
+	     le = list_next(&sp->entries, le)) {
+		ep = container_of(le, struct script_entry, entries);
+
+		if (strncmp(ep->name, "pmu_", 4) != 0)
+			continue;
+		key = ep->name+4;
+
+		if (strcmp(key, "used2") == 0 ||
+		    strcmp(key, "para") == 0 ||
+		    strcmp(key, "adpdet") == 0 ||
+		    strcmp(key, "shutdown_chgcur") == 0 ||
+		    strcmp(key, "shutdown_chgcur2") == 0 ||
+		    strcmp(key, "pwroff_vol") == 0 ||
+		    strcmp(key, "pwron_vol") == 0) {
+
+			switch(ep->type) {
+			case SCRIPT_VALUE_TYPE_SINGLE_WORD:
+				val = container_of(ep, struct script_single_entry, entry);
+				out_u32_member(out, key, 0, val->value);
+				break;
+			case SCRIPT_VALUE_TYPE_NULL:
+				break;
+			case SCRIPT_VALUE_TYPE_GPIO:
+				out_gpio_member(out, key,
+					container_of(ep, struct script_gpio_entry, entry));
+				break;
+			default:
+				pr_err("pmu_para: %s: invalid field\n", ep->name);
+			}
+		}
+	}
+
 	fputs("};\n", out);
 	fputs("\nint sunxi_pmu_init(void)\n"
 	      "{\n\treturn PMU_init(&pmu_para);\n}\n",
