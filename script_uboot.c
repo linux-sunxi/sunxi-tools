@@ -32,6 +32,14 @@
 #define pr_debug(...)
 #endif
 
+struct members {
+	const char *name;
+	const char *translation;
+	int mode;
+};
+
+/*
+ */
 static inline void out_u32_member(FILE *out, const char *key, int hexa,
 				  struct script_single_entry *val)
 {
@@ -142,6 +150,16 @@ invalid_field:
 /*
  * PMU
  */
+static struct members pmu_members[] = {
+	{ .name = "pmu_used2" },
+	{ .name = "pmu_para" },
+	{ .name = "pmu_adpdet" },
+	{ .name = "pmu_shutdown_chgcur" },
+	{ .name = "pmu_shutdown_chgcur2" },
+	{ .name = "pmu_pwroff_vol" },
+	{ .name = "pmu_pwron_vol" },
+};
+
 static int generate_pmu_struct(FILE *out, struct script_section *target,
 			       struct script_section *pmu_para)
 {
@@ -164,27 +182,16 @@ static int generate_pmu_struct(FILE *out, struct script_section *target,
 		}
 	}
 
-	sp = pmu_para;
-	for (le = list_first(&sp->entries); le;
-	     le = list_next(&sp->entries, le)) {
-		ep = container_of(le, struct script_entry, entries);
-
-		if (strncmp(ep->name, "pmu_", 4) != 0)
+	for (const struct members *mp = pmu_members;
+	     mp < pmu_members+ARRAY_SIZE(pmu_members); mp++) {
+		ep = script_find_entry(pmu_para, mp->name);
+		if (!ep)
 			continue;
-		key = ep->name+4;
 
-		if (strcmp(key, "used2") == 0 ||
-		    strcmp(key, "para") == 0 ||
-		    strcmp(key, "adpdet") == 0 ||
-		    strcmp(key, "shutdown_chgcur") == 0 ||
-		    strcmp(key, "shutdown_chgcur2") == 0 ||
-		    strcmp(key, "pwroff_vol") == 0 ||
-		    strcmp(key, "pwron_vol") == 0) {
-
-			if (!out_member(out, key, 0, ep)) {
-				pr_err("pmu_para: %s: invalid field\n", ep->name);
-				ret = 0;
-			}
+		key = (mp->translation) ? mp->translation : mp->name+4;
+		if (!out_member(out, key, mp->mode, ep)) {
+			pr_err("pmu_para: %s: invalid field\n", mp->name);
+			ret = 0;
 		}
 	}
 
