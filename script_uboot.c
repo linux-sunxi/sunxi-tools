@@ -37,6 +37,8 @@ struct members {
 	const char *translation;
 	int mode;
 };
+#define foreach_member(I, T) for (const struct members *I = T; \
+	     I < T+ARRAY_SIZE(T); I++)
 
 /*
  */
@@ -132,8 +134,7 @@ static int generate_dram_struct(FILE *out, struct script_section *sp)
 	int ret = 1;
 
 	fprintf(out, "static struct dram_para dram_para = {\n");
-	for (const struct members *mp = dram_members;
-	     mp < dram_members+ARRAY_SIZE(dram_members); mp++) {
+	foreach_member(mp, dram_members) {
 		ep = script_find_entry(sp, mp->name);
 		if (!ep)
 			continue;
@@ -188,8 +189,7 @@ static int generate_pmu_struct(FILE *out, struct script_section *target,
 		}
 	}
 
-	for (const struct members *mp = pmu_members;
-	     mp < pmu_members+ARRAY_SIZE(pmu_members); mp++) {
+	foreach_member(mp, pmu_members) {
 		ep = script_find_entry(pmu_para, mp->name);
 		if (!ep)
 			continue;
