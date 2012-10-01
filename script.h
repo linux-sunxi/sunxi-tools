@@ -87,7 +87,7 @@ struct script_section *script_section_new(struct script *script,
 void script_section_delete(struct script_section *section);
 
 /** find existing section */
-struct script_section *script_find_section(struct script *section,
+struct script_section *script_find_section(struct script *script,
 					   const char *name);
 
 /** deletes an entry and removes it from the section */
@@ -110,4 +110,7 @@ struct script_gpio_entry *script_gpio_entry_new(struct script_section *script,
 						unsigned port, unsigned num,
 						int32_t data[4]);
 
+/** find existing entry in a giving section */
+struct script_entry *script_find_entry(struct script_section *section,
+				       const char *name);
 #endif

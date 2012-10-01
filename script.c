@@ -246,3 +246,23 @@ struct script_gpio_entry *script_gpio_entry_new(struct script_section *section,
 
 	return entry;
 }
+
+struct script_entry *script_find_entry(struct script_section *section,
+				       const char *name)
+{
+	struct list_entry *o;
+	struct script_entry *ep;
+
+	assert(section);
+	assert(name);
+
+	for (o = list_first(&section->entries); o;
+	     o = list_next(&section->entries, o)) {
+		ep = container_of(o, struct script_entry, entries);
+
+		if (strcmp(ep->name, name) == 0)
+			return ep;
+	}
+
+	return NULL;
+}
