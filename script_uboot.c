@@ -101,39 +101,45 @@ static inline int out_member(FILE *out, const char *key, int mode,
 /*
  * DRAM
  */
+static struct members dram_members[] = {
+	{ .name="dram_clock" },
+	{ .name="dram_clk", .translation="clock" },
+	{ .name="dram_type" },
+	{ .name="dram_rank_num" },
+	{ .name="dram_density" },
+	{ .name="dram_chip_density", .translation="density" },
+	{ .name="dram_io_width" },
+	{ .name="dram_bus_width" },
+	{ .name="dram_cas" },
+	{ .name="dram_zq" },
+	{ .name="dram_odt_en" },
+	{ .name="dram_size" },
+	{ .name="dram_tpr0", .mode=1 },
+	{ .name="dram_tpr1", .mode=1 },
+	{ .name="dram_tpr2", .mode=1 },
+	{ .name="dram_tpr3", .mode=1 },
+	{ .name="dram_tpr4", .mode=1 },
+	{ .name="dram_tpr5", .mode=1 },
+	{ .name="dram_emr1", .mode=1 },
+	{ .name="dram_emr2", .mode=1 },
+	{ .name="dram_emr3", .mode=1 },
+};
+
 static int generate_dram_struct(FILE *out, struct script_section *sp)
 {
-	struct list_entry *le;
 	struct script_entry *ep;
 	const char *key;
-	int ret = 1, hexa;
+	int ret = 1;
 
 	fprintf(out, "static struct dram_para dram_para = {\n");
-	for (le = list_first(&sp->entries); le;
-	     le = list_next(&sp->entries, le)) {
-		ep = container_of(le, struct script_entry, entries);
+	for (const struct members *mp = dram_members;
+	     mp < dram_members+ARRAY_SIZE(dram_members); mp++) {
+		ep = script_find_entry(sp, mp->name);
+		if (!ep)
+			continue;
 
-		if (strncmp(ep->name, "dram_", 5) != 0)
-			goto invalid_field;
-
-		key = ep->name + 5;
-		if (key[0] == '\0')
-			goto invalid_field;
-		else if (strcmp(key, "baseaddr") == 0)
-			continue; /* skip */
-		else if (strcmp(key, "clk") == 0)
-			key = "clock";
-		else if (strcmp(key, "chip_density") == 0)
-			key = "density";
-
-		if (strncmp(key, "tpr", 3) == 0 ||
-		    strncmp(key, "emr", 3) == 0)
-			hexa = 1;
-		else
-			hexa = 0;
-
-		if (!out_member(out, key, hexa, ep)) {
-invalid_field:
+		key = (mp->translation) ? mp->translation : mp->name+5;
+		if (!out_member(out, key, mp->mode, ep)) {
 			pr_err("dram_para: %s: invalid field\n", ep->name);
 			ret = 0;
 		}
