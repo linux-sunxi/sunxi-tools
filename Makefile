@@ -66,6 +66,24 @@ fel-boot.bin: fel-boot.elf
 fel-boot.sunxi: fel-boot.bin
 	mksunxiboot fel-boot.bin fel-boot.sunxi
 
+boot_head_sun3i.elf: boot_head_sun3i.S boot_head_sun3i.lds
+	$(CROSS_COMPILE)gcc  -g  -Os  -fpic -fno-common -fno-builtin -ffreestanding -nostdinc -mno-thumb-interwork -Wall -Wstrict-prototypes -fno-stack-protector -Wno-format-nonliteral -Wno-format-security -fno-toplevel-reorder  boot_head.S -nostdlib -o boot_head_sun3i.elf -T boot_head.lds -Wl,-N -DMACHID=0x1094
+
+boot_head_sun3i.bin: boot_head_sun3i.elf
+	$(CROSS_COMPILE)objcopy -O binary boot_head_sun3i.elf boot_head_sun3i.bin
+
+boot_head_sun4i.elf: boot_head.S boot_head.lds
+	$(CROSS_COMPILE)gcc  -g  -Os  -fpic -fno-common -fno-builtin -ffreestanding -nostdinc -mno-thumb-interwork -Wall -Wstrict-prototypes -fno-stack-protector -Wno-format-nonliteral -Wno-format-security -fno-toplevel-reorder  boot_head.S -nostdlib -o boot_head_sun4i.elf -T boot_head.lds -Wl,-N -DMACHID=0x1008
+
+boot_head_sun4i.bin: boot_head_sun4i.elf
+	$(CROSS_COMPILE)objcopy -O binary boot_head_sun4i.elf boot_head_sun4i.bin
+
+boot_head_sun5i.elf: boot_head.S boot_head.lds
+	$(CROSS_COMPILE)gcc  -g  -Os  -fpic -fno-common -fno-builtin -ffreestanding -nostdinc -mno-thumb-interwork -Wall -Wstrict-prototypes -fno-stack-protector -Wno-format-nonliteral -Wno-format-security -fno-toplevel-reorder  boot_head.S -nostdlib -o boot_head_sun5i.elf -T boot_head.lds -Wl,-N -DMACHID=0x102A
+
+boot_head_sun5i.bin: boot_head_sun5i.elf
+	$(CROSS_COMPILE)objcopy -O binary boot_head_sun5i.elf boot_head_sun5i.bin
+
 bootinfo: bootinfo.c
 
 .gitignore: Makefile
