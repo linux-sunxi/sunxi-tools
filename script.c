@@ -90,6 +90,26 @@ void script_section_delete(struct script_section *section)
 		list_remove(&section->sections);
 }
 
+struct script_section *script_find_section(struct script *script,
+					   const char *name)
+{
+	struct list_entry *o;
+	struct script_section *section;
+
+	assert(script);
+	assert(name);
+
+	for (o = list_first(&script->sections); o;
+	     o = list_next(&script->sections, o)) {
+		section = container_of(o, struct script_section, sections);
+
+		if (strcmp(section->name, name) == 0)
+			return section;
+	}
+
+	return NULL;
+}
+
 /*
  */
 static inline void script_entry_append(struct script_section *section,
@@ -225,4 +245,24 @@ struct script_gpio_entry *script_gpio_entry_new(struct script_section *section,
 	}
 
 	return entry;
+}
+
+struct script_entry *script_find_entry(struct script_section *section,
+				       const char *name)
+{
+	struct list_entry *o;
+	struct script_entry *ep;
+
+	assert(section);
+	assert(name);
+
+	for (o = list_first(&section->entries); o;
+	     o = list_next(&section->entries, o)) {
+		ep = container_of(o, struct script_entry, entries);
+
+		if (strcmp(ep->name, name) == 0)
+			return ep;
+	}
+
+	return NULL;
 }

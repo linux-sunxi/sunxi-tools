@@ -32,6 +32,7 @@
 enum script_format {
 	FEX_SCRIPT_FORMAT,
 	BIN_SCRIPT_FORMAT,
+	UBOOT_HEADER_FORMAT,
 };
 
 /*
@@ -145,6 +146,8 @@ static inline int script_parse(enum script_format format,
 bin_close:
 		close(in);
 		}; break;
+	case UBOOT_HEADER_FORMAT: /* not valid input */
+		;
 	}
 	return ret;
 }
@@ -153,21 +156,24 @@ static inline int script_generate(enum script_format format,
 				  struct script *script)
 {
 	int ret = 0;
-	switch (format) {
-	case FEX_SCRIPT_FORMAT: {
+	static int (*text_gen[3]) (FILE *, const char *, struct script *) = {
+		[FEX_SCRIPT_FORMAT] = script_generate_fex,
+		[UBOOT_HEADER_FORMAT] = script_generate_uboot,
+	};
+
+	if (text_gen[format]) {
 		FILE *out = stdout;
 
 		if (!filename)
 			filename = "<stdout>";
 		else if ((out = fopen(filename, "w")) == NULL) {
 			pr_err("%s: %s\n", filename, strerror(errno));
-			break;
+			goto done;
 		}
 
-		ret = script_generate_fex(out, filename, script);
+		ret = text_gen[format](out, filename, script);
 		fclose(out);
-		}; break;
-	case BIN_SCRIPT_FORMAT: {
+	} else {
 		int out = 1; /* stdout */
 		size_t sections, entries, bin_size;
 		void *bin;
@@ -176,7 +182,7 @@ static inline int script_generate(enum script_format format,
 			filename = "<stdout>";
 		else if ((out = open(filename, O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0) {
 			pr_err("%s: %s\n", filename, strerror(errno));
-			break;
+			goto done;
 		}
 
 		bin_size = script_bin_size(script, &sections, &entries);
@@ -201,8 +207,8 @@ static inline int script_generate(enum script_format format,
 		}
 		free(bin);
 		close(out);
-		}; break;
 	}
+done:
 	return ret;
 }
 
@@ -215,7 +221,7 @@ static inline void app_usage(const char *arg0, int mode)
 
 	if (mode == 0)
 		fputs("\ninfmt:  fex, bin  (default:fex)"
-		      "\noutfmt: fex, bin  (default:bin)\n",
+		      "\noutfmt: fex, bin, uboot  (default:bin)\n",
 		      stderr);
 }
 
@@ -234,7 +240,7 @@ static inline int app_choose_mode(char *arg0)
  */
 int main(int argc, char *argv[])
 {
-	static const char *formats[] = { "fex", "bin", NULL };
+	static const char *formats[] = { "fex", "bin", "uboot", NULL };
 	enum script_format infmt=FEX_SCRIPT_FORMAT;
 	enum script_format outfmt=BIN_SCRIPT_FORMAT;
 	const char *filename[] = { NULL /*stdin*/, NULL /*stdout*/};
@@ -246,8 +252,10 @@ int main(int argc, char *argv[])
 	int opt, ret = 1;
 	int verbose = 0;
 
-	if (app_mode == 2) /* bin2fex */
-		infmt = 1, outfmt = 0;
+	if (app_mode == 2) { /* bin2fex */
+		infmt = BIN_SCRIPT_FORMAT;
+		outfmt = FEX_SCRIPT_FORMAT;
+	}
 
 	while ((opt = getopt(argc, argv, opt_string)) != -1) {
 		switch (opt) {
@@ -257,7 +265,11 @@ int main(int argc, char *argv[])
 				if (strcmp(*f, optarg) == 0)
 					break;
 			}
-			if (!formats[infmt]) {
+			switch (infmt) {
+			case FEX_SCRIPT_FORMAT:
+			case BIN_SCRIPT_FORMAT:
+				break;
+			default:
 				errf("%s: invalid format -- \"%s\"\n",
 				     argv[0], optarg);
 				goto show_usage;
