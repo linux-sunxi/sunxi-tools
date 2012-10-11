@@ -17,6 +17,21 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
  * MA 02111-1307 USA
+ *
+ *
+ * This file is a workaround to broken bootloaders on Allwinner A1x
+ * platform who do not provide correct machid or atags address
+ *
+ * Usage:
+ *   load the header at 0x40007000 and change the entry point of your
+ *   boot process to 0x40007000
+ *
+ * Detailed memory map:
+ *   0x40000100  atags
+ *   0x40007000  boot_head  (entry point)
+ *   0x40008000  kernel
+ *   0x43000000  script.bin
+ * If you have a ramdisk then load it at some higher address
  */
 
 _start:
