@@ -216,7 +216,8 @@ static long ioctl_aw(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		buffer = kmalloc(buffer_len, GFP_KERNEL);
 		if (!(buffer)) {
-			err("AWUSB_IOCSEND: Not enough memory for send buffer");
+			dev_err(&aw->aw_dev->dev,
+				"AWUSB_IOCSEND: Not enough memory for the send buffer");
 			retval = -ENOMEM;
 			goto err_out;
 		}
@@ -227,9 +228,10 @@ static long ioctl_aw(struct file *file, unsigned int cmd, unsigned long arg)
 			kfree(buffer);
 			goto err_out;
 		}
-		int ii = 0;
 
 #if 0
+		int ii = 0;
+
 		for (ii = 0; ii < buffer_len; ii++)
 				pr_debug(
 				"*(buffer + %d) = %d\n", ii, *(buffer + ii));
@@ -243,7 +245,8 @@ static long ioctl_aw(struct file *file, unsigned int cmd, unsigned long arg)
 		if (result) {
 			kfree(buffer);
 
-			err("Write Whoops - %08x", result);
+			dev_err(&aw->aw_dev->dev,
+				"Write Whoops - %08x", result);
 			retval = -EIO;
 			goto err_out;
 		}
@@ -273,7 +276,8 @@ static long ioctl_aw(struct file *file, unsigned int cmd, unsigned long arg)
 		pr_debug("value=%d\n", value);
 		buffer = kmalloc(buffer_len, GFP_KERNEL);
 		if (!(buffer)) {
-			err("AWUSB_IOCSEND: Not enough mem for receive buffer");
+			dev_err(&aw->aw_dev->dev,
+				"AWUSB_IOCSEND: Not enough memory for the receive buffer");
 			retval = -ENOMEM;
 			goto err_out;
 		}
@@ -287,7 +291,7 @@ static long ioctl_aw(struct file *file, unsigned int cmd, unsigned long arg)
 		if (result) {
 			kfree(buffer);
 
-			err("Read Whoops - %x", result);
+			dev_err(&aw->aw_dev->dev, "Read Whoops - %x", result);
 			retval = -EIO;
 			goto err_out;
 		}
@@ -394,7 +398,7 @@ write_aw(
 			}
 		};
 		if (result) {
-			err("Write Whoops - %x", result);
+			dev_err(&aw->aw_dev->dev, "Write Whoops - %x", result);
 			errn = -EIO;
 			goto error;
 		}
@@ -466,7 +470,7 @@ read_aw(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 							/* FIXME: 15 ??? */
 			if (!maxretry--) {
 				mutex_unlock(&(aw->lock));
-				err("read_aw: maxretry timeout");
+				dev_err(&aw->aw_dev->dev, "read_aw: maxretry timeout");
 				return -ETIME;
 			}
 			prepare_to_wait(&aw->wait_q, &wait, TASK_INTERRUPTIBLE);
@@ -475,7 +479,7 @@ read_aw(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 			continue;
 		} else if (result != -EREMOTEIO) {
 			mutex_unlock(&(aw->lock));
-			err(
+			dev_err(&aw->aw_dev->dev,
 				"Read Whoops - result:%u partial:%u this_read:%u",
 				result, partial, this_read);
 			return -EIO;
@@ -524,7 +528,8 @@ static int probe_aw(struct usb_interface *intf,
 
 	retval = usb_register_dev(intf, &usb_aw_class);
 	if (retval) {
-		err("Not able to get a minor for this device.");
+		dev_err(&aw->aw_dev->dev,
+			"Not able to get a minor for this device.");
 		return -ENOMEM;
 	}
 
@@ -532,7 +537,8 @@ static int probe_aw(struct usb_interface *intf,
 
 	aw->obuf = kmalloc(OBUF_SIZE, GFP_KERNEL);
 	if (!(aw->obuf)) {
-		err("probe_aw: Not enough memory for the output buffer");
+		dev_err(&aw->aw_dev->dev,
+			"probe_aw: Not enough memory for the output buffer");
 		usb_deregister_dev(intf, &usb_aw_class);
 		return -ENOMEM;
 	}
@@ -540,7 +546,8 @@ static int probe_aw(struct usb_interface *intf,
 
 	aw->ibuf = kmalloc(IBUF_SIZE, GFP_KERNEL);
 	if (!(aw->ibuf)) {
-		err("probe_aw: Not enough memory for the input buffer");
+		dev_err(&aw->aw_dev->dev,
+			"probe_aw: Not enough memory for the input buffer");
 		usb_deregister_dev(intf, &usb_aw_class);
 		kfree(aw->obuf);
 		return -ENOMEM;
