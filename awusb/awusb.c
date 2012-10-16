@@ -28,7 +28,7 @@
 #include <linux/kernel.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
-#include <linux/hardirq.h>     //<linux/smp_lock.h>
+#include <linux/hardirq.h>
 #include <linux/errno.h>
 #include <linux/random.h>
 #include <linux/poll.h>
@@ -40,7 +40,7 @@
 
 /* by Cesc */
 #include <linux/ioctl.h>
-#include <linux/mutex.h> //?
+#include <linux/mutex.h>
 
 
 /*
@@ -85,7 +85,7 @@ struct usb_param {
 struct aw_command {
     int value;
 	int length;
-	void __user *buffer; //? by Cesc
+	void __user *buffer;
 };
 
 #define AWUSB_IOC_MAGIC 's'
@@ -95,7 +95,7 @@ struct aw_command {
 #define AWUSB_IOCGET   _IOR(AWUSB_IOC_MAGIC, 2, struct usb_param)
 #define AWUSB_IOCSEND  _IOW(AWUSB_IOC_MAGIC, 3, struct aw_command)
 #define AWUSB_IOCRECV  _IOR(AWUSB_IOC_MAGIC, 4, struct aw_command)
-#define AWUSB_IOCSEND_RECV _IOWR(AWUSB_IOC_MAGIC, 5, struct aw_command) //how to implement it?
+#define AWUSB_IOCSEND_RECV _IOWR(AWUSB_IOC_MAGIC, 5, struct aw_command) /* how to implement it? */
 
 
 
@@ -105,7 +105,7 @@ static int open_aw(struct inode *inode, struct file *file)
 {
 	struct aw_usb_data *aw = &aw_instance;
 
-	//mutex_lock(&(aw->lock));
+	/* mutex_lock(&(aw->lock)); */
 
 	if (aw->isopen || !aw->present) {
 		mutex_unlock(&(aw->lock));
@@ -115,7 +115,7 @@ static int open_aw(struct inode *inode, struct file *file)
 
 	init_waitqueue_head(&aw->wait_q);
 
-	//mutex_unlock(&(aw->lock));
+	/* mutex_unlock(&(aw->lock)); */
 
 	dev_info(&aw->aw_dev->dev, "aw opened.\n");
 
@@ -220,7 +220,7 @@ static long ioctl_aw(struct file *file, unsigned int cmd, unsigned long arg)
             goto err_out;
         }
         
-        // stage 1, get data from app
+        /* stage 1, get data from app */
         if (copy_from_user(buffer, aw_cmd.buffer, aw_cmd.length)) {
             retval = -EFAULT;
             kfree(buffer);
@@ -228,14 +228,15 @@ static long ioctl_aw(struct file *file, unsigned int cmd, unsigned long arg)
         }
         int ii = 0;
 		
-	/*for(ii = 0; ii < buffer_len; ii ++)
+#if 0
+	for(ii = 0; ii < buffer_len; ii ++)
         {
 			printk("*(buffer + %d) = %d\n", ii, *(buffer + ii));
 	}
-*/
-//        printk("*buffer=%d, *(buffer+1)=%d\n", *buffer, *(buffer+1));
+        printk("*buffer=%d, *(buffer+1)=%d\n", *buffer, *(buffer+1));
+#endif
 
-        //stage 2, send data to usb device
+        /* stage 2, send data to usb device */
         result = usb_bulk_msg(aw->aw_dev,
                               usb_sndbulkpipe(aw->aw_dev, 1),
                               buffer, buffer_len, &actual_len, 5000);  
@@ -278,10 +279,10 @@ static long ioctl_aw(struct file *file, unsigned int cmd, unsigned long arg)
         }
         memset(buffer, 0x33,buffer_len);
         
-        // stage 1, get data from usb device
+        /* stage 1, get data from usb device */
         result = usb_bulk_msg(aw->aw_dev,
                               usb_rcvbulkpipe(aw->aw_dev, 2),
-                              buffer, buffer_len, &actual_len, 0);//8000);
+                              buffer, buffer_len, &actual_len, 0);/*8000); */
 
         if (result) {
             kfree(buffer);
@@ -291,7 +292,7 @@ static long ioctl_aw(struct file *file, unsigned int cmd, unsigned long arg)
             goto err_out;
         }
 
-        // stage 2, copy data to app in user space
+        /* stage 2, copy data to app in user space */
         if (copy_to_user(aw_cmd.buffer, buffer, aw_cmd.length)) {
             kfree(buffer);
             retval = - EFAULT;
@@ -574,7 +575,6 @@ static void disconnect_aw(struct usb_interface *intf)
 
 static struct usb_device_id aw_table [] = {
 	{ USB_DEVICE(0x1f3a, 0xefe8) }, 		/* aw usb device */
-//    { USB_DEVICE(0x0525, 0xa444) }, 		/* 0xa4a0, Linux-USB "Gadget Zero" */
 	{ }					/* Terminating entry */
 };
 
