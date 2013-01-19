@@ -17,6 +17,8 @@
 #ifndef _SUNXI_TOOLS_SCRIPT_H
 #define _SUNXI_TOOLS_SCRIPT_H
 
+#define GPIO_BANK_MAX	13 /* N */
+
 /** head of the data tree */
 struct script {
 	struct list_entry sections;
