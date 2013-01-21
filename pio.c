@@ -27,6 +27,10 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include "endian_compat.h"
 
@@ -164,11 +168,12 @@ static const char *argv0;
 static void usage(int rc )
 {
 			
-	fprintf(stderr, "usage: %s -i input [-o output] pin..\n", argv0);
+	fprintf(stderr, "usage: %s [-m|-i input] [-o output] pin..\n", argv0);
 	fprintf(stderr," print				Show all pins\n");
 	fprintf(stderr," Pxx				Show pin\n");
 	fprintf(stderr," Pxx<mode><pull><drive><data>	Configure pin\n");
 	fprintf(stderr," Pxx=data,drive			Configure GPIO output\n");
+	fprintf(stderr," Pxx*count			Oscillate GPIO output (mmap mode only)\n");
 	fprintf(stderr," Pxx?pull			Configure GPIO input\n");
 	fprintf(stderr," clean				Clean input pins\n");
 	fprintf(stderr, "\n	mode 0-7, 0=input, 1=ouput, 2-7 I/O function\n");
@@ -263,6 +268,32 @@ static void cmd_set_pin(char *buf, const char *pin)
 	pio_set(buf, port, port_nr, &pio);
 }
 
+static void cmd_oscillate(char *buf, const char *pin)
+{
+	int port, port_nr;
+	const char *t = pin;
+	int i, n = 0;
+	uint32_t *addr, val;
+
+	parse_pin(&port, &port_nr, pin);
+	{
+		struct pio_status pio;
+		if (!pio_get(buf, port, port_nr, &pio))
+			usage(1);
+		pio.mul_sel = 1;
+		pio_set(buf, port, port_nr, &pio);
+	}
+
+	addr = (uint32_t*)PIO_REG_DATA(buf, port);
+	t = strchr(pin, '*');
+	parse_int(&n, t+1);
+	val = le32toh(*addr);
+	for (i = 0; i < n; i++) {
+		val ^= 1 << port_nr;
+		*addr = htole32(val);
+	}
+}
+
 static void cmd_clean(char *buf)
 {
 	int port, i;
@@ -289,6 +320,8 @@ static int do_command(char *buf, const char **args, int argc)
 			cmd_set_pin(buf, command);
 		else if (strchr(command, '?'))
 			cmd_set_pin(buf, command);
+		else if (strchr(command, '*'))
+			cmd_oscillate(buf, command);
 		else
 			cmd_show_pin(buf, command);
 	}
@@ -307,14 +340,19 @@ int main(int argc, char **argv)
 	FILE *out = NULL;
 	const char *in_name = NULL;
 	const char *out_name = NULL;
-	char buf[PIO_REG_SIZE];
+	char buf_[PIO_REG_SIZE];
+	char *buf = buf_;
+	int do_mmap = 0;
 
 	argv0 = argv[0];
 
-	while ((opt = getopt(argc, argv, "i:o:")) != -1) {
+	while ((opt = getopt(argc, argv, "i:o:m")) != -1) {
 		switch(opt) {
 		case '?':
 			usage(0);
+		case 'm':
+			do_mmap = 1;
+			break;
 		case 'i':
 			in_name = optarg;
 			break;
@@ -323,8 +361,25 @@ int main(int argc, char **argv)
 			break;
 		}
 	}
-	if (!in_name)
+	if (!in_name && !do_mmap)
 		usage(1);
+	if (do_mmap) {
+		int pagesize = sysconf(_SC_PAGESIZE);
+		int fd = open("/dev/mem",O_RDWR);
+		int addr = 0x01c20800 & ~(pagesize-1);
+		int offset = 0x01c20800 & (pagesize-1);
+		if (fd == -1) {
+			perror("open /dev/mem");
+			exit(1);
+		}
+		buf = mmap(NULL, (0x800 + pagesize - 1) & ~(pagesize-1), PROT_WRITE|PROT_READ, MAP_SHARED, fd, addr);
+		if (!buf) {
+			perror("mmap PIO");
+			exit(1);
+		}
+		close(fd);
+		buf += offset;
+	}
 	if (in_name) {
 		if (strcmp(in_name, "-") == 0) {
 			in = stdin;
@@ -336,12 +391,14 @@ int main(int argc, char **argv)
 			}
 		}
 	}
-	if (fread(buf, sizeof(buf), 1, in) != 1) {
-		perror("read input");
-		exit(1);
+	if (in) {
+		if (fread(buf, sizeof(buf), 1, in) != 1) {
+			perror("read input");
+			exit(1);
+		}
+		if (in != stdin)
+			fclose(in);
 	}
-	if (in != stdin)
-		fclose(in);
 
 	while(optind < argc) {
 		optind += do_command(buf, (const char **)(argv + optind), argc - optind);
