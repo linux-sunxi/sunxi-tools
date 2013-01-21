@@ -261,7 +261,7 @@ int script_parse_fex(FILE *in, const char *filename, struct script *script)
 				/* GPIO */
 				p += 5;
 				if (p[0] == 'P' &&
-				    (p[1] < 'A' || p[1] > 'I'))
+				    (p[1] < 'A' || p[1] > ('A' + GPIO_BANK_MAX)))
 					;
 				else if (*p != 'P' &&
 					 memcmp(p, "power", 5) != 0)

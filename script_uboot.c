@@ -154,6 +154,7 @@ static int generate_dram_struct(FILE *out, struct script_section *sp)
 	return ret;
 }
 
+#if 0
 /*
  * PMU
  */
@@ -209,6 +210,7 @@ static int generate_pmu_struct(FILE *out, struct script_section *target,
 
 	(void) pmu_para;
 }
+#endif
 
 int script_generate_uboot(FILE *out, const char *UNUSED(filename),
 			  struct script *script)
@@ -218,8 +220,10 @@ int script_generate_uboot(FILE *out, const char *UNUSED(filename),
 		struct script_section *sp;
 	} sections[] = {
 		{ "dram_para", NULL },
+#if 0
 		{ "target", NULL },
 		{ "pmu_para", NULL },
+#endif
 	};
 
 	for (unsigned i=0; i<ARRAY_SIZE(sections); i++) {
@@ -237,12 +241,16 @@ int script_generate_uboot(FILE *out, const char *UNUSED(filename),
 
 	fputs("/* this file is generated, don't edit it yourself */\n\n"
 	      "#include <common.h>\n"
+#if 0
 	      "#include <asm/arch/pmu.h>\n"
+#endif
 	      "#include <asm/arch/dram.h>\n\n",
 	      out);
 
 	generate_dram_struct(out, sections[0].sp);
+#if 0
 	generate_pmu_struct(out, sections[1].sp, sections[2].sp);
+#endif
 
 	return 1;
 }

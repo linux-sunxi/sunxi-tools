@@ -255,9 +255,10 @@ static int decompile_section(void *bin, size_t UNUSED(bin_size),
 				       filename, section->name, entry->name, words, 6);
 			} else if (gpio->port == 0xffff) {
 				; /* port:power */
-			} else if (gpio->port < 1 || gpio->port > 10) {
-				pr_err("%s: %s.%s: unknown GPIO port type %u\n",
-				       filename, section->name, entry->name, gpio->port);
+			} else if (gpio->port < 1 || gpio->port > GPIO_BANK_MAX) {
+				pr_err("%s: %s.%s: unknown GPIO port bank %c (%u)\n",
+				       filename, section->name, entry->name,
+				       'A'+gpio->port, gpio->port);
 				goto failure;
 			}
 			v[0] = gpio->mul_sel;
