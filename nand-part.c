@@ -152,7 +152,7 @@ void checkmbrs(int fd)
 
 	for(part_cnt = 0; part_cnt < mbr->PartCount && part_cnt < MAX_PART_COUNT; part_cnt++)
 	{
-		if((mbr->array[part_cnt].user_type == 2) || (mbr->array[part_cnt].user_type == 0))
+		if(1 || (mbr->array[part_cnt].user_type == 2) || (mbr->array[part_cnt].user_type == 0))
 		{
 			printf("partition %2d: name = %12s, partition start = %8d, partition size = %8d\n",
 						part_cnt,
@@ -168,7 +168,7 @@ void checkmbrs(int fd)
 	printf("%d partitions\n", part_cnt);
 }
 
-int writembrs(int fd, char names[][MAX_NAME], __u32 *lens, int nparts)
+int writembrs(int fd, char names[][MAX_NAME], __u32 *lens, unsigned int *user_types, int nparts)
 {
 	int part_cnt = 0;
 	int i;
@@ -205,7 +205,7 @@ int writembrs(int fd, char names[][MAX_NAME], __u32 *lens, int nparts)
 
 	for(part_cnt = 1; part_cnt < mbr->PartCount && part_cnt < MAX_PART_COUNT; part_cnt++)
 	{
-		if((mbr->array[part_cnt].user_type == 2) || (mbr->array[part_cnt].user_type == 0))
+		if(1 || (mbr->array[part_cnt].user_type == 2) || (mbr->array[part_cnt].user_type == 0))
 		{
 			fprintf(backup, "'%s %d' ", mbr->array[part_cnt].name,
 			                  mbr->array[part_cnt].lenlo);
@@ -220,8 +220,8 @@ int writembrs(int fd, char names[][MAX_NAME], __u32 *lens, int nparts)
 	for(i = 0; i < nparts; i++) {
 		strcpy((char *)mbr->array[i+1].name, names[i]);
 		strcpy((char *)mbr->array[i+1].classname, "DISK");
-		memset(mbr->array[i+1].res, 0, sizeof(mbr->array[i+1].res));
-		mbr->array[i+1].user_type = 0;
+		memset((void *) mbr->array[i+1].res, 0, sizeof(mbr->array[i+1].res));
+		mbr->array[i+1].user_type = user_types[i];
 		mbr->array[i+1].ro = 0;
 		mbr->array[i+1].addrhi = 0;
 		mbr->array[i+1].lenhi = 0;
@@ -233,7 +233,7 @@ int writembrs(int fd, char names[][MAX_NAME], __u32 *lens, int nparts)
 	printf("\nready to write new partition tables:\n");
 	for(part_cnt = 0; part_cnt < mbr->PartCount && part_cnt < MAX_PART_COUNT; part_cnt++)
 	{
-		if((mbr->array[part_cnt].user_type == 2) || (mbr->array[part_cnt].user_type == 0))
+		if(1 || (mbr->array[part_cnt].user_type == 2) || (mbr->array[part_cnt].user_type == 0))
 		{
 			printf("partition %2d: name = %12s, partition start = %8d, partition size = %8d\n",
 						part_cnt,
@@ -272,6 +272,7 @@ int main (int argc, char **argv)
 	char *cmd = argv[0];
 	char names[MAX_PART_COUNT][MAX_NAME];
 	__u32 lens[MAX_PART_COUNT];
+	unsigned int user_types[MAX_PART_COUNT];
 
 	argc--;
 	argv++;
@@ -283,16 +284,17 @@ int main (int argc, char **argv)
 	}
 	fd = open(nand, O_RDWR);
 	if (fd < 0) {
-		printf("usage: %s nand-device \'name2 len2\' [\'name3 len3\'] ...\n", cmd);
+		printf("usage: %s nand-device 'name2 len2 [usertype2]' ['name3 len3 [usertype3]'] ...\n", cmd);
 		return -1;
 	}
 
 	// parse name/len arguments
+	memset((void *) user_types, 0, sizeof(user_types));
 	if (argc > 0) {
 		for (i = 0; i < argc; i++) {
-			if (sscanf(argv[i], "%s %d", names[i], &lens[i]) != 2) {
+			if (sscanf(argv[i], "%s %d %d", names[i], &lens[i], &user_types[i]) < 2) {
 				printf("bad 'name len' argument\n");
-				printf("usage: %s nand-device \'name2 len2\' [\'name3 len3\'] ...\n", cmd);
+				printf("usage: %s nand-device 'name2 len2 [usertype2]' ['name3 len3 [usertype3]'] ...\n", cmd);
 				close(fd);
 				return -3;
 			}
@@ -303,14 +305,14 @@ int main (int argc, char **argv)
 
 	if (argc > MAX_PART_COUNT - 1) {
 		printf("too many partitions specified (MAX 14)\n");
-		printf("usage: %s nand-device \'name2 len2\' [\'name3 len3\'] ...\n", cmd);
+		printf("usage: %s nand-device 'name2 len2 [usertype2]' ['name3 len3 [usertype3]'] ...\n", cmd);
 		close(fd);
 		return -2;
 	}
 
 
 	if (argc > 0) {
-		if (writembrs(fd, names, lens, argc)) {
+		if (writembrs(fd, names, lens, user_types, argc)) {
 			printf("\nverifying new partition tables:\n");
 			checkmbrs(fd);
 		}
