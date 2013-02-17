@@ -154,14 +154,11 @@ void checkmbrs(int fd)
 
 	for(part_cnt = 0; part_cnt < mbr->PartCount && part_cnt < MAX_PART_COUNT; part_cnt++)
 	{
-		if(1 || (mbr->array[part_cnt].user_type == 2) || (mbr->array[part_cnt].user_type == 0))
-		{
-			printf("partition %2d: name = %12s, partition start = %8d, partition size = %8d\n",
-						part_cnt,
-						mbr->array[part_cnt].name,
-						mbr->array[part_cnt].addrlo,
-						mbr->array[part_cnt].lenlo);
-		}
+		printf("partition %2d: name = %12s, partition start = %8d, partition size = %8d\n",
+					part_cnt,
+					mbr->array[part_cnt].name,
+					mbr->array[part_cnt].addrlo,
+					mbr->array[part_cnt].lenlo);
 	}
 	for (i = 0; i < MBR_COPY_NUM; i++) {
 		if (mbrs[i])
@@ -207,11 +204,8 @@ int writembrs(int fd, char names[][MAX_NAME], __u32 *lens, unsigned int *user_ty
 
 	for(part_cnt = 1; part_cnt < mbr->PartCount && part_cnt < MAX_PART_COUNT; part_cnt++)
 	{
-		if(1 || (mbr->array[part_cnt].user_type == 2) || (mbr->array[part_cnt].user_type == 0))
-		{
-			fprintf(backup, "'%s %d' ", mbr->array[part_cnt].name,
-			                  mbr->array[part_cnt].lenlo);
-		}
+		fprintf(backup, "'%s %d' ", mbr->array[part_cnt].name,
+		                  mbr->array[part_cnt].lenlo);
 	}
 	fprintf(backup, "\n");
 	fclose(backup);
@@ -235,14 +229,11 @@ int writembrs(int fd, char names[][MAX_NAME], __u32 *lens, unsigned int *user_ty
 	printf("\nready to write new partition tables:\n");
 	for(part_cnt = 0; part_cnt < mbr->PartCount && part_cnt < MAX_PART_COUNT; part_cnt++)
 	{
-		if(1 || (mbr->array[part_cnt].user_type == 2) || (mbr->array[part_cnt].user_type == 0))
-		{
-			printf("partition %2d: name = %12s, partition start = %8d, partition size = %8d\n",
-						part_cnt,
-						mbr->array[part_cnt].name,
-						mbr->array[part_cnt].addrlo,
-						mbr->array[part_cnt].lenlo);
-		}
+		printf("partition %2d: name = %12s, partition start = %8d, partition size = %8d\n",
+					part_cnt,
+					mbr->array[part_cnt].name,
+					mbr->array[part_cnt].addrlo,
+					mbr->array[part_cnt].lenlo);
 	}
 	for (i = 0; i < MBR_COPY_NUM; i++) {
 		if (mbrs[i])
