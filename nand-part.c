@@ -49,6 +49,8 @@
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <sys/ioctl.h>
+#include <linux/fs.h>
 #include "nand-part.h"
 
 #define MAX_NAME 16
@@ -315,6 +317,7 @@ int main (int argc, char **argv)
 		if (writembrs(fd, names, lens, user_types, argc)) {
 			printf("\nverifying new partition tables:\n");
 			checkmbrs(fd);
+			printf("rereading partition table... returned %d\n", ioctl(fd, BLKRRPART, 0));
 		}
 	}
 	close(fd);
