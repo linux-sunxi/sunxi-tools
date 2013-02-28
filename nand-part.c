@@ -49,6 +49,8 @@
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <sys/ioctl.h>
+#include <sys/mount.h> /* BLKRRPART */
 #include "nand-part.h"
 
 #define MAX_NAME 16
@@ -261,6 +263,10 @@ int writembrs(int fd, char names[][MAX_NAME], __u32 *lens, unsigned int *user_ty
 		lseek(fd,MBR_START_ADDRESS + MBR_SIZE*i,SEEK_SET);
 		write(fd,mbr,MBR_SIZE);
 	}
+
+	if (ioctl(fd, BLKRRPART, NULL))
+		perror("Failed rereading partition table");
+
 	return 1;
 }
 
