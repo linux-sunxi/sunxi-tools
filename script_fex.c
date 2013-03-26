@@ -326,7 +326,7 @@ int script_parse_fex(FILE *in, const char *filename, struct script *script)
 						perror("malloc");
 					}
 				}
-			} else if (isdigit(*p)) {
+			} else if (isdigit(*p) || (*p == '-' && isdigit(*(p+1)))) {
 				long long v = 0;
 				char *end;
 				v = strtoll(p, &end, 0);
