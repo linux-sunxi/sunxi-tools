@@ -3,6 +3,7 @@
 pio_to_sram=0x2000
 sram_to_pio=0x2004
 
+set -e
 if [ -f fel-pio.bin ]; then
 	./fel write 0x2000 fel-pio.bin
 else
@@ -13,6 +14,8 @@ fi
 ./fel read 0x3000 0x228 pio.reg
 ./pio -i pio.reg print > pio.old
 cat pio.old | fgrep -v '<0><0><0><0>'
+
+set +e
 while read cmd; do
 	./pio -i pio.reg -o pio.reg $cmd
 	./fel write 0x3000 pio.reg
