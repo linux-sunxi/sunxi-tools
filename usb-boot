@@ -1,0 +1,37 @@
+#!/bin/sh -e
+if [ $# -lt 2 ]; then
+	echo "Usage: $0 board u-boot.bin [kernel script.bin [initramfs]]"
+	exit 1
+fi
+board=$1
+uboot=$2
+kernel=$3
+scriptbin=$4
+initramfs=$5
+fel() {
+	echo fel "$@"
+	./fel $@
+}
+felboot=felboot/fel-boot-${board}.bin
+if [ ! -f $felboot ]; then
+	felboot=bin/fel-boot-${board}.bin
+fi
+if [ ! -f $felboot ]; then
+	echo "ERROR: Can't find fel-boot binary for ${board}"
+	exit 1
+fi
+fel write 0x2000 $felboot
+fel exe 0x2000
+if [ -n "$uboot" ]; then
+	fel write 0x4a000000 $uboot
+fi
+if [ -n "$kernel" ]; then
+ if [ -n "$sciptbin" ]; then
+  fel write 0x43000000 $scriptbin
+ fi
+ fel write 0x44000000 $kernel
+ if [ -n "$initramfs" ]; then
+  fel write 0x4c000000 $initramfs
+ fi
+fi
+fel exe 0x4a000000
