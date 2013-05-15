@@ -36,6 +36,9 @@ fel-gpio:
 felboot:
 	ARM native board initialization for FEL mode
 
+fel-sdboot:
+	ARM native sdcard bootloader forcing the device into FEL mode
+
 fel-pio:
 	ARM native helper for fel-gpio
 
