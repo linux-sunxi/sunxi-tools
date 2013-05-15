@@ -130,6 +130,23 @@ __s32 _free_mbr(MBR *mbr)
 	return 0;
 }
 
+void printmbr(MBR *mbr)
+{
+	int part_cnt;
+	for(part_cnt = 0; part_cnt < mbr->PartCount && part_cnt < MAX_PART_COUNT; part_cnt++)
+	{
+		if(1 || (mbr->array[part_cnt].user_type == 2) || (mbr->array[part_cnt].user_type == 0))
+		{
+			printf("partition %2d: class = %12s, name = %12s, partition start = %8d, partition size = %8d user_type=%d\n",
+						part_cnt,
+						mbr->array[part_cnt].classname,
+						mbr->array[part_cnt].name,
+						mbr->array[part_cnt].addrlo,
+						mbr->array[part_cnt].lenlo,
+						mbr->array[part_cnt].user_type);
+		}
+	}
+}
 void checkmbrs(int fd)
 {
 	int part_cnt = 0;
@@ -152,17 +169,7 @@ void checkmbrs(int fd)
 		return;
 	}
 
-	for(part_cnt = 0; part_cnt < mbr->PartCount && part_cnt < MAX_PART_COUNT; part_cnt++)
-	{
-		if(1 || (mbr->array[part_cnt].user_type == 2) || (mbr->array[part_cnt].user_type == 0))
-		{
-			printf("partition %2d: name = %12s, partition start = %8d, partition size = %8d\n",
-						part_cnt,
-						mbr->array[part_cnt].name,
-						mbr->array[part_cnt].addrlo,
-						mbr->array[part_cnt].lenlo);
-		}
-	}
+	printmbr(mbr);
 	for (i = 0; i < MBR_COPY_NUM; i++) {
 		if (mbrs[i])
 			_free_mbr(mbrs[i]);
@@ -233,17 +240,7 @@ int writembrs(int fd, char names[][MAX_NAME], __u32 *lens, unsigned int *user_ty
 	}
 
 	printf("\nready to write new partition tables:\n");
-	for(part_cnt = 0; part_cnt < mbr->PartCount && part_cnt < MAX_PART_COUNT; part_cnt++)
-	{
-		if(1 || (mbr->array[part_cnt].user_type == 2) || (mbr->array[part_cnt].user_type == 0))
-		{
-			printf("partition %2d: name = %12s, partition start = %8d, partition size = %8d\n",
-						part_cnt,
-						mbr->array[part_cnt].name,
-						mbr->array[part_cnt].addrlo,
-						mbr->array[part_cnt].lenlo);
-		}
-	}
+	printmbr(mbr);
 	for (i = 0; i < MBR_COPY_NUM; i++) {
 		if (mbrs[i])
 			_free_mbr(mbrs[i]);
