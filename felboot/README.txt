@@ -17,20 +17,28 @@ fel exe 0x4a000000
 
 Build instructions:
 
-1. You need to build u-boot sunxi-current SPL first for the same CPU generation, i.e. cubieboard.
+0. You need to build u-boot sunxi-current SPL first for the your board.
 
-Change the paths in Makefile to reflect where your copy of u-boot and toolchain is, or specify the paths when runnign make
+1. Specify needed configuration when when running make
 
-make
+	BOARD=		boardname
+	CROSS_COMPILE=	compiler prefix
+	UBOOT=		u-boot sources
+	UBOOTOBJ=	u-boot built tree
 
+make BOARD=cubieboard CROSS_COMPILE=arm-linux-gnueabihf- UBOOT=~/SRC/u-boot/ UBOOTOBJ=~/SRC/u-boot/build/'$(BOARD)'/
 
-To adopt for another board:
+Defaults:
 
-1a) If the board is supported by u-boot SPL then change UBOOT_OBJS to include the dram spefications for your board and remove dram.o from fel-boot.elf: line.
+# Target board name. This should match the dram_<boardname>.c in
+# u-boot/board/sunxi/
+BOARD=eoma68
 
-1b) Else update dram.c with the right parameters for your board.
+# Path to your tool chain
+CROSS_COMPILE=ikk/toolchains/arm-linux-gnueabihf/bin/arm-linux-gnueabihf-
 
-2. Change early_printf.c to define the right UART number for your board.
+# U-boot main source path
+UBOOT=/home/henrik/SRC/u-boot/
 
-3. make
-
+# U-boot object path (O=... when building u-boot).
+UBOOTOBJ=$(UBOOT)build/$(BOARD)/

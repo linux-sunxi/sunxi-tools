@@ -1,9 +1,19 @@
 
 CC=gcc
-BOARD=eoma68
-CROSS_COMPILE=/home/henrik/toolchains/arm-linux-gnueabihf/bin/arm-linux-gnueabihf-
-UBOOT=/home/henrik/SRC/u-boot/
+
+# Target board name. This should match the dram_<boardname>.c in
+# u-boot/board/sunxi/
+BOARD=cubieboard
+
+# Path/prefix of your tool chain
+CROSS_COMPILE=arm-linux-gnueabihf-
+
+# U-boot main source path
+UBOOT=$(HOME)/SRC/u-boot/
+
+# U-boot object path (O=... when building u-boot).
 UBOOTOBJ=$(UBOOT)build/$(BOARD)/
+
 CFLAGS=-g -O2 -marm -mno-thumb-interwork -mabi=aapcs-linux -march=armv7-a -fno-common -ffixed-r8 -msoft-float -I$(UBOOTOBJ)include2 -I$(UBOOTOBJ)include -I$(UBOOT)include 
 
 all: fel-boot-$(BOARD).bin
