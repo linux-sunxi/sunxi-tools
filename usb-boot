@@ -26,7 +26,7 @@ if [ -n "$uboot" ]; then
 	fel write 0x4a000000 $uboot
 fi
 if [ -n "$kernel" ]; then
- if [ -n "$sciptbin" ]; then
+ if [ -n "$scriptbin" ]; then
   fel write 0x43000000 $scriptbin
  fi
  fel write 0x44000000 $kernel
