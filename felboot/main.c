@@ -22,10 +22,6 @@
 
 __attribute__ ((section (".text.start"))) void _start(void)
 {
-	clock_init();
-	gpio_init();
-	uart_init();
-	timer_init();
 	s_init();
 }
 
@@ -41,6 +37,7 @@ void sunxi_wemac_initialize(void)
 
 void preloader_console_init(void)
 {
+	uart_init();
 }
 
 void hang(void)
