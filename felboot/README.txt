@@ -28,6 +28,9 @@ Build instructions:
 
 make BOARD=cubieboard CROSS_COMPILE=arm-linux-gnueabihf- UBOOT=~/SRC/u-boot/ UBOOTOBJ=~/SRC/u-boot/build/'$(BOARD)'/
 
+Other options
+	NO_PRINTF=1	Disable printf, reducing the code size a bit
+
 Defaults:
 
 # Target board name. This should match the dram_<boardname>.c in

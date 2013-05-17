@@ -38,9 +38,6 @@ void sunxi_wemac_initialize(void)
 {
 }
 
-void *gd;
-int gdata;
-
 void preloader_console_init(void)
 {
 }
@@ -55,6 +52,18 @@ void udelay(unsigned long usec)
 	__udelay(usec);
 }
 
+int sunxi_mmc_init(void)
+{
+	return -1;
+}
+
+int status_led_set(void)
+{
+	return -1;
+}
+
+
+#ifndef NO_PRINTF
 int putchar(int ch)
 {
 	return uart_putc(ch);
@@ -65,12 +74,24 @@ int puts(const char *str)
 	return uart_puts(str);
 }
 
-int sunxi_mmc_init(void)
+#else
+int putchar(int ch)
 {
 	return -1;
 }
 
-int status_led_set(void)
+int puts(const char *str)
 {
 	return -1;
 }
+
+int printf(const char *fmt, ...)
+{
+	return -1;
+}
+
+void uart_init(void)
+{
+}
+
+#endif
