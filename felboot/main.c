@@ -24,7 +24,6 @@ __attribute__ ((section (".text.start"))) void _start(void)
 	s_init();
 }
 
-DECLARE_GLOBAL_DATA_PTR;
 gd_t gdata __attribute__ ((section(".data")));
 
 void dcache_enable(void)
@@ -60,6 +59,43 @@ int status_led_set(void)
 	return -1;
 }
 
+void sunxi_board_init(void)
+{
+	int power_failed = 1;
+	int ramsize;
+
+	timer_init();
+
+	printf("DRAM:");
+	ramsize = sunxi_dram_init();
+	if (!ramsize) {
+		printf(" ?");
+		ramsize = sunxi_dram_init();
+	}
+	if (!ramsize) {
+		printf(" ?");
+		ramsize = sunxi_dram_init();
+	}
+	printf(" %dMB\n", ramsize>>20);
+	if (!ramsize)
+		hang();
+
+#ifdef CONFIG_AXP209_POWER
+	power_failed |= axp209_init();
+	power_failed |= axp209_set_dcdc2(1400);
+	power_failed |= axp209_set_dcdc3(1250);
+	power_failed |= axp209_set_ldo2(3000);
+	power_failed |= axp209_set_ldo3(2800);
+	power_failed |= axp209_set_ldo4(2800);
+#endif
+
+	/*
+	 * Only clock up the CPU to full speed if we are reasonably
+	 * assured it's being powered with suitable core voltage
+	 */
+	if (!power_failed)
+		clock_set_pll1(1008000000);
+}
 
 #ifndef NO_PRINTF
 int putchar(int ch)
@@ -79,12 +115,12 @@ void puts(const char *str)
 #else
 int putchar(int ch)
 {
-	return -1;
+	return uart_putc(ch);
 }
 
 int puts(const char *str)
 {
-	return -1;
+	return uart_puts(str);
 }
 
 int printf(const char *fmt, ...)
