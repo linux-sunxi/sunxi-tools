@@ -90,3 +90,13 @@ void sunxi_board_init(void)
 		clock_set_pll1(1008000000);
 }
 
+
+int putchar(int ch)
+{
+	return uart_putc(ch);
+}
+
+int puts(const char *str)
+{
+	return uart_puts(str);
+}

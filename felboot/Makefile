@@ -30,7 +30,7 @@ UBOOT_OBJS= \
 .c.o:
 	$(CROSS_COMPILE)$(CC) -c $(CFLAGS) $< -o $@
 
-fel-boot-$(BOARD).elf: main.o util_printf.o early_print.o $(addprefix $(UBOOTOBJ),$(UBOOT_OBJS))
+fel-boot-$(BOARD).elf: main.o printf-stdarg.o early_print.o $(addprefix $(UBOOTOBJ),$(UBOOT_OBJS))
 	$(CROSS_COMPILE)$(CC) -Tfel-boot.ld -static -nostartfiles $(CFLAGS) -Wl,-Map=$@.map $^ -o $@
 
 fel-boot-$(BOARD).bin: fel-boot-$(BOARD).elf
