@@ -66,12 +66,17 @@ int status_led_set(void)
 #ifndef NO_PRINTF
 int putchar(int ch)
 {
-	return uart_putc(ch);
+	if (ch == '\n')
+		uart_putc('\r');
+	uart_putc(ch);
+	return 0;
 }
 
 int puts(const char *str)
 {
-	return uart_puts(str);
+	while(*str)
+		putchar(*str++);
+	return 0;
 }
 
 #else
