@@ -19,7 +19,7 @@
 
 #include <stdio.h>
 
-void _start(void)
+__attribute__ ((section (".text.start"))) void _start(void)
 {
 	clock_init();
 	gpio_init();

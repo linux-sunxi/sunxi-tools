@@ -7,7 +7,7 @@ SECTIONS
  . = ALIGN(4);
  .text :
  {
-  main.o (.text*)
+  main.o (.text.start)
   *(.text*)
  }
  . = ALIGN(4);
