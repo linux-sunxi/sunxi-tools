@@ -42,6 +42,7 @@ void preloader_console_init(void)
 void hang(void)
 {
 	printf("Please reset the board!");
+	while(1);
 }
 
 void udelay(unsigned long usec)
@@ -98,12 +99,11 @@ void sunxi_board_init(void)
 }
 
 #ifndef NO_PRINTF
-int putchar(int ch)
+void putchar(int ch)
 {
 	if (ch == '\n')
 		uart_putc('\r');
 	uart_putc(ch);
-	return 0;
 }
 
 void puts(const char *str)
@@ -113,14 +113,12 @@ void puts(const char *str)
 }
 
 #else
-int putchar(int ch)
+void putchar(int ch)
 {
-	return uart_putc(ch);
 }
 
-int puts(const char *str)
+void puts(const char *str)
 {
-	return uart_puts(str);
 }
 
 int printf(const char *fmt, ...)
