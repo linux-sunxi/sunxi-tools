@@ -17,7 +17,8 @@
  * MA 02111-1307 USA
  */
 
-#include <stdio.h>
+#include "config.h"
+#include "common.h"
 
 __attribute__ ((section (".text.start"))) void _start(void)
 {
