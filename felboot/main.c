@@ -17,15 +17,15 @@
  * MA 02111-1307 USA
  */
 
-#include "config.h"
-#include "common.h"
+#include <common.h>
 
 __attribute__ ((section (".text.start"))) void _start(void)
 {
 	s_init();
 }
 
-int gdata;
+DECLARE_GLOBAL_DATA_PTR;
+gd_t gdata __attribute__ ((section(".data")));
 
 void dcache_enable(void)
 {
@@ -70,11 +70,10 @@ int putchar(int ch)
 	return 0;
 }
 
-int puts(const char *str)
+void puts(const char *str)
 {
 	while(*str)
 		putchar(*str++);
-	return 0;
 }
 
 #else

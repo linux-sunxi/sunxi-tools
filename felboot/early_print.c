@@ -29,6 +29,7 @@
 #include "early_print.h"
 #include <asm/arch/gpio.h>
 #include <asm/arch/clock.h>
+#include "io.h"
 
 static int uart_initialized = 0;
 

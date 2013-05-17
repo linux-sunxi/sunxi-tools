@@ -14,7 +14,7 @@ UBOOT=$(HOME)/SRC/u-boot/
 # U-boot object path (O=... when building u-boot).
 UBOOTOBJ=$(UBOOT)build/$(BOARD)/
 
-CFLAGS=-g -O2 -marm -mno-thumb-interwork -mabi=aapcs-linux -march=armv7-a -fno-common -ffixed-r8 -msoft-float -I$(UBOOTOBJ)include2 -I$(UBOOTOBJ)include -I$(UBOOT)include 
+CFLAGS=-g -O2 -marm -mno-thumb-interwork -mabi=aapcs-linux -march=armv7-a -fno-common -fno-builtin -ffreestanding -ffixed-r8 -msoft-float -D__KERNEL__ -I$(UBOOTOBJ)include2 -I$(UBOOTOBJ)include -I$(UBOOT)include 
 
 all: fel-boot-$(BOARD).bin
 
