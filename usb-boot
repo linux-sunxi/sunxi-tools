@@ -1,29 +1,45 @@
 #!/bin/sh -e
+top=`dirname $0`
 if [ $# -lt 2 ]; then
-	echo "Usage: $0 board u-boot.bin [kernel script.bin [initramfs]]"
+	echo "Usage: $0 board u-boot.bin [boot.scr|-] [kernel script.bin [initramfs]]"
 	exit 1
 fi
-board=$1
-uboot=$2
-kernel=$3
-scriptbin=$4
-initramfs=$5
+board=$1; shift
+uboot=$1; shift
+bootscr=$tob/felboot/ramboot.scr
+if [ ! -f $bootscr ]; then
+	bootscr=$top/bin/ramboot.scr
+fi
+case "$1" in
+*.scr)	bootscr="$1"; shift
+	;;
+esac
+kernel=$1; shift
+scriptbin=$1; shift
+initramfs=$1; shift
 fel() {
 	echo fel "$@"
-	./fel $@
+	$top/fel $@
 }
-felboot=felboot/fel-boot-${board}.bin
+felboot=$top/felboot/fel-boot-${board}.bin
 if [ ! -f $felboot ]; then
-	felboot=bin/fel-boot-${board}.bin
+	felboot=$top/bin/fel-boot-${board}.bin
 fi
 if [ ! -f $felboot ]; then
 	echo "ERROR: Can't find fel-boot binary for ${board}"
+	exit 1
+fi
+if [ ! -f $bootscr ]; then
+	echo "ERROR: Can't fint boot script '${bootscr}'"
 	exit 1
 fi
 fel write 0x2000 $felboot
 fel exe 0x2000
 if [ -n "$uboot" ]; then
 	fel write 0x4a000000 $uboot
+fi
+if [ -n "$bootscr" ]; then
+	fel write 0x41000000 $bootscr
 fi
 if [ -n "$kernel" ]; then
  if [ -n "$scriptbin" ]; then
