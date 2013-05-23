@@ -18,12 +18,6 @@
  */
 
 #include <common.h>
-#include <version.h>
-
-__attribute__ ((section (".text.start"))) void _start(void)
-{
-	s_init();
-}
 
 int sunxi_mmc_init(void)
 {

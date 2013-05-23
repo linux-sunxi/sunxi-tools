@@ -1,13 +1,13 @@
 OUTPUT_FORMAT("elf32-littlearm", "elf32-littlearm", "elf32-littlearm")
 OUTPUT_ARCH(arm)
-ENTRY(_start)
+ENTRY(s_init)
 SECTIONS
 {
  . = 0x00002000;
  . = ALIGN(4);
  .text :
  {
-  main.o (.text.start)
+  *(.text.s_init)
   *(.text*)
  }
  . = ALIGN(4);
