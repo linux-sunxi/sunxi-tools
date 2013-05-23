@@ -35,6 +35,7 @@ if [ ! -f $bootscr ]; then
 fi
 fel write 0x2000 $felboot
 fel exe 0x2000
+sleep 1 # Wait for DRAM initialization to complete
 if [ -n "$uboot" ]; then
 	fel write 0x4a000000 $uboot
 fi
