@@ -25,7 +25,7 @@ UBOOT_OBJS= \
 	spl/drivers/power/axp209.o \
 	spl/drivers/i2c/libi2c.o \
 	spl/common/memsize.o \
-	spl/board/sunxi/dram_$(BOARD).o
+	$(addprefix spl/board/sunxi/,dram_$(BOARD).o board.o)
 
 .c.o:
 	$(CROSS_COMPILE)$(CC) -c $(CFLAGS) $< -o $@
