@@ -19,13 +19,13 @@ CFLAGS=-g -O2 -marm -mno-thumb-interwork -mabi=aapcs-linux -march=armv7-a -fno-c
 all: fel-boot-$(BOARD).bin
 
 UBOOT_OBJS= \
-	$(addprefix spl/arch/arm/cpu/armv7/sunxi/,clock.o pinmux.o dram.o board.o timer.o) \
+	spl/arch/arm/cpu/armv7/sunxi/libsunxi.o \
 	spl/arch/arm/cpu/armv7/syslib.o \
 	spl/arch/arm/lib/eabi_compat.o \
-	spl/drivers/power/axp209.o \
+	spl/drivers/power/libpower.o \
 	spl/drivers/i2c/libi2c.o \
 	spl/common/memsize.o \
-	$(addprefix spl/board/sunxi/,dram_$(BOARD).o board.o)
+	spl/board/sunxi/libsunxi.o
 
 .c.o:
 	$(CROSS_COMPILE)$(CC) -c $(CFLAGS) $< -o $@
@@ -39,7 +39,7 @@ OBJS += printf-stdarg.o early_print.o
 endif
 
 fel-boot-$(BOARD).elf: $(OBJS) $(addprefix $(UBOOTOBJ),$(UBOOT_OBJS))
-	$(CROSS_COMPILE)$(CC) -Tfel-boot.ld -static -nostartfiles $(CFLAGS) -Wl,-Map=$@.map $^ -o $@
+	$(CROSS_COMPILE)$(CC) -Tfel-boot.ld -static -nostartfiles $(CFLAGS) -Wl,-Map=$@.map -o $@ $(OBJS) -Wl,--start-group $(addprefix $(UBOOTOBJ),$(UBOOT_OBJS)) -Wl,--end-group
 
 fel-boot-$(BOARD).bin: fel-boot-$(BOARD).elf
 	$(CROSS_COMPILE)objcopy -O binary $< $@
