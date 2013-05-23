@@ -18,6 +18,7 @@
  */
 
 #include <common.h>
+#include <version.h>
 
 __attribute__ ((section (".text.start"))) void _start(void)
 {
@@ -37,6 +38,8 @@ void sunxi_wemac_initialize(void)
 void preloader_console_init(void)
 {
 	uart_init();
+	puts("\nU-Boot FEL " PLAIN_VERSION " (" U_BOOT_DATE " - " \
+                        U_BOOT_TIME ")\n");
 }
 
 void hang(void)
