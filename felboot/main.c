@@ -25,34 +25,6 @@ __attribute__ ((section (".text.start"))) void _start(void)
 	s_init();
 }
 
-gd_t gdata __attribute__ ((section(".data")));
-
-void dcache_enable(void)
-{
-}
-
-void sunxi_wemac_initialize(void)
-{
-}
-
-void preloader_console_init(void)
-{
-	uart_init();
-	puts("\nU-Boot FEL " PLAIN_VERSION " (" U_BOOT_DATE " - " \
-                        U_BOOT_TIME ")\n");
-}
-
-void hang(void)
-{
-	printf("Please reset the board!");
-	while(1);
-}
-
-void udelay(unsigned long usec)
-{
-	__udelay(usec);
-}
-
 int sunxi_mmc_init(void)
 {
 	return -1;
@@ -63,7 +35,12 @@ void status_led_set(int led, int state)
 	return;
 }
 
-#ifndef NO_PRINTF
+int serial_init(void)
+{
+	uart_init();
+	return 0;
+}
+
 void putchar(int ch)
 {
 	if (ch == '\n')
@@ -71,28 +48,9 @@ void putchar(int ch)
 	uart_putc(ch);
 }
 
-void puts(const char *str)
+void serial_puts(const char *str)
 {
 	while(*str)
 		putchar(*str++);
 }
 
-#else
-void putchar(int ch)
-{
-}
-
-void puts(const char *str)
-{
-}
-
-int printf(const char *fmt, ...)
-{
-	return -1;
-}
-
-void uart_init(void)
-{
-}
-
-#endif

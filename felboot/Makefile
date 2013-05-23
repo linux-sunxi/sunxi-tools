@@ -20,11 +20,14 @@ all: fel-boot-$(BOARD).bin
 
 UBOOT_OBJS= \
 	spl/arch/arm/cpu/armv7/sunxi/libsunxi.o \
-	spl/arch/arm/cpu/armv7/syslib.o \
+	spl/arch/arm/cpu/armv7/libarmv7.o \
+	spl/arch/arm/lib/libarm.o \
 	spl/arch/arm/lib/eabi_compat.o \
 	spl/drivers/power/libpower.o \
 	spl/drivers/i2c/libi2c.o \
-	spl/common/memsize.o \
+	spl/common/libcommon.o \
+	spl/common/spl/libspl.o \
+	spl/lib/libgeneric.o \
 	spl/board/sunxi/libsunxi.o
 
 .c.o:
@@ -35,11 +38,11 @@ OBJS += main.o
 ifeq ($(NO_PRINTF),1)
 CFLAGS += -DNO_PRINTF
 else
-OBJS += printf-stdarg.o early_print.o
+OBJS += early_print.o
 endif
 
 fel-boot-$(BOARD).elf: $(OBJS) $(addprefix $(UBOOTOBJ),$(UBOOT_OBJS))
-	$(CROSS_COMPILE)$(CC) -Tfel-boot.ld -static -nostartfiles $(CFLAGS) -Wl,-Map=$@.map -o $@ $(OBJS) -Wl,--start-group $(addprefix $(UBOOTOBJ),$(UBOOT_OBJS)) -Wl,--end-group
+	$(CROSS_COMPILE)$(CC) -Tfel-boot.ld -static -Wl,--gc-sections -nostartfiles -nostdlib $(CFLAGS) -Wl,-Map=$@.map -o $@ $(OBJS) -Wl,--start-group $(addprefix $(UBOOTOBJ),$(UBOOT_OBJS)) -lgcc -Wl,--end-group
 
 fel-boot-$(BOARD).bin: fel-boot-$(BOARD).elf
 	$(CROSS_COMPILE)objcopy -O binary $< $@
