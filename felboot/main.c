@@ -34,23 +34,3 @@ void status_led_set(int led, int state)
 {
 	return;
 }
-
-int serial_init(void)
-{
-	uart_init();
-	return 0;
-}
-
-void putchar(int ch)
-{
-	if (ch == '\n')
-		uart_putc('\r');
-	uart_putc(ch);
-}
-
-void serial_puts(const char *str)
-{
-	while(*str)
-		putchar(*str++);
-}
-

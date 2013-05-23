@@ -28,18 +28,13 @@ UBOOT_OBJS= \
 	spl/common/libcommon.o \
 	spl/common/spl/libspl.o \
 	spl/lib/libgeneric.o \
+	spl/drivers/serial/libserial.o \
 	spl/board/sunxi/libsunxi.o
 
 .c.o:
 	$(CROSS_COMPILE)$(CC) -c $(CFLAGS) $< -o $@
 
 OBJS += main.o
-
-ifeq ($(NO_PRINTF),1)
-CFLAGS += -DNO_PRINTF
-else
-OBJS += early_print.o
-endif
 
 fel-boot-$(BOARD).elf: $(OBJS) $(addprefix $(UBOOTOBJ),$(UBOOT_OBJS))
 	$(CROSS_COMPILE)$(CC) -Tfel-boot.ld -static -Wl,--gc-sections -nostartfiles -nostdlib $(CFLAGS) -Wl,-Map=$@.map -o $@ $(OBJS) -Wl,--start-group $(addprefix $(UBOOTOBJ),$(UBOOT_OBJS)) -lgcc -Wl,--end-group
