@@ -5,11 +5,13 @@ fel exe 0x2000
 fel write 0x4a000000 u-boot.bin
 fel exe 0x4a000000
 
-optionally load kernel + initramfs before fel exe of u-boot
+optionally load kernel + initramfs before fel exe of u-boot. The default
+environmen looks for a boot script @0x41000000 and sources this if found.
 
 fel write 0x2000 fel-boot.bin
 fel exe 0x2000
 fel write 0x4a000000 u-boot.bin
+fel write 0x41000000 ramboot.scr
 fel write 0x43000000 ../script.bin
 fel write 0x44000000 ../uImage
 fel write 0x4c000000 ../initramfs.img
@@ -28,9 +30,6 @@ Build instructions:
 
 make BOARD=cubieboard CROSS_COMPILE=arm-linux-gnueabihf- UBOOT=~/SRC/u-boot/ UBOOTOBJ=~/SRC/u-boot/build/'$(BOARD)'/
 
-Other options
-	NO_PRINTF=1	Disable printf, reducing the code size a bit
-
 Defaults:
 
 # Target board name. This should match the dram_<boardname>.c in
@@ -38,10 +37,10 @@ Defaults:
 BOARD=eoma68
 
 # Path to your tool chain
-CROSS_COMPILE=ikk/toolchains/arm-linux-gnueabihf/bin/arm-linux-gnueabihf-
+CROSS_COMPILE=$(HOME)/toolchains/arm-linux-gnueabihf/bin/arm-linux-gnueabihf-
 
 # U-boot main source path
-UBOOT=/home/henrik/SRC/u-boot/
+UBOOT=$(HOME)/SRC/u-boot/
 
 # U-boot object path (O=... when building u-boot).
 UBOOTOBJ=$(UBOOT)build/$(BOARD)/
