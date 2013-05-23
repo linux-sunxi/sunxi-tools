@@ -4,8 +4,8 @@ if [ $# -lt 2 ]; then
 	echo "Usage: $0 board u-boot.bin [boot.scr|-] [kernel script.bin [initramfs]]"
 	exit 1
 fi
-board=$1; shift
-uboot=$1; shift
+board=$1; shift || (echo "ERROR: Board must be specified"; exit 1;)
+uboot=$1; shift || (echo "ERROR: u-boot.bin must be specified"; exit 1;)
 bootscr=$tob/felboot/ramboot.scr
 if [ ! -f $bootscr ]; then
 	bootscr=$top/bin/ramboot.scr
@@ -14,9 +14,9 @@ case "$1" in
 *.scr)	bootscr="$1"; shift
 	;;
 esac
-kernel=$1; shift
-scriptbin=$1; shift
-initramfs=$1; shift
+kernel=$1; shift || true
+scriptbin=$1; shift || true
+initramfs=$1; shift || true
 fel() {
 	echo fel "$@"
 	$top/fel $@

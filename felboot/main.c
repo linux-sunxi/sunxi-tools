@@ -55,14 +55,14 @@ int sunxi_mmc_init(void)
 	return -1;
 }
 
-int status_led_set(void)
+void status_led_set(int led, int state)
 {
-	return -1;
+	return;
 }
 
 void sunxi_board_init(void)
 {
-	int power_failed = 1;
+	int power_failed = 0;
 	int ramsize;
 
 	timer_init();
