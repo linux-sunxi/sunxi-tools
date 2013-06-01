@@ -298,7 +298,7 @@ int main(int argc, char **argv)
 
 	handle = libusb_open_device_with_vid_pid(NULL, 0x1f3a, 0xefe8);
 	if (!handle) {
-		fprintf(stderr, "A10 USB FEL device not found!");
+		fprintf(stderr, "ERROR: Allwinner USB FEL device not found!\n");
 		exit(1);
 	}
 	rc = libusb_claim_interface(handle, 0);
