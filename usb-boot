@@ -21,10 +21,16 @@ fel() {
 	echo fel "$@"
 	$top/fel $@
 }
-felboot=$top/felboot/fel-boot-${board}.bin
-if [ ! -f $felboot ]; then
-	felboot=$top/bin/fel-boot-${board}.bin
-fi
+case $board in
+*/*)	felboot=$board
+	;;
+*)
+	felboot=$top/felboot/fel-boot-${board}.bin
+	if [ ! -f $felboot ]; then
+		felboot=$top/bin/fel-boot-${board}.bin
+	fi
+	;;
+esac
 if [ ! -f $felboot ]; then
 	echo "ERROR: Can't find fel-boot binary for ${board}"
 	exit 1
