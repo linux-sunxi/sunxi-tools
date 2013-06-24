@@ -55,6 +55,8 @@
 
 #define MAX_NAME 16
 
+void printmbrheader(MBR *mbr);
+
 typedef struct tag_CRC32_DATA
 {
 	__u32 CRC;				//int的大小是32位
@@ -109,6 +111,7 @@ MBR *_get_mbr(int fd, int mbr_num)
 	{
 		/*checksum*/
 		printf("check partition table copy %d: ", mbr_num);
+		printmbrheader(mbr);
 		if(*(__u32 *)mbr == calc_crc32((__u32 *)mbr + 1,MBR_SIZE - 4))
 		{
 			printf("OK\n");
@@ -130,9 +133,16 @@ __s32 _free_mbr(MBR *mbr)
 	return 0;
 }
 
+void printmbrheader(MBR *mbr)
+{
+	printf("mbr: version 0x%08x, magic %8.8s\n", mbr->version, mbr->magic);
+}
+
 void printmbr(MBR *mbr)
 {
 	int part_cnt;
+	
+	printmbrheader(mbr);
 	for(part_cnt = 0; part_cnt < mbr->PartCount && part_cnt < MAX_PART_COUNT; part_cnt++)
 	{
 		if(1 || (mbr->array[part_cnt].user_type == 2) || (mbr->array[part_cnt].user_type == 0))
