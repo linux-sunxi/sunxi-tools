@@ -49,6 +49,7 @@
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mount.h> /* BLKRRPART */
 #include "nand-part.h"
@@ -96,6 +97,8 @@ __u32 calc_crc32(void * buffer, __u32 length)
 MBR *_get_mbr(int fd, int mbr_num)
 {
 	MBR *mbr;
+	const char * magic = "softw311";
+	unsigned version = 0x100;
 
 	/*request mbr space*/
 	mbr = malloc(sizeof(MBR));
@@ -112,6 +115,16 @@ MBR *_get_mbr(int fd, int mbr_num)
 		/*checksum*/
 		printf("check partition table copy %d: ", mbr_num);
 		printmbrheader(mbr);
+		if(strncmp((char *)mbr->magic, magic, 8))
+		{
+			printf("magic %8.8s is not %8s\n", mbr->magic, magic);
+			return NULL;
+		}
+		if(mbr->version != version)
+		{
+			printf("version 0x%08x is not 0x%08x\n", mbr->version, version);
+			return NULL;
+		}
 		if(*(__u32 *)mbr == calc_crc32((__u32 *)mbr + 1,MBR_SIZE - 4))
 		{
 			printf("OK\n");
