@@ -58,14 +58,14 @@ jtag-loop.bin: jtag-loop.elf
 jtag-loop.sunxi: jtag-loop.bin
 	mksunxiboot jtag-loop.bin jtag-loop.sunxi
 
-fel-boot.elf: fel-boot.c fel-boot.lds
-	$(CROSS_COMPILE)gcc  -g  -Os  -fpic -fno-common -fno-builtin -ffreestanding -nostdinc -mno-thumb-interwork -Wall -Wstrict-prototypes -fno-stack-protector -Wno-format-nonliteral -Wno-format-security -fno-toplevel-reorder  fel-boot.c -nostdlib -o fel-boot.elf -T fel-boot.lds -Wl,-N
+fel-sdboot.elf: fel-sdboot.c fel-sdboot.lds
+	$(CROSS_COMPILE)gcc  -g  -Os  -fpic -fno-common -fno-builtin -ffreestanding -nostdinc -mno-thumb-interwork -Wall -Wstrict-prototypes -fno-stack-protector -Wno-format-nonliteral -Wno-format-security -fno-toplevel-reorder  fel-sdboot.c -nostdlib -o fel-sdboot.elf -T fel-sdboot.lds -Wl,-N
 
-fel-boot.bin: fel-boot.elf
-	$(CROSS_COMPILE)objcopy -O binary fel-boot.elf fel-boot.bin
+fel-sdboot.bin: fel-sdboot.elf
+	$(CROSS_COMPILE)objcopy -O binary fel-sdboot.elf fel-sdboot.bin
 
-fel-boot.sunxi: fel-boot.bin
-	mksunxiboot fel-boot.bin fel-boot.sunxi
+fel-sdboot.sunxi: fel-sdboot.bin
+	mksunxiboot fel-sdboot.bin fel-sdboot.sunxi
 
 boot_head_sun3i.elf: boot_head_sun3i.S boot_head_sun3i.lds
 	$(CROSS_COMPILE)gcc  -g  -Os  -fpic -fno-common -fno-builtin -ffreestanding -nostdinc -mno-thumb-interwork -Wall -Wstrict-prototypes -fno-stack-protector -Wno-format-nonliteral -Wno-format-security -fno-toplevel-reorder  boot_head.S -nostdlib -o boot_head_sun3i.elf -T boot_head.lds -Wl,-N -DMACHID=0x1094

@@ -138,7 +138,7 @@ void aw_fel_get_version(libusb_device_handle *usb)
 {
 	struct aw_fel_version {
 		char signature[8];
-		uint32_t unknown_08;	/* 0x00162300 */
+		uint32_t soc_id;	/* 0x00162300 */
 		uint32_t unknown_0a;	/* 1 */
 		uint16_t protocol;	/* 1 */
 		uint8_t  unknown_12;	/* 0x44 */
@@ -151,14 +151,22 @@ void aw_fel_get_version(libusb_device_handle *usb)
 	aw_usb_read(usb, &buf, sizeof(buf));
 	aw_read_fel_status(usb);
 
-	buf.unknown_08 = le32toh(buf.unknown_08);
+	buf.soc_id = le32toh(buf.soc_id);
 	buf.unknown_0a = le32toh(buf.unknown_0a);
 	buf.protocol = le32toh(buf.protocol);
 	buf.scratchpad = le16toh(buf.scratchpad);
 	buf.pad[0] = le32toh(buf.pad[0]);
 	buf.pad[1] = le32toh(buf.pad[1]);
 
-	printf("%.8s %08x %08x ver=%04x %02x %02x scratchpad=%08x %08x %08x\n", buf.signature, buf.unknown_08, buf.unknown_0a, buf.protocol, buf.unknown_12, buf.unknown_13, buf.scratchpad, buf.pad[0], buf.pad[1]);
+	const char *soc_name="unknown";
+	switch ((buf.soc_id >> 8) & 0xFFFF) {
+	case 0x1623: soc_name="A10";break;
+	case 0x1625: soc_name="A13";break;
+	case 0x1633: soc_name="A31";break;
+	case 0x1651: soc_name="A20";break;
+	}
+
+	printf("%.8s soc=%08x(%s) %08x ver=%04x %02x %02x scratchpad=%08x %08x %08x\n", buf.signature, buf.soc_id, soc_name, buf.unknown_0a, buf.protocol, buf.unknown_12, buf.unknown_13, buf.scratchpad, buf.pad[0], buf.pad[1]);
 }
 
 void aw_fel_read(libusb_device_handle *usb, uint32_t offset, void *buf, size_t len)
@@ -271,6 +279,7 @@ int main(int argc, char **argv)
 {
 	int rc;
 	libusb_device_handle *handle = NULL;
+	int iface_detached = -1;
 	rc = libusb_init(NULL);
 	assert(rc == 0);
 
@@ -290,10 +299,17 @@ int main(int argc, char **argv)
 
 	handle = libusb_open_device_with_vid_pid(NULL, 0x1f3a, 0xefe8);
 	if (!handle) {
-		fprintf(stderr, "A10 USB FEL device not found!");
+		fprintf(stderr, "ERROR: Allwinner USB FEL device not found!\n");
 		exit(1);
 	}
 	rc = libusb_claim_interface(handle, 0);
+#if defined(__linux__)
+	if (rc != LIBUSB_SUCCESS) {
+		libusb_detach_kernel_driver(handle, 0);
+		iface_detached = 0;
+		rc = libusb_claim_interface(handle, 0);
+	}
+#endif
 	assert(rc == 0);
 
 	while (argc > 1 ) {
@@ -337,6 +353,11 @@ int main(int argc, char **argv)
 		argc-=skip;
 		argv+=skip;
 	}
+
+#if defined(__linux__)
+	if (iface_detached >= 0)
+		libusb_attach_kernel_driver(handle, iface_detached);
+#endif
 
 	return 0;
 }

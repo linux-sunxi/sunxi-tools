@@ -392,7 +392,7 @@ int main(int argc, char **argv)
 		}
 	}
 	if (in) {
-		if (fread(buf, sizeof(buf), 1, in) != 1) {
+		if (fread(buf, PIO_REG_SIZE, 1, in) != 1) {
 			perror("read input");
 			exit(1);
 		}
@@ -414,7 +414,7 @@ int main(int argc, char **argv)
 				exit(1);
 			}
 		}
-		if (fwrite(buf, sizeof(buf), 1, out) != 1) {
+		if (fwrite(buf, PIO_REG_SIZE, 1, out) != 1) {
 			perror("write output");
 			exit(1);
 		}

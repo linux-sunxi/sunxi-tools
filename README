@@ -26,11 +26,18 @@ fel:
 	th CPU. You activate FEL mode by pushing the usboot/recovery
 	button at poweron.
 
+usb-boot:
+	Simple wrapper to automate USB booting in FEL mode
+	See http://linux-sunxi.org/FEL/USBBoot for details
+
 fel-gpio:
 	Simple wrapper around fel-pio and fel to allos GPIO manipulations
 	via FEL
+	
+fel-sdboot:
+	ARM native sdcard bootloader forcing the device into FEL mode
 
-fel-pio.bin:
+fel-pio:
 	ARM native helper for fel-gpio
 
 pio:

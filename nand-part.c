@@ -49,11 +49,14 @@
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mount.h> /* BLKRRPART */
 #include "nand-part.h"
 
 #define MAX_NAME 16
+
+void printmbrheader(MBR *mbr);
 
 typedef struct tag_CRC32_DATA
 {
@@ -94,6 +97,8 @@ __u32 calc_crc32(void * buffer, __u32 length)
 MBR *_get_mbr(int fd, int mbr_num)
 {
 	MBR *mbr;
+	const char * magic = "softw311";
+	unsigned version = 0x100;
 
 	/*request mbr space*/
 	mbr = malloc(sizeof(MBR));
@@ -109,6 +114,17 @@ MBR *_get_mbr(int fd, int mbr_num)
 	{
 		/*checksum*/
 		printf("check partition table copy %d: ", mbr_num);
+		printmbrheader(mbr);
+		if(strncmp((char *)mbr->magic, magic, 8))
+		{
+			printf("magic %8.8s is not %8s\n", mbr->magic, magic);
+			return NULL;
+		}
+		if(mbr->version != version)
+		{
+			printf("version 0x%08x is not 0x%08x\n", mbr->version, version);
+			return NULL;
+		}
 		if(*(__u32 *)mbr == calc_crc32((__u32 *)mbr + 1,MBR_SIZE - 4))
 		{
 			printf("OK\n");
@@ -130,6 +146,30 @@ __s32 _free_mbr(MBR *mbr)
 	return 0;
 }
 
+void printmbrheader(MBR *mbr)
+{
+	printf("mbr: version 0x%08x, magic %8.8s\n", mbr->version, mbr->magic);
+}
+
+void printmbr(MBR *mbr)
+{
+	int part_cnt;
+	
+	printmbrheader(mbr);
+	for(part_cnt = 0; part_cnt < mbr->PartCount && part_cnt < MAX_PART_COUNT; part_cnt++)
+	{
+		if(1 || (mbr->array[part_cnt].user_type == 2) || (mbr->array[part_cnt].user_type == 0))
+		{
+			printf("partition %2d: class = %12s, name = %12s, partition start = %8d, partition size = %8d user_type=%d\n",
+						part_cnt,
+						mbr->array[part_cnt].classname,
+						mbr->array[part_cnt].name,
+						mbr->array[part_cnt].addrlo,
+						mbr->array[part_cnt].lenlo,
+						mbr->array[part_cnt].user_type);
+		}
+	}
+}
 void checkmbrs(int fd)
 {
 	int part_cnt = 0;
