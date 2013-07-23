@@ -348,6 +348,13 @@ int main (int argc, char **argv)
 			argc--;
 			argv++;
 		}
+
+		if (start < MBR_SIZE * MBR_COPY_NUM / 512) {
+			printf("Partition 1 starting offset must be at least %d\n", MBR_SIZE * MBR_COPY_NUM / 512);
+			close(fd);
+			return -3;
+		}
+
 		for (i = 0; i < argc; i++) {
 			if (sscanf(argv[i], "%s %d %d", names[i], &lens[i], &user_types[i]) < 2) {
 				printf("bad 'name len' argument\n");
