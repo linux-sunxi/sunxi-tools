@@ -25,6 +25,9 @@
 
 #include "types.h"
 
+#define MBR_MAGIC "softw311"
+#define MBR_VERSION 0x100
+
 #define MAX_PART_COUNT		15	 									//max part count
 #define MBR_COPY_NUM        4    									//mbr backup count
 
