@@ -209,7 +209,7 @@ void checkmbrs(int fd)
 	printf("%d partitions\n", part_cnt);
 }
 
-int writembrs(int fd, char names[][MAX_NAME], __u32 start, __u32 *lens, unsigned int *user_types, int nparts, int force)
+int writembrs(int fd, char names[][MAX_NAME], __u32 start, __u32 *lens, unsigned int *user_types, int nparts, int partoffset, int force)
 {
 	unsigned int part_cnt = 0;
 	int i;
@@ -252,17 +252,19 @@ int writembrs(int fd, char names[][MAX_NAME], __u32 start, __u32 *lens, unsigned
 	fprintf(backup, "\n");
 	fclose(backup);
 
-	mbr->PartCount = nparts;
+	mbr->PartCount = nparts + partoffset;
+	if (partoffset)
+		start = mbr->array[0].addrlo + mbr->array[0].lenlo;
 	for(i = 0; i < nparts; i++) {
-		strcpy((char *)mbr->array[i].name, names[i]);
-		strcpy((char *)mbr->array[i].classname, "DISK");
-		memset((void *) mbr->array[i].res, 0, sizeof(mbr->array[i].res));
-		mbr->array[i].user_type = user_types[i];
-		mbr->array[i].ro = 0;
-		mbr->array[i].addrhi = 0;
-		mbr->array[i].lenhi = 0;
-		mbr->array[i].addrlo = start;
-		mbr->array[i].lenlo = lens[i];
+		strcpy((char *)mbr->array[i+partoffset].name, names[i]);
+		strcpy((char *)mbr->array[i+partoffset].classname, "DISK");
+		memset((void *) mbr->array[i+partoffset].res, 0, sizeof(mbr->array[i+partoffset].res));
+		mbr->array[i+partoffset].user_type = user_types[i];
+		mbr->array[i+partoffset].ro = 0;
+		mbr->array[i+partoffset].addrhi = 0;
+		mbr->array[i+partoffset].lenhi = 0;
+		mbr->array[i+partoffset].addrlo = start;
+		mbr->array[i+partoffset].lenlo = lens[i];
 		start += lens[i];
 	}
 
@@ -294,10 +296,17 @@ int writembrs(int fd, char names[][MAX_NAME], __u32 start, __u32 *lens, unsigned
 	return 1;
 }
 
+void usage(const char *cmd)
+{
+	printf("usage: %s nand-device 'name2 len2 [usertype2]' ['name3 len3 [usertype3]'] ...\n", cmd);
+	printf("or     %s nand-device [-f] start1 'name1 len1 [usertype1]' ['name2 len2 [usertype2]'] ...\n", cmd);
+}
+
 int main (int argc, char **argv)
 {
 	int fd;
 	int force = 0;		// force write even if magics and CRCs don't match
+	int partoffset = 0;
 	int i;
 	char *nand = "/dev/nand";
 	char *cmd = argv[0];
@@ -324,7 +333,7 @@ int main (int argc, char **argv)
 	}
 	fd = open(nand, O_RDWR);
 	if (fd < 0) {
-		printf("usage: %s nand-device start1 'name1 len1 [usertype1]' ['name2 len2 [usertype2]'] ...\n", cmd);
+		usage(cmd);
 		return -1;
 	}
 
@@ -332,17 +341,22 @@ int main (int argc, char **argv)
 	memset((void *) user_types, 0, sizeof(user_types));
 	if (argc > 0) {
 		if (sscanf(argv[0], "%u", &start) != 1) {
-			printf("bad start argument\n");
-			printf("usage: %s nand-device start1 'name1 len1 [usertype1]' ['name2 len2' [usertype2]] ...\n", cmd);
-			close(fd);
-			return -1;
+			partoffset++;
+			if (force) {
+				printf("if using -f, must set info for first partition\n");
+				usage(cmd);
+				close(fd);
+				return -3;
+			}
 		}
-		argc--;
-		argv++;
+		else {
+			argc--;
+			argv++;
+		}
 		for (i = 0; i < argc; i++) {
 			if (sscanf(argv[i], "%s %d %d", names[i], &lens[i], &user_types[i]) < 2) {
 				printf("bad 'name len' argument\n");
-				printf("usage: %s nand-device start1 'name1 len1 [usertype1]' ['name2 len2' [usertype2]] ...\n", cmd);
+				usage(cmd);
 				close(fd);
 				return -3;
 			}
@@ -351,16 +365,16 @@ int main (int argc, char **argv)
 
 	checkmbrs(fd);
 
-	if (argc > MAX_PART_COUNT) {
+	if (argc > MAX_PART_COUNT - partoffset) {
 		printf("too many partitions specified (MAX 14)\n");
-		printf("usage: %s nand-device start1 'name1 len1 [usertype1]' ['name2 len2 [usertype2]'] ...\n", cmd);
+		usage(cmd);
 		close(fd);
 		return -2;
 	}
 
 
 	if (argc > 0) {
-		if (writembrs(fd, names, start, lens, user_types, argc, force)) {
+		if (writembrs(fd, names, start, lens, user_types, argc, partoffset, force)) {
 			printf("\nverifying new partition tables:\n");
 			checkmbrs(fd);
 			printf("rereading partition table... returned %d\n", ioctl(fd, BLKRRPART, 0));
