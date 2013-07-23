@@ -167,16 +167,13 @@ void printmbr(MBR *mbr)
 	printmbrheader(mbr);
 	for(part_cnt = 0; part_cnt < mbr->PartCount && part_cnt < MAX_PART_COUNT; part_cnt++)
 	{
-		if(1 || (mbr->array[part_cnt].user_type == 2) || (mbr->array[part_cnt].user_type == 0))
-		{
-			printf("partition %2d: class = %12s, name = %12s, partition start = %8d, partition size = %8d user_type=%d\n",
-						part_cnt,
-						mbr->array[part_cnt].classname,
-						mbr->array[part_cnt].name,
-						mbr->array[part_cnt].addrlo,
-						mbr->array[part_cnt].lenlo,
-						mbr->array[part_cnt].user_type);
-		}
+		printf("partition %2d: class = %12s, name = %12s, partition start = %8d, partition size = %8d user_type=%d\n",
+					part_cnt + 1,
+					mbr->array[part_cnt].classname,
+					mbr->array[part_cnt].name,
+					mbr->array[part_cnt].addrlo,
+					mbr->array[part_cnt].lenlo,
+					mbr->array[part_cnt].user_type);
 	}
 }
 void checkmbrs(int fd)
