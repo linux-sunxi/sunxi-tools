@@ -4,7 +4,7 @@ CFLAGS += -std=c99 -D_POSIX_C_SOURCE=200112L
 CFLAGS += -Iinclude/
 
 TOOLS = fexc bin2fex fex2bin bootinfo fel pio
-TOOLS += nand-part
+TOOLS += nand-part nand-part-a20
 
 MISC_TOOLS = phoenix_info
 
@@ -39,6 +39,9 @@ fel: fel.c
 
 %: %.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(filter %.c,$^) $(LIBS)
+
+nand-part-a20: nand-part.c nand-part-a20.h
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ nand-part.c -D A20 $(LIBS)
 
 fel-pio.bin: fel-pio.elf fel-pio.nm
 	$(CROSS_COMPILE)objcopy -O binary fel-pio.elf fel-pio.bin
