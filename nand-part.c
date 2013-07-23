@@ -122,9 +122,7 @@ MBR *_get_mbr(int fd, int mbr_num, int force)
 		printmbrheader(mbr);
 		if (force) {
 			strncpy((char *)mbr->magic, MBR_MAGIC, 8);
-#ifdef MBR_VERSION
 			mbr->version = MBR_VERSION;
-#endif
 			return mbr;
 		}
 		if(strncmp((char *)mbr->magic, MBR_MAGIC, 8))
@@ -132,13 +130,11 @@ MBR *_get_mbr(int fd, int mbr_num, int force)
 			printf("magic %8.8s is not %8s\n", mbr->magic, MBR_MAGIC);
 			return NULL;
 		}
-#ifdef MBR_VERSION
 		if(mbr->version != MBR_VERSION)
 		{
 			printf("version 0x%08x is not 0x%08x\n", mbr->version, MBR_VERSION);
 			return NULL;
 		}
-#endif
 		if(*(__u32 *)mbr == calc_crc32((__u32 *)mbr + 1,MBR_SIZE - 4))
 		{
 			printf("OK\n");
