@@ -165,6 +165,7 @@ void printmbr(MBR *mbr)
 	unsigned int part_cnt;
 	
 	printmbrheader(mbr);
+	printf("%d partitions\n", mbr->PartCount);
 	for(part_cnt = 0; part_cnt < mbr->PartCount && part_cnt < MAX_PART_COUNT; part_cnt++)
 	{
 		printf("partition %2d: class = %12s, name = %12s, partition start = %8d, partition size = %8d user_type=%d\n",
@@ -178,7 +179,6 @@ void printmbr(MBR *mbr)
 }
 void checkmbrs(int fd)
 {
-	unsigned int part_cnt = 0;
 	int i;
 	MBR *mbrs[MBR_COPY_NUM];
 	MBR *mbr = NULL;
@@ -203,7 +203,6 @@ void checkmbrs(int fd)
 		if (mbrs[i])
 			_free_mbr(mbrs[i]);
 	}
-	printf("%d partitions\n", part_cnt);
 }
 
 int writembrs(int fd, char names[][MAX_NAME], __u32 start, __u32 *lens, unsigned int *user_types, int nparts, int partoffset, int force)
@@ -271,7 +270,6 @@ int writembrs(int fd, char names[][MAX_NAME], __u32 start, __u32 *lens, unsigned
 		if (mbrs[i])
 			_free_mbr(mbrs[i]);
 	}
-	printf("%d partitions\n", part_cnt);
 	printf("\nwrite new partition tables? (Y/N)\n");
 	read(0, &yn, 1);
 	if (yn != 'Y' && yn != 'y') {
