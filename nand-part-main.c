@@ -1,6 +1,5 @@
 /*
- * mbr.c
- * (C) Copyright 2012
+ * (C) Copyright 2013
  * Patrick H Wood, All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
