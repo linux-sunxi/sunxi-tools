@@ -27,8 +27,9 @@
 
 void usage(const char *cmd)
 {
-	printf("usage: %s nand-device 'name2 len2 [usertype2]' ['name3 len3 [usertype3]'] ...\n", cmd);
-	printf("or     %s nand-device [-f] start1 'name1 len1 [usertype1]' ['name2 len2 [usertype2]'] ...\n", cmd);
+	printf("usage: %s [-f a10|a20] nand-device\n", cmd);
+	printf("       %s nand-device 'name2 len2 [usertype2]' ['name3 len3 [usertype3]'] ...\n", cmd);
+	printf("       %s nand-device [-f a10|a20] start1 'name1 len1 [usertype1]' ['name2 len2 [usertype2]'] ...\n", cmd);
 }
 
 typedef struct tag_CRC32_DATA
