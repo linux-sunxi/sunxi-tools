@@ -27,6 +27,8 @@
 
 #define MBR_MAGIC "softw311"
 #define MBR_VERSION 0x100
+#define nand_part nand_part_a10
+#define checkmbrs checkmbrs_a10
 
 #define MAX_PART_COUNT		15	 									//max part count
 #define MBR_COPY_NUM        4    									//mbr backup count

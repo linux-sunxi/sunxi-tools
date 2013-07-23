@@ -52,10 +52,13 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mount.h> /* BLKRRPART */
-#ifdef A20
+#include "nand-common.h"
+
+// so far, only known formats are for A10 and A20
+#if defined(A10)
+# include "nand-part-a10.h"
+#elif defined(A20)
 # include "nand-part-a20.h"
-#else
-# include "nand-part.h"
 #endif
 
 #define MAX_NAME 16
@@ -65,43 +68,7 @@ static void printmbrheader(MBR *mbr)
 	printf("mbr: version 0x%08x, magic %8.8s\n", mbr->version, mbr->magic);
 }
 
-typedef struct tag_CRC32_DATA
-{
-	__u32 CRC;				//int的大小是32位
-	__u32 CRC_32_Tbl[256];	//用来保存码表
-}CRC32_DATA_t;
-
-__u32 calc_crc32(void * buffer, __u32 length)
-{
-	__u32 i, j;
-	CRC32_DATA_t crc32;		//
-	__u32 CRC32 = 0xffffffff; //设置初始值
-	crc32.CRC = 0;
-
-	for( i = 0; i < 256; ++i)//用++i以提高效率
-	{
-		crc32.CRC = i;
-		for( j = 0; j < 8 ; ++j)
-		{
-			//这个循环实际上就是用"计算法"来求取CRC的校验码
-			if(crc32.CRC & 1)
-				crc32.CRC = (crc32.CRC >> 1) ^ 0xEDB88320;
-			else //0xEDB88320就是CRC-32多项表达式的值
-				crc32.CRC >>= 1;
-		}
-		crc32.CRC_32_Tbl[i] = crc32.CRC;
-	}
-
-	CRC32 = 0xffffffff; //设置初始值
-	for( i = 0; i < length; ++i)
-	{
-		CRC32 = crc32.CRC_32_Tbl[(CRC32^((unsigned char*)buffer)[i]) & 0xff] ^ (CRC32>>8);
-	}
-	//return CRC32;
-	return CRC32^0xffffffff;
-}
-
-MBR *_get_mbr(int fd, int mbr_num, int force)
+static MBR *_get_mbr(int fd, int mbr_num, int force)
 {
 	MBR *mbr;
 
@@ -145,7 +112,7 @@ MBR *_get_mbr(int fd, int mbr_num, int force)
 	return NULL;
 }
 
-__s32 _free_mbr(MBR *mbr)
+static __s32 _free_mbr(MBR *mbr)
 {
 	if(mbr)
 	{
@@ -156,7 +123,7 @@ __s32 _free_mbr(MBR *mbr)
 	return 0;
 }
 
-void printmbr(MBR *mbr)
+static void printmbr(MBR *mbr)
 {
 	unsigned int part_cnt;
 	
@@ -173,7 +140,7 @@ void printmbr(MBR *mbr)
 					mbr->array[part_cnt].user_type);
 	}
 }
-void checkmbrs(int fd)
+int checkmbrs(int fd)
 {
 	int i;
 	MBR *mbrs[MBR_COPY_NUM];
@@ -191,7 +158,7 @@ void checkmbrs(int fd)
 			if (mbrs[i])
 				_free_mbr(mbrs[i]);
 		}
-		return;
+		return 0;
 	}
 
 	printmbr(mbr);
@@ -199,9 +166,10 @@ void checkmbrs(int fd)
 		if (mbrs[i])
 			_free_mbr(mbrs[i]);
 	}
+	return 1;
 }
 
-int writembrs(int fd, char names[][MAX_NAME], __u32 start, __u32 *lens, unsigned int *user_types, int nparts, int partoffset, int force)
+static int writembrs(int fd, char names[][MAX_NAME], __u32 start, __u32 *lens, unsigned int *user_types, int nparts, int partoffset, int force)
 {
 	unsigned int part_cnt = 0;
 	int i;
@@ -287,46 +255,15 @@ int writembrs(int fd, char names[][MAX_NAME], __u32 start, __u32 *lens, unsigned
 	return 1;
 }
 
-void usage(const char *cmd)
+int nand_part (int argc, char **argv, const char *cmd, int fd, int force)
 {
-	printf("usage: %s nand-device 'name2 len2 [usertype2]' ['name3 len3 [usertype3]'] ...\n", cmd);
-	printf("or     %s nand-device [-f] start1 'name1 len1 [usertype1]' ['name2 len2 [usertype2]'] ...\n", cmd);
-}
-
-int main (int argc, char **argv)
-{
-	int fd;
-	int force = 0;		// force write even if magics and CRCs don't match
 	int partoffset = 0;
 	int i;
-	char *nand = "/dev/nand";
-	char *cmd = argv[0];
 	char names[MAX_PART_COUNT][MAX_NAME];
 	__u32 lens[MAX_PART_COUNT];
 	unsigned int user_types[MAX_PART_COUNT];
 	__u32 start;
 
-	argc--;
-	argv++;
-
-	if (argc > 0) {
-		if (!strcmp(argv[0], "-f")) {
-			force++;
-			argc--;
-			argv++;
-		}
-	}
-
-	if (argc > 0) {
-		nand = argv[0];
-		argc--;
-		argv++;
-	}
-	fd = open(nand, O_RDWR);
-	if (fd < 0) {
-		usage(cmd);
-		return -1;
-	}
 
 	// parse name/len arguments
 	memset((void *) user_types, 0, sizeof(user_types));
