@@ -14,9 +14,15 @@ case "$1" in
 *.scr)	bootscr="$1"; shift
 	;;
 esac
-kernel=$1; shift || true
-scriptbin=$1; shift || true
-initramfs=$1; shift || true
+if [ $# -ge 1 ]; then
+	kernel=$1; shift || true
+fi
+if [ $# -ge 1 ]; then
+	scriptbin=$1; shift || true
+fi
+if [ $# -ge 1 ]; then
+	initramfs=$1; shift || true
+fi
 fel() {
 	echo fel "$@"
 	$top/fel $@
