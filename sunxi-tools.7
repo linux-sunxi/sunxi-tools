@@ -1,0 +1,76 @@
+.TH SUNXI-TOOLS "7" "August 2013" "Sunxi-Tools for allWinner's A10/A20"
+.SH NAME
+sunxi-tools \- Tools to help hacking Allwinner A10 (aka sun4i) based devices
+and possibly it's successors, that's why the 'x' in the package name.
+.SH SYNOPSIS
+.B fexc
+[\fI-vq\fR] [\fI-I <fex|bin>\fR] [\fI-O <bin|fex>\fR] [\fI<input> \fR[\fI<output>\fR]]
+.PP
+(de)compiler for `.fex` configuration file.
+.PP
+.B fex2bin
+[\fI-vq\fR] [\fI<input> \fR[\fI<output>\fR]]
+.PP
+Compatibility shortcut to call `fexc` to decompile an script.bin
+blob back into `.fex` format used by allwinner's SDK to configure
+the boards
+.PP
+.B bin2fex
+[\fI-vq\fR] [\fI<input> \fR[\fI<output>\fR]]
+.PP
+Compatiblity shortcut to call `fexc` to compile a `.fex` file into
+the binary form used by the sun4i kernel.
+.PP
+.B fel
+\fIcommand arguments\fR [\fIcommand arguments\fR ...]
+.PP
+Script interface for talking to the FEL USB handler built in to
+the CPU. You activate FEL mode by pushing the usboot/recovery
+button at poweron.
+.PP
+.B pio
+[\fI-m\fR|\fI-i input\fR] [\fI-o output\fR] \fIpin\fR ...
+.PP
+Manipulate PIO register dumps
+.PP
+.B nand-part
+\fInand-device '\fIname2\fR \fIlen2\fR [\fIusertype2\fR]' ['\fIname3 len3\fR [\fIusertype3\fR]'] ...
+.br
+.B nand-part
+\fInand-device [\fI-f\fR] \fIstart1\fR '\fIname1 len1\fR [\fIusertype1\fR]' ['\fIname2 len2\fR [\fIusertype2\fR]'] ...
+.PP
+Tool for manipulating Allwinner A10 NAND partition tables.
+.PP
+.B nand-part-a20
+\fInand-device '\fIname2\fR \fIlen2\fR [\fIusertype2\fR]' ['\fIname3 len3\fR [\fIusertype3\fR]'] ...
+.br
+.B nand-part-a20
+\fInand-device [\fI-f\fR] \fIstart1\fR '\fIname1 len1\fR [\fIusertype1\fR]' ['\fIname2 len2\fR [\fIusertype2\fR]'] ...
+.PP
+Tool for manipulating Allwinner A20 NAND partition tables
+.PP
+.B bootinfo
+[\fI--type=<sd|nand>\fR] \FIfilename\FR
+.PP
+Dump information from Allwinner boot files (boot0/boot1)
+.PP
+.B phoenix_info
+[\FI-v\FR] [\FI-q\FR] [\FI-p N\FR] [\FI-o X\FR] [\FI-s\FR] [\FIphoenix_image\FR]
+.PP
+Gives information about a phoenix image created by the
+phoenixcard utility and optionally extracts the embedded boot
+code & firmware file from their hidden partitions.
+.PP
+.SH DESCRIPTION
+.\" Add any additional description here
+See the help of each tool for more information about its usage (\FI-?\FR).
+.SH AUTHOR
+Written by Alejandro Mery <amery@geeks.cl>
+.SH "REPORTING BUGS"
+Report bugs at https://github.com/linux-sunxi/sunxi-tools
+.SH COPYRIGHT
+Copyright \(co 2012 Alejandro Mery
+License GPLv2+: GNU GPL version 2 or later <http://gnu.org/licenses/gpl.html>.
+.br
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
