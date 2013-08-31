@@ -11,6 +11,12 @@ AM_INIT_AUTOMAKE([1.9])
 # Checks for programs.
 AC_PROG_CC
 AC_PROG_LN_S
+if test x"$cross_compiling" != x"yes" ; then
+  AC_CHECK_PROG(ARMGCC_CHECK, arm-none-eabi-gcc, yes)
+  if test x"$ARMGCC_CHECK" != x"yes" ; then
+    AC_MSG_ERROR([Please install GNU Tools for ARM Embedded Processors before installing.])
+  fi
+fi
 
 # Checks for libraries.
 PKG_CHECK_MODULES([LIBUSB], libusb-1.0 >= 1.0.0,, AC_MSG_ERROR([*** Required libusb-1.0 >= 1.0.0 not installed ***]))
