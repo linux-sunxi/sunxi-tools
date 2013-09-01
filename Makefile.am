@@ -1,38 +1,34 @@
-CC = gcc
-CFLAGS = -g -O0 -Wall -Wextra
-CFLAGS += -std=c99 -D_POSIX_C_SOURCE=200112L
-CFLAGS += -Iinclude/
+AUTOMAKE_OPTIONS = foreign
+CFLAGS = -g -O0 -Wall -Wextra -std=c99 -D_POSIX_C_SOURCE=200112L -Iinclude/
 
-TOOLS = fexc bin2fex fex2bin bootinfo fel pio
-TOOLS += nand-part nand-part-a20
+TOOLS = fexc bin2fex fex2bin bootinfo fel pio nand-part nand-part-a20 phoenix_info
+BINARIES = fel-pio.bin jtag-loop.bin fel-sdboot.bin boot_head_sun4i.bin boot_head_sun5i.bin adb-devprobe.sh fel-gpio usb-boot
 
-MISC_TOOLS = phoenix_info
+bin_PROGRAMS = $(TOOLS)
+exampledir = $(datarootdir)/doc/@PACKAGE@
+example_DATA = $(BINARIES) bin/fel-sdboot.sunxi bin/jtag-loop.sunxi bin/ramboot.scr bin/ramboot.uboot-sh README
 
-CROSS_COMPILE ?= arm-none-eabi-
+fexc_SOURCES = bootinfo.c fel-copy.c fel-sdboot.c jtag-loop.c phoenix_info.c script_bin.c script_fex.c fel.c fel-pio.c fexc.c nand-part.c pio.c script.c script_uboot.c common.h fexc.h nand-part-a20.h nand-part.h script_bin.h script_fex.h script.h script_uboot.h include/endian_compat.h include/types.h
+EXTRA_DIST = boot_head.S jtag-loop.S boot_head.lds fel-pio.lds fel-sdboot.lds jtag-loop.lds sunxi-tools.7 adb-devprobe.sh fel-gpio usb-boot bin/fel-pio.bin bin/fel-pio.nm bin/fel-sdboot.sunxi bin/jtag-loop.sunxi bin/ramboot.scr bin/ramboot.uboot-sh makedeb
 
-.PHONY: all clean
+nodist_bin2fex_SOURCES = bin2fex.c
+nodist_fex2bin_SOURCES = fex2bin.c
+nodist_nand_part_a20_SOURCES = nand-part-a20.c
 
-all: $(TOOLS)
+man_MANS = sunxi-tools.7
 
-misc: $(MISC_TOOLS)
+CROSS_COMPILE ?= @XCOMPILER@
 
-clean:
-	@rm -vf $(TOOLS) $(MISC_TOOLS) *.o *.elf *.sunxi *.bin *.nm *.orig
+clean-local:
+	rm -f boot_head_sun4i.elf  boot_head_sun5i.elf  fel-sdboot.elf  fel-pio.elf fel-pio.nm jtag-loop.elf boot_head_sun4i.bin  boot_head_sun5i.bin  fel-sdboot.bin  fel-pio.bin  jtag-loop.bin *~ *.deb
 
+fexc: fexc.h script.h script.c script_uboot.h script_uboot.c script_bin.h script_bin.c script_fex.h script_fex.c
 
-$(TOOLS): Makefile common.h
-
-fex2bin bin2fex: fexc
-	ln -s $< $@
-
-fexc: fexc.h script.h script.c \
-	script_uboot.h script_uboot.c \
-	script_bin.h script_bin.c \
-	script_fex.h script_fex.c
-
-LIBUSB = libusb-1.0
-LIBUSB_CFLAGS = `pkg-config --cflags $(LIBUSB)`
-LIBUSB_LIBS = `pkg-config --libs $(LIBUSB)`
+fex2bin: fexc
+	ln -sf fexc fex2bin
+	
+bin2fex: fexc
+	ln -sf fexc bin2fex
 
 fel: fel.c
 	$(CC) $(CFLAGS) $(LIBUSB_CFLAGS) $(LDFLAGS) -o $@ $(filter %.c,$^) $(LIBS) $(LIBUSB_LIBS)
@@ -90,7 +86,10 @@ boot_head_sun5i.bin: boot_head_sun5i.elf
 
 bootinfo: bootinfo.c
 
+dpkg-deb:
+	./makedeb
+
 .gitignore: Makefile
-	@for x in $(TOOLS) '*.o' '*.swp'; do \
+	@for x in $(TOOLS) $(BINARIES) '*.o' '*.swp' '*~' '.deps/*' Makefile.in /autom4te.cache /aclocal.m4 /compile /configure /depcomp /install-sh /missing; do \
 		echo "$$x"; \
 	done > $@
