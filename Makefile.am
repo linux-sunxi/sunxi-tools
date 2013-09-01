@@ -9,7 +9,7 @@ exampledir = $(datarootdir)/doc/@PACKAGE@
 example_DATA = $(BINARIES) bin/fel-sdboot.sunxi bin/jtag-loop.sunxi bin/ramboot.scr bin/ramboot.uboot-sh README
 
 fexc_SOURCES = bootinfo.c fel-copy.c fel-sdboot.c jtag-loop.c phoenix_info.c script_bin.c script_fex.c fel.c fel-pio.c fexc.c nand-part.c pio.c script.c script_uboot.c common.h fexc.h nand-part-a20.h nand-part.h script_bin.h script_fex.h script.h script_uboot.h include/endian_compat.h include/types.h
-EXTRA_DIST = boot_head.S jtag-loop.S boot_head.lds fel-pio.lds fel-sdboot.lds jtag-loop.lds sunxi-tools.7 adb-devprobe.sh fel-gpio usb-boot bin/fel-pio.bin bin/fel-pio.nm bin/fel-sdboot.sunxi bin/jtag-loop.sunxi bin/ramboot.scr bin/ramboot.uboot-sh
+EXTRA_DIST = boot_head.S jtag-loop.S boot_head.lds fel-pio.lds fel-sdboot.lds jtag-loop.lds sunxi-tools.7 adb-devprobe.sh fel-gpio usb-boot bin/fel-pio.bin bin/fel-pio.nm bin/fel-sdboot.sunxi bin/jtag-loop.sunxi bin/ramboot.scr bin/ramboot.uboot-sh makedeb
 
 nodist_bin2fex_SOURCES = bin2fex.c
 nodist_fex2bin_SOURCES = fex2bin.c
@@ -20,7 +20,7 @@ man_MANS = sunxi-tools.7
 CROSS_COMPILE ?= arm-none-eabi-
 
 clean-local:
-	rm -f boot_head_sun4i.elf  boot_head_sun5i.elf  fel-sdboot.elf  fel-pio.elf fel-pio.nm jtag-loop.elf boot_head_sun4i.bin  boot_head_sun5i.bin  fel-sdboot.bin  fel-pio.bin  jtag-loop.bin *~
+	rm -f boot_head_sun4i.elf  boot_head_sun5i.elf  fel-sdboot.elf  fel-pio.elf fel-pio.nm jtag-loop.elf boot_head_sun4i.bin  boot_head_sun5i.bin  fel-sdboot.bin  fel-pio.bin  jtag-loop.bin *~ *.deb
 
 fexc: fexc.h script.h script.c script_uboot.h script_uboot.c script_bin.h script_bin.c script_fex.h script_fex.c
 
@@ -85,6 +85,9 @@ boot_head_sun5i.bin: boot_head_sun5i.elf
 	$(CROSS_COMPILE)objcopy -O binary boot_head_sun5i.elf boot_head_sun5i.bin
 
 bootinfo: bootinfo.c
+
+dpkg-deb:
+	./makedeb
 
 .gitignore: Makefile
 	@for x in $(TOOLS) $(BINARIES) '*.o' '*.swp' '*~' '.deps/*' Makefile.in /autom4te.cache /aclocal.m4 /compile /configure /depcomp /install-sh /missing; do \
