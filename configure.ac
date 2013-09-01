@@ -11,10 +11,19 @@ AM_INIT_AUTOMAKE([1.9])
 # Checks for programs.
 AC_PROG_CC
 AC_PROG_LN_S
+AC_CANONICAL_BUILD
+
 if test x"$cross_compiling" != x"yes" ; then
-  AC_CHECK_PROG(ARMGCC_CHECK, arm-none-eabi-gcc, yes)
-  if test x"$ARMGCC_CHECK" != x"yes" ; then
-    AC_MSG_ERROR([Please install GNU Tools for ARM Embedded Processors before installing.])
+  AC_CHECK_PROG(ARM_NONE_EABI_CHECK, arm-none-eabi-gcc, yes)
+  if test x"$ARM_NONE_EABI_CHECK" != x"yes" ; then
+    AC_CHECK_PROG(ARM_LINUX_GNUEABIHF_CHECK, arm-linux-gnueabihf-gcc, yes)
+      if test x"$ARM_LINUX_GNUEABIHF_CHECK" != x"yes" ; then
+        AC_MSG_ERROR([Please install GNU Tools for ARM Embedded Processors.])
+      else
+        XCOMPILER="arm-linux-gnueabihf-"
+      fi
+  else
+    XCOMPILER="arm-none-eabi-"
   fi
 fi
 
@@ -38,6 +47,8 @@ AC_FUNC_MALLOC
 AC_FUNC_MMAP
 AC_FUNC_REALLOC
 AC_CHECK_FUNCS([memset munmap strchr strerror strtol strtoul])
+
+AC_SUBST([XCOMPILER])
 
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

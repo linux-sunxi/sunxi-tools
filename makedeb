@@ -1,19 +1,53 @@
 #!/bin/bash
 
 WRKDIR="`pwd`"
+ISOK=1
+
+while [ "$ISOK" -eq "1" ]; do
+
+  while [ -z "${DEBFULLNAME}" ]; do
+    DEBFULLNAME=$(whiptail --title "Package configuration" --inputbox "\nYour Name" 9 40 3>&1 1>&2 2>&3)
+  done
+
+  while [ -z "${DEBEMAIL}" ] ; do
+    DEBEMAIL=$(whiptail --title "Package configuration" --inputbox "\nYour Email" 9 40 3>&1 1>&2 2>&3)
+  done
+
+  while [ -z "${RELEASETAG}" ] ; do
+    RELEASETAG=$(whiptail --title "Package configuration" --inputbox "\nRelease Tag (UNRELEASED/MAIN/CONTRIB/etc...)" 9 40 3>&1 1>&2 2>&3)
+  done
+
+  whiptail --title "Package configuration summary" --yesno " Maintainer Name : ${DEBFULLNAME}\nMaintainer Email : ${DEBEMAIL}\n     Release Tag : ${RELEASETAG}\n\nIs this ok?" 11 60
+
+  ISOK="$?"
+  if [ "$ISOK" -gt "1" ] || [ "$ISOK" -lt "0" ]; then
+    exit
+  fi
+
+  if [ "$ISOK" -eq "1" ]; then
+    unset RELEASETAG
+    unset DEBFULLNAME
+    unset DEBEMAIL
+  fi
+done
+
 rm -rf dpkg
 mkdir -p dpkg
-#make distclean
-#./configure
 make dist-gzip
 mv sunxi-tools-1.0.tar.gz dpkg/sunxi-tools_1.0.orig.tar.gz
+
 cd dpkg
 tar -xzvf sunxi-tools_1.0.orig.tar.gz
+
 cd  sunxi-tools-1.0
 mkdir debian
-echo "sunxi-tools (1.0-1) UNRELEASED; urgency=low" > debian/changelog
+
+echo "sunxi-tools (1.0-1) ${RELEASETAG}; urgency=low" > debian/changelog
+
 git log -1 --pretty=format:'%n  * %s%n%n -- %cn <%ce>  %cD%n' >> debian/changelog
+
 echo "9" > debian/compat
+
 cat > debian/control <<EOF
 Source: sunxi-tools
 Maintainer: ${DEBFULLNAME} <${DEBEMAIL}>
@@ -60,11 +94,13 @@ EOF
 chmod 755 debian/rules
 
 mkdir -p debian/source
+
 echo "3.0 (quilt)" > debian/source/format
 
 debuild -us -uc
 
 cd ${WRKDIR}
+
 mv dpkg/*.deb .
 
 rm -rf dpkg
