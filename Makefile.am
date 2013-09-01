@@ -17,7 +17,7 @@ nodist_nand_part_a20_SOURCES = nand-part-a20.c
 
 man_MANS = sunxi-tools.7
 
-CROSS_COMPILE ?= arm-none-eabi-
+CROSS_COMPILE ?= @XCOMPILER@
 
 clean-local:
 	rm -f boot_head_sun4i.elf  boot_head_sun5i.elf  fel-sdboot.elf  fel-pio.elf fel-pio.nm jtag-loop.elf boot_head_sun4i.bin  boot_head_sun5i.bin  fel-sdboot.bin  fel-pio.bin  jtag-loop.bin *~ *.deb
