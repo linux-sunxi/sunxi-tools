@@ -27,6 +27,7 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <errno.h>
 
 #include "endian_compat.h"
 
@@ -221,7 +222,10 @@ int save_file(const char *name, void *data, size_t size)
 {
 	FILE *out = fopen(name, "wb");
 	int rc;
-	assert(out);
+	if (!out) {
+		perror("Failed to open output file: ");
+		exit(1);
+	}
 	rc = fwrite(data, size, 1, out);
 	fclose(out);
 	return rc;
@@ -237,7 +241,10 @@ void *load_file(const char *name, size_t *size)
 		in = stdin;
 	else
 		in = fopen(name, "rb");
-	assert(in);
+	if (!in) {
+		perror("Failed to open input file: ");
+		exit(1);
+	}
 	
 	while(1) {
 		ssize_t len = bufsize - offset;
@@ -299,7 +306,14 @@ int main(int argc, char **argv)
 
 	handle = libusb_open_device_with_vid_pid(NULL, 0x1f3a, 0xefe8);
 	if (!handle) {
-		fprintf(stderr, "ERROR: Allwinner USB FEL device not found!\n");
+		switch (errno) {
+		case EACCES:
+			fprintf(stderr, "ERROR: You don't have permission to access Allwinner USB FEL device\n");
+			break;
+		default:
+			fprintf(stderr, "ERROR: Allwinner USB FEL device not found!\n");
+			break;
+		}
 		exit(1);
 	}
 	rc = libusb_claim_interface(handle, 0);
