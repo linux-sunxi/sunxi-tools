@@ -1,0 +1,7 @@
+./src/fexc/fexc.c
+./src/fexc/script_bin.c
+./src/fexc/script.c
+./src/fexc/script_fex.c
+./src/fexc/script_uboot.c
+./src/i18n.c
+./src/sunxi-tools.c

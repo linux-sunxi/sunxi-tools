@@ -1,0 +1,119 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR Eddy Beaupre
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: sunxi-tools 2.0\n"
+"Report-Msgid-Bugs-To: https://github.com/EddyBeaupre/sunxi-tools\n"
+"POT-Creation-Date: 2013-09-11 21:15-0400\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: src/sunxi-tools.c:28
+#, c-format
+msgid "Copyright (C) %s.\n"
+msgstr ""
+
+#: src/sunxi-tools.c:29
+#, c-format
+msgid "License %s\n"
+msgstr ""
+
+#: src/sunxi-tools.c:30
+msgid "This is free software: you are free to change and redistribute it.\n"
+msgstr ""
+
+#: src/sunxi-tools.c:31
+msgid "There is NO WARRANTY, to the extent permitted by law.\n"
+msgstr ""
+
+#: src/sunxi-tools.c:35
+#, c-format
+msgid "Report bugs to: <%s>\n"
+msgstr ""
+
+#: src/sunxi-tools.c:36
+#, c-format
+msgid "pkg home page: <%s>\n"
+msgstr ""
+
+#: src/sunxi-tools.c:37
+#, c-format
+msgid "General help using SUNXI compatible software: <%s>\n"
+msgstr ""
+
+#: src/sunxi-tools.c:53
+msgid "FEX (de)compiler\n"
+msgstr ""
+
+#: src/sunxi-tools.c:64
+msgid "Verbosity increased\n"
+msgstr ""
+
+#: src/sunxi-tools.c:68
+msgid "Verbosity decreased\n"
+msgstr ""
+
+#: src/sunxi-tools.c:74
+msgid "input format : Binary format selected\n"
+msgstr ""
+
+#: src/sunxi-tools.c:77
+msgid "input format : FEX format selected\n"
+msgstr ""
+
+#: src/sunxi-tools.c:83
+msgid "output format : Binary format selected\n"
+msgstr ""
+
+#: src/sunxi-tools.c:86
+msgid "output format : FEX format selected\n"
+msgstr ""
+
+#: src/sunxi-tools.c:89
+msgid "Help!\n"
+msgstr ""
+
+#: src/sunxi-tools.c:96
+#, c-format
+msgid "Input file : %s\n"
+msgstr ""
+
+#: src/sunxi-tools.c:102
+#, c-format
+msgid "output file : %s\n"
+msgstr ""
+
+#: src/sunxi-tools.c:138
+msgid "BOOT information\n"
+msgstr ""
+
+#: src/sunxi-tools.c:141
+msgid "FEL manager\n"
+msgstr ""
+
+#: src/sunxi-tools.c:144
+msgid "PIO manager\n"
+msgstr ""
+
+#: src/sunxi-tools.c:147
+msgid "NAND partition manager\n"
+msgstr ""
+
+#: src/sunxi-tools.c:150
+msgid "PHOENIX manager\n"
+msgstr ""
+
+#: src/sunxi-tools.c:165
+msgid ""
+"Unknown command\n"
+"\n"
+msgstr ""

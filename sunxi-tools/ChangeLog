@@ -1,0 +1,5 @@
+2013-09-09  gettextize  <bug-gnu-gettext@gnu.org>
+
+	* Makefile.am (EXTRA_DIST): Add m4/ChangeLog.
+	* configure.ac (AM_GNU_GETTEXT_VERSION): Bump to 0.18.1.
+
