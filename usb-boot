@@ -1,7 +1,7 @@
 #!/bin/sh -e
 top=`dirname $0`
 if [ $# -lt 2 ]; then
-	echo "Usage: $0 u-boot-spl.bin u-boot.bin [boot.scr|-] [kernel script.bin [initramfs]]"
+	echo "Usage: $0 u-boot-spl.bin u-boot.bin [boot.scr] [kernel script.bin [initramfs]]"
 	exit 1
 fi
 board=$1; shift || (echo "ERROR: u-boot-spl.bin must be specified"; exit 1;)
