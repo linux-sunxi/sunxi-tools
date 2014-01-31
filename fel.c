@@ -17,6 +17,7 @@
 
 /* Needs _BSD_SOURCE for htole and letoh  */
 #define _BSD_SOURCE
+#define _NETBSD_SOURCE
 
 #include <libusb.h>
 #include <stdint.h>
