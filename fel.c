@@ -166,6 +166,7 @@ void aw_fel_get_version(libusb_device_handle *usb)
 	case 0x1625: soc_name="A13";break;
 	case 0x1633: soc_name="A31";break;
 	case 0x1651: soc_name="A20";break;
+	case 0x1650: soc_name="A23";break;
 	}
 
 	printf("%.8s soc=%08x(%s) %08x ver=%04x %02x %02x scratchpad=%08x %08x %08x\n", buf.signature, buf.soc_id, soc_name, buf.unknown_0a, buf.protocol, buf.unknown_12, buf.unknown_13, buf.scratchpad, buf.pad[0], buf.pad[1]);
