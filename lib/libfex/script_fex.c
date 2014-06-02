@@ -22,8 +22,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "script.h"
-#include "script_fex.h"
+#include "libfex/script.h"
+#include "libfex/script_fex.h"
 
 #define MAX_LINE	255
 

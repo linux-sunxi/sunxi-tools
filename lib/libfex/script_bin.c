@@ -23,8 +23,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "script.h"
-#include "script_bin.h"
+#include "libfex/script.h"
+#include "libfex/script_bin.h"
 
 #define pr_info(...)	errf("fexc-bin: " __VA_ARGS__)
 #define pr_err(...)	errf("E: fexc-bin: " __VA_ARGS__)

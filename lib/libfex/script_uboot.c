@@ -20,8 +20,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "script.h"
-#include "script_uboot.h"
+#include "libfex/script.h"
+#include "libfex/script_uboot.h"
 
 #define pr_info(...)	errf("fexc-uboot: " __VA_ARGS__)
 #define pr_err(...)	errf("E: fexc-uboot: " __VA_ARGS__)

@@ -8,3 +8,4 @@ nand-part
 meminfo
 *.o
 *.swp
+out
