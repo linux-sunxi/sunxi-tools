@@ -1,7 +1,7 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_PREREQ([2.69])
+AC_PREREQ([2.68])
 AC_INIT([sunxi-tools], [1.0], [https://github.com/linux-sunxi/sunxi-tools])
 AC_CONFIG_SRCDIR([fel-copy.c])
 
