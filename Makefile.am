@@ -1,7 +1,7 @@
 AUTOMAKE_OPTIONS = foreign
 CFLAGS = -g -O0 -Wall -Wextra -std=c99 -D_POSIX_C_SOURCE=200112L -Iinclude/
 
-TOOLS = fexc bin2fex fex2bin bootinfo fel pio nand-part nand-part-a20 phoenix_info
+TOOLS = fexc bin2fex fex2bin bootinfo fel pio nand-part phoenix_info
 BINARIES = fel-pio.bin jtag-loop.bin fel-sdboot.bin boot_head_sun4i.bin boot_head_sun5i.bin adb-devprobe.sh fel-gpio usb-boot
 
 bin_PROGRAMS = $(TOOLS)
@@ -13,7 +13,6 @@ EXTRA_DIST = boot_head.S jtag-loop.S boot_head.lds fel-pio.lds fel-sdboot.lds jt
 
 nodist_bin2fex_SOURCES = bin2fex.c
 nodist_fex2bin_SOURCES = fex2bin.c
-nodist_nand_part_a20_SOURCES = nand-part-a20.c
 
 man_MANS = sunxi-tools.7
 
@@ -33,11 +32,14 @@ bin2fex: fexc
 fel: fel.c
 	$(CC) $(CFLAGS) $(LIBUSB_CFLAGS) $(LDFLAGS) -o $@ $(filter %.c,$^) $(LIBS) $(LIBUSB_LIBS)
 
+nand-part: nand-part-main.c nand-part.c nand-part-a10.h nand-part-a20.h
+	$(CC) $(CFLAGS) -c -o nand-part-main.o nand-part-main.c
+	$(CC) $(CFLAGS) -c -o nand-part-a10.o nand-part.c -D A10
+	$(CC) $(CFLAGS) -c -o nand-part-a20.o nand-part.c -D A20
+	$(CC) $(LDFLAGS) -o $@ nand-part-main.o nand-part-a10.o nand-part-a20.o $(LIBS)
+
 %: %.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(filter %.c,$^) $(LIBS)
-
-nand-part-a20: nand-part.c nand-part-a20.h
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ nand-part.c -D A20 $(LIBS)
 
 fel-pio.bin: fel-pio.elf fel-pio.nm
 	$(CROSS_COMPILE)objcopy -O binary fel-pio.elf fel-pio.bin

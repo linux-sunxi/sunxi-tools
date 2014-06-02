@@ -147,8 +147,8 @@ static int generate_dram_struct(FILE *out, struct script_section *sp)
 
 	}
 	fprintf(out, "};\n");
-	fputs("\nint sunxi_dram_init(void)\n"
-	      "{\n\treturn DRAMC_init(&dram_para);\n}\n",
+	fputs("\nunsigned long sunxi_dram_init(void)\n"
+	      "{\n\treturn dramc_init(&dram_para);\n}\n",
 	      out);
 
 	return ret;

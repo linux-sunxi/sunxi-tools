@@ -167,8 +167,11 @@ static const char *argv0;
 
 static void usage(int rc )
 {
-			
-	fprintf(stderr, "usage: %s [-m|-i input] [-o output] pin..\n", argv0);
+
+	fprintf(stderr, "usage: %s -m|-i input [-o output] pin..\n", argv0);
+	fprintf(stderr," -m				mmap - read pin state from system\n");
+	fprintf(stderr," -i				read pin state from file\n");
+	fprintf(stderr," -o				save pin state data to file\n");
 	fprintf(stderr," print				Show all pins\n");
 	fprintf(stderr," Pxx				Show pin\n");
 	fprintf(stderr," Pxx<mode><pull><drive><data>	Configure pin\n");
@@ -179,7 +182,7 @@ static void usage(int rc )
 	fprintf(stderr, "\n	mode 0-7, 0=input, 1=ouput, 2-7 I/O function\n");
 	fprintf(stderr, "	pull 0=none, 1=up, 2=down\n");
 	fprintf(stderr, "	drive 0-3, I/O drive level\n");
-	
+
 	exit(rc);
 }
 
