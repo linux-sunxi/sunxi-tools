@@ -8,22 +8,32 @@ O	?= $(srctree)/out
 
 OBJDIR	:= $(O)/lib
 DEPS	:= $(OBJDIR)/deps.mk
+SRCS	:=
 
 INCLUDES = -I$(srctree)/include
 CFLAGS	 = -O2
 CFLAGS  += -Wall -Wextra -std=c99 -D_POSIX_C_SOURCE=200112L
+CFLAGS	+= -fPIC
 CFLAGS  += $(INCLUDES)
-
-SRCS	:=
 
 all: libs
 
 include libfex/Makefile
 
-# *.a
-%.a:
+# libraries
+libs: $(LIBS) $(SOLIBS)
+
+$(LIBS):
 	@mkdir -vp $(@D)
 	$(AR) rcs $@ $^
+
+$(SOLIBS):
+	@mkdir -vp $(@D)
+	$(CC) -shared -Wl,-soname,$(@F) -o $@ $^
+	x=$@; while [ "$$x" = "$${x%.so}" ]; do \
+	  x=$${x%.*}; \
+	  ln -snvf $(@F) $$x; \
+	done
 
 # *.o
 %.o: SRC=$(patsubst $(OBJDIR)/%.o,%.c,$@)
