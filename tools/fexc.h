@@ -22,9 +22,9 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include "script.h"
-#include "script_bin.h"
-#include "script_fex.h"
-#include "script_uboot.h"
+#include "libfex/script.h"
+#include "libfex/script_bin.h"
+#include "libfex/script_fex.h"
+#include "libfex/script_uboot.h"
 
 #endif

@@ -21,7 +21,7 @@ CFLAGS = -g -O0 -Wall -Wextra
 CFLAGS += -std=c99 -D_POSIX_C_SOURCE=200112L
 CFLAGS += -Iinclude/
 
-TOOLS = fexc bin2fex fex2bin bootinfo fel pio
+TOOLS = bootinfo fel pio
 TOOLS += nand-part
 
 MISC_TOOLS = phoenix_info
@@ -39,14 +39,6 @@ clean:
 
 
 $(TOOLS): Makefile common.h
-
-fex2bin bin2fex: fexc
-	ln -s $< $@
-
-fexc: fexc.h script.h script.c \
-	script_uboot.h script_uboot.c \
-	script_bin.h script_bin.c \
-	script_fex.h script_fex.c
 
 LIBUSB = libusb-1.0
 LIBUSB_CFLAGS = `pkg-config --cflags $(LIBUSB)`
