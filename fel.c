@@ -370,6 +370,8 @@ int main(int argc, char **argv)
 		argv+=skip;
 	}
 
+	libusb_release_interface(handle, 0);
+
 #if defined(__linux__)
 	if (iface_detached >= 0)
 		libusb_attach_kernel_driver(handle, iface_detached);
