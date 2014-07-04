@@ -67,7 +67,7 @@ if [ `wc -c $felboot | cut '-d ' -f1` -gt 15616 ]; then
 	exit 1
 fi
 if [ ! -f $bootscr ]; then
-	echo "ERROR: Can't fint boot script '${bootscr}'"
+	echo "ERROR: Can't find boot script '${bootscr}'"
 	exit 1
 fi
 fel write 0x2000 $felboot
