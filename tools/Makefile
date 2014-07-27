@@ -18,7 +18,6 @@ CFLAGS  += $(INCLUDES)
 DEPS	:= $(OBJDIR)/deps.mk
 
 all: $(addprefix $(O)/,$(TOOLS))
-	echo $^
 
 clean:
 	rm -vf $(DEPS)
