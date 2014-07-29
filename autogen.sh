@@ -1,4 +1,6 @@
 #!/bin/sh
-cd "$(dirname "$0")"
 
-exec autoreconf -ifsv
+aclocal
+autoconf
+libtoolize --force --copy
+automake --force --copy --add-missing

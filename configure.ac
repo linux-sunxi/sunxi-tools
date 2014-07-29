@@ -2,30 +2,52 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.68])
-AC_INIT([sunxi-tools], [1.0], [https://github.com/linux-sunxi/sunxi-tools])
-AC_CONFIG_SRCDIR([fel-copy.c])
+AC_INIT([sunxi-tools], [1.3], [https://github.com/linux-sunxi/sunxi-tools])
+AC_CONFIG_SRCDIR([tools/fexc.c])
+
+AC_CANONICAL_SYSTEM
 
 # automake initialisation and check for minimal automake API version 1.9
 AM_INIT_AUTOMAKE([1.9])
+LT_INIT
+
+AC_CANONICAL_HOST
 
 # Checks for programs.
 AC_PROG_CC
-AC_PROG_LN_S
-AC_CANONICAL_BUILD
+AC_PROG_CPP
+AM_PROG_AS
 
-if test x"$cross_compiling" != x"yes" ; then
-  AC_CHECK_PROG(ARM_NONE_EABI_CHECK, arm-none-eabi-gcc, yes)
-  if test x"$ARM_NONE_EABI_CHECK" != x"yes" ; then
-    AC_CHECK_PROG(ARM_LINUX_GNUEABIHF_CHECK, arm-linux-gnueabihf-gcc, yes)
-      if test x"$ARM_LINUX_GNUEABIHF_CHECK" != x"yes" ; then
-        AC_MSG_ERROR([Please install GNU Tools for ARM Embedded Processors.])
-      else
-        XCOMPILER="arm-linux-gnueabihf-"
-      fi
-  else
-    XCOMPILER="arm-none-eabi-"
-  fi
-fi
+AM_PROG_CC_C_O
+
+
+AC_CHECK_PROGS(CC_FOR_BUILD, gcc cc)
+AC_CHECK_PROGS(CXX_FOR_BUILD, g++)
+AC_CHECK_PROGS(OBJCOPY, objcopy)
+AC_CHECK_PROGS(OBJDUMP, objdump)
+AC_CHECK_PROGS(AR, ar)
+AC_CHECK_PROGS(NM, nm)
+
+AC_SUBST([CCC_FOR_BUILD])
+AC_SUBST([CXX_FOR_BUILD])
+AC_SUBST([OBJCOPY])
+AC_SUBST([OBJDUMP])
+AC_SUBST([AR])
+AC_SUBST([NM])
+
+AM_CONDITIONAL([HOST_CPU_ARM], [test "$host_cpu" = "arm"])
+
+case "$host_cpu" in
+  arm*)
+    THUMB_CFLAGS="$THUMB_CFLAGS -mno-thumb-interwork"
+    ;;
+esac
+
+AC_SUBST([THUMB_CFLAGS])
+
+
+AC_PROG_LN_S
+AC_PROG_MKDIR_P
 
 # Checks for libraries.
 PKG_CHECK_MODULES([LIBUSB], libusb-1.0 >= 1.0.0,, AC_MSG_ERROR([*** Required libusb-1.0 >= 1.0.0 not installed ***]))
@@ -42,13 +64,13 @@ AC_TYPE_UINT16_T
 AC_TYPE_UINT32_T
 AC_TYPE_UINT8_T
 
+dnl Following macro generates '#define malloc rpl_malloc' it's lead to link stage error:
+dnl AC_FUNC_MALLOC
+dnl AC_FUNC_REALLOC
+
 # Checks for library functions.
-AC_FUNC_MALLOC
 AC_FUNC_MMAP
-AC_FUNC_REALLOC
 AC_CHECK_FUNCS([memset munmap strchr strerror strtol strtoul])
 
-AC_SUBST([XCOMPILER])
-
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile libfex/Makefile tools/Makefile src/Makefile binaries/Makefile scripts/Makefile man/Makefile])
 AC_OUTPUT
