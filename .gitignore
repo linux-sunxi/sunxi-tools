@@ -7,14 +7,10 @@ pio
 nand-part
 nand-part-a20
 phoenix_info
-fel-pio.bin
 jtag-loop.bin
 fel-sdboot.bin
 boot_head_sun4i.bin
 boot_head_sun5i.bin
-adb-devprobe.sh
-fel-gpio
-usb-boot
 *.o
 *.swp
 *~
