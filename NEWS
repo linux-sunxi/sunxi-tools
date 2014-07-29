@@ -1,0 +1,38 @@
+
+Sources tree has been reorganized and moved to using autotools.
+
+NOTE:
+    If your target CPU is not arm then binaries in 'src' directory will not be built.
+    Skipping 'src' directory in this case made for building tools without cross compiler
+    for development PC.
+
+$ tar xzvf sunxi-tools-1.3.tar.gz
+$ mkdir build
+$ cd ./build
+
+configure with cross:
+--------------------
+
+CC="<toolchain path>/bin/arm-a1x-linux-gnueabihf-gcc --sysroot=<path to sysroot where libusb is installed>" \
+OBJCOPY=<toolchain path>/bin/arm-a1x-linux-gnueabihf-objcopy \
+NM=<toolchain path>/bin/arm-a1x-linux-gnueabihf-nm \
+CFLAGS=-I<path to sysroot>/usr/include \
+LDFLAGS="-L<path to sysroot>/lib -L<path to sysroot>/usr/lib" \
+../sunxi-tools-1.3/configure \
+  --prefix=/usr \
+  --build=x86_64-slackware-linux \
+  --host=arm-a1x-linux-gnueabihf \
+  --target=arm-a1x-linux-gnueabihf \
+  --prefix=/usr --mandir=/usr/share/man \
+  --program-prefix=
+
+configure on and for developers machine:
+---------------------------------------
+
+../sunxi-tools-1.3/configure --prefix=/usr
+
+
+$ make
+$ make install DESTDIR=<path to sysroot>
+
+Enjoy.

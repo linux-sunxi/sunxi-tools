@@ -1,0 +1,7 @@
+2014-07-29  Andrey V.Kosteltsev  <kosteltsev@gmail.com>
+
+	* Tag 1.3 created.
+
+	* Sources have been reorganized.
+	* Build system moved to Autotools.
+
