@@ -68,8 +68,7 @@ static inline char *read_all(int fd, const char *filename, size_t *size)
 					p = buf + count;
 				}
 			}
-		} else if (errno != EAGAIN ||
-			   errno != EINTR) {
+		} else if (errno != EAGAIN && errno != EINTR) {
 			pr_err("%s: %s: %s\n", filename,
 			       "read", strerror(errno));
 			free(buf);
