@@ -131,8 +131,8 @@ struct sunxi_ccm_reg {
 	u32 pll6_cfg;		/* 0x28 pll6 control */
 	u32 pll6_tun;		/* 0x2c pll6 tuning */
 	u32 pll7_cfg;		/* 0x30 pll7 control */
-	u32 pll1_tun2;		/* 0x34 pll5 tuning2 */
 	u8 res2[0x4];
+	u32 pll1_tun2;		/* 0x38 pll5 tuning2 */
 	u32 pll5_tun2;		/* 0x3c pll5 tuning2 */
 	u8 res3[0xc];
 	u32 pll_lock_dbg;	/* 0x4c pll lock time debug */
