@@ -60,5 +60,11 @@ phoenix_info:
 	phoenixcard utility and optionally extracts the embedded boot
 	code & firmware file from their hidden partitions.
 
+meminfo:
+	Tool for reading DRAM settings from registers. Compiled as a
+	static binary for use on android and other OSes. To build this,
+	get a toolchain, and run:
+		make CROSS_COMPILE=arm-linux-gnueabihf- meminfo
+
 This software is licensed under the terms of GPLv2+ as defined by the
 Free Software Foundation, details can be read in the COPYING file.
