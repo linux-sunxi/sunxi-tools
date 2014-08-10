@@ -229,6 +229,11 @@ int main(int argc, char **argv)
     p.tpr0   = r->tpr0;
     p.tpr1   = r->tpr1;
     p.tpr2   = r->tpr2;
+    p.tpr3   = ((((r->dllcr[0]) >> 6) & 0x3f) << 16) |
+               ((((r->dllcr[1]) >> 14) & 0xf) << 0) |
+               ((((r->dllcr[2]) >> 14) & 0xf) << 4) |
+               ((((r->dllcr[3]) >> 14) & 0xf) << 8) |
+               ((((r->dllcr[4]) >> 14) & 0xf) << 12);
     p.emr1   = r->emr;
     p.emr2   = r->emr2;
     p.emr3   = r->emr3;
