@@ -23,6 +23,16 @@
 #define SUNXI_DRAMC_BASE    0x01c01000
 #define SUNXI_CCM_BASE      0x01C20000
 
+#define CCM_PLL5_FACTOR_M    0
+#define CCM_PLL5_FACTOR_K    4
+#define CCM_PLL5_FACTOR_N    8
+#define CCM_PLL5_FACTOR_P   16
+
+#define CCM_PLL5_FACTOR_M_SIZE 0x03
+#define CCM_PLL5_FACTOR_K_SIZE 0x03
+#define CCM_PLL5_FACTOR_N_SIZE 0x1f
+#define CCM_PLL5_FACTOR_P_SIZE 0x03
+
 typedef uint32_t u32;
 typedef uint8_t u8;
 
@@ -232,8 +242,19 @@ int main(int argc, char **argv)
     p.rank_num = (r->dcr >> 10 & 3)+1;
     p.io_width = (r->dcr >> 1 & 3) << 3;
     p.bus_width = ((r->dcr >> 6 & 3)+1) << 3;
-    p.clock   = (ccm->pll5_cfg >> 8 & 0x1f) * 24;
-    
+    /*
+     * The clock for DDR is calculated as:
+     * (24 MHz * N * K) / M
+     * PLL5 has a second output port isn't interesting for memory info,
+     * but is calculated as:
+     * (24 MHz * N * K) / P
+     */
+     p.clock = (24 *
+         ((ccm->pll5_cfg >> CCM_PLL5_FACTOR_N) & CCM_PLL5_FACTOR_N_SIZE) *
+         ((ccm->pll5_cfg >> CCM_PLL5_FACTOR_K) & CCM_PLL5_FACTOR_K_SIZE) /
+         ((ccm->pll5_cfg >> CCM_PLL5_FACTOR_M) & CCM_PLL5_FACTOR_M_SIZE)
+    );
+
     /* Print dram_para struct */
     printf("dram_clk          = %d\n", p.clock);
     printf("dram_type         = %d\n", p.type);
