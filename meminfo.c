@@ -243,7 +243,7 @@ int main(int argc, char **argv)
     p.cas    = (r->mr >> 4 & 15);
     if (p.type == 3)
         p.cas += 4;
-    p.density  = (1 << 8) + (r->dcr >> 3 & 7);
+    p.density  = 1 << (8 + ((r->dcr >> 3) & 7));
     p.rank_num = (r->dcr >> 10 & 3)+1;
     p.io_width = (r->dcr >> 1 & 3) << 3;
     p.bus_width = ((r->dcr >> 6 & 3)+1) << 3;
