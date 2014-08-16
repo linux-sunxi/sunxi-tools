@@ -1,14 +1,14 @@
 .PHONY: all clean
 
-CC = gcc
-AR = ar
+CC = $(CROSS_COMPILE)gcc
+AR = $(CROSS_COMPILE)ar
 
 srctree	?= ..
 O	?= $(srctree)/out
 
 OBJDIR	:= $(O)/tools
-TOOLS	:= fexc fex2bin bin2fex
-SRCS	:= fexc.c
+TOOLS	:= fexc fex2bin bin2fex meminfo
+SRCS	:= fexc.c meminfo.c
 
 INCLUDES = -I$(srctree)/include
 CFLAGS	 = -O2
@@ -32,6 +32,9 @@ $(O)/fexc: $(OBJDIR)/fexc.o $(O)/libfex.a
 
 $(O)/fex2bin $(O)/bin2fex: $(O)/fexc
 	ln -svnf fexc $@
+
+$(O)/meminfo: $(OBJDIR)/meminfo.o
+	$(CC) -static $(CFLAGS) -o $@ $^
 
 # dependencies
 $(DEPS): Makefile
