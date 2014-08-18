@@ -1,29 +1,32 @@
 /*
- * A10-meminfo
- * Dumps DRAM controller settings
+ * Copyright (C) 2012  Floris Bos <bos@je-eigen-domein.nl>
+ * Copyright (c) 2014  Luc Verhaegen <libv@skynet.be>
  *
- * Author: Floris Bos
- * License: GPL
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
  *
- * Compile with: gcc -static -o a10-meminfo-static a10-meminfo.c
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
-#include <dirent.h>
 #include <fcntl.h>
-#include <assert.h>
 #include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <stdint.h>
 #include <errno.h>
 #include <sys/io.h>
 
 typedef uint32_t u32;
 
+/* from u-boot code: */
 struct dram_para {
 	u32 baseaddr;
 	u32 clock;
@@ -234,9 +237,10 @@ dram_para_print_uboot(struct dram_para *dram_para)
 	printf("}\n");
 }
 
-int main(int argc, char **argv)
+int
+main(int argc, char *argv[])
 {
-	struct dram_para p = {0};
+	struct dram_para dram_para = {0};
 	int ret;
 
 	devmem_fd = open(DEVMEM_FILE, O_RDWR);
@@ -246,16 +250,15 @@ int main(int argc, char **argv)
 		return errno;
 	}
 
-	ret = dram_parameters_read(&p);
+	ret = dram_parameters_read(&dram_para);
 	if (ret)
 		return ret;
 
-	ret = dram_clock_read(&p);
+	ret = dram_clock_read(&dram_para);
 	if (ret)
 		return ret;
 
-	dram_para_print_uboot(&p);
+	dram_para_print_uboot(&dram_para);
 
-    return 0;
+	return 0;
 }
-
