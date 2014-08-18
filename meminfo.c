@@ -213,6 +213,45 @@ volatile void *map_physical_memory(uint32_t addr, size_t len)
     return mem;
 }
 
+/*
+ * Print a dram.c that can be stuck immediately into u-boot.
+ */
+void
+dram_para_print_uboot(struct dram_para *dram_para)
+{
+	printf("// place this file in board/sunxi/ in u-boot\n");
+	printf("/* this file is generated, don't edit it yourself */\n");
+	printf("\n");
+	printf("#include \"common.h\"\n");
+	printf("#include <asm/arch/dram.h>\n");
+	printf("\n");
+	printf("static struct dram_para dram_para = {\n");
+	printf("\t.clock = %d,\n", dram_para->clock);
+	printf("\t.type = %d,\n", dram_para->type);
+	printf("\t.rank_num = %d,\n", dram_para->rank_num);
+	printf("\t.density = %d,\n", dram_para->density);
+	printf("\t.io_width = %d,\n", dram_para->io_width);
+	printf("\t.bus_width = %d,\n", dram_para->bus_width);
+	printf("\t.cas = %d,\n", dram_para->cas);
+	printf("\t.zq = 0x%02x,\n", dram_para->zq);
+	printf("\t.odt_en = %d,\n", dram_para->odt_en);
+	printf("\t.size = !!! FIXME !!!, /* in MiB */\n");
+	printf("\t.tpr0 = 0x%08x,\n", dram_para->tpr0);
+	printf("\t.tpr1 = 0x%04x,\n", dram_para->tpr1);
+	printf("\t.tpr2 = 0x%05x,\n", dram_para->tpr2);
+	printf("\t.tpr3 = 0x%02x,\n", dram_para->tpr3);
+	printf("\t.tpr4 = 0x%02x,\n", dram_para->tpr4);
+	printf("\t.tpr5 = 0x%02x,\n", dram_para->tpr5);
+	printf("\t.emr1 = 0x%02x,\n", dram_para->emr1);
+	printf("\t.emr2 = 0x%02x,\n", dram_para->emr2);
+	printf("\t.emr3 = 0x%02x,\n", dram_para->emr3);
+	printf("};\n");
+	printf("\n");
+	printf("unsigned long sunxi_dram_init(void)\n");
+	printf("{\n");
+	printf("\treturn dramc_init(&dram_para);\n");
+	printf("}\n");
+}
 
 int main(int argc, char **argv)
 {
@@ -265,25 +304,8 @@ int main(int argc, char **argv)
          (((ccm->pll5_cfg >> CCM_PLL5_FACTOR_M) & CCM_PLL5_FACTOR_M_SIZE) + 1)
     );
 
-    /* Print dram_para struct */
-    printf("dram_clk          = %d\n", p.clock);
-    printf("dram_type         = %d\n", p.type);
-    printf("dram_rank_num     = %d\n", p.rank_num);
-    printf("dram_chip_density = %d\n", p.density);
-    printf("dram_io_width     = %d\n", p.io_width);
-    printf("dram_bus_width    = %d\n", p.bus_width);
-    printf("dram_cas          = %d\n", p.cas);
-    printf("dram_zq           = 0x%x\n", p.zq);
-    printf("dram_odt_en       = %d\n", p.odt_en);
-    //printf("dram_size         = %d\n", p.size);
-    printf("dram_tpr0         = 0x%x\n", p.tpr0);
-    printf("dram_tpr1         = 0x%x\n", p.tpr1);
-    printf("dram_tpr2         = 0x%x\n", p.tpr2);
-    printf("dram_tpr3         = 0x%x\n", p.tpr3);
-    printf("dram_emr1         = 0x%x\n", p.emr1);
-    printf("dram_emr2         = 0x%x\n", p.emr2);
-    printf("dram_emr3         = 0x%x\n", p.emr3);
-    
+	dram_para_print_uboot(&p);
+
     /* Clean up */
     munmap((void *)r, 4096);
     munmap((void *)ccm, 4096);
