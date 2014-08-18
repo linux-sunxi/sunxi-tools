@@ -20,19 +20,9 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <errno.h>
+#include <sys/io.h>
 
 #define SUNXI_DRAMC_BASE    0x01c01000
-#define SUNXI_CCM_BASE      0x01C20000
-
-#define CCM_PLL5_FACTOR_M    0
-#define CCM_PLL5_FACTOR_K    4
-#define CCM_PLL5_FACTOR_N    8
-#define CCM_PLL5_FACTOR_P   16
-
-#define CCM_PLL5_FACTOR_M_SIZE 0x03
-#define CCM_PLL5_FACTOR_K_SIZE 0x03
-#define CCM_PLL5_FACTOR_N_SIZE 0x1f
-#define CCM_PLL5_FACTOR_P_SIZE 0x03
 
 typedef uint32_t u32;
 typedef uint8_t u8;
@@ -117,84 +107,6 @@ struct dram_para {
 	u32 emr3;
 };
 
-/* Clock control header copied from include/asm/arch-sunxi/clock.h */
-struct sunxi_ccm_reg {
-	u32 pll1_cfg;		/* 0x00 pll1 control */
-	u32 pll1_tun;		/* 0x04 pll1 tuning */
-	u32 pll2_cfg;		/* 0x08 pll2 control */
-	u32 pll2_tun;		/* 0x0c pll2 tuning */
-	u32 pll3_cfg;		/* 0x10 pll3 control */
-	u8 res0[0x4];
-	u32 pll4_cfg;		/* 0x18 pll4 control */
-	u8 res1[0x4];
-	u32 pll5_cfg;		/* 0x20 pll5 control */
-	u32 pll5_tun;		/* 0x24 pll5 tuning */
-	u32 pll6_cfg;		/* 0x28 pll6 control */
-	u32 pll6_tun;		/* 0x2c pll6 tuning */
-	u32 pll7_cfg;		/* 0x30 pll7 control */
-	u8 res2[0x4];
-	u32 pll1_tun2;		/* 0x38 pll5 tuning2 */
-	u32 pll5_tun2;		/* 0x3c pll5 tuning2 */
-	u8 res3[0xc];
-	u32 pll_lock_dbg;	/* 0x4c pll lock time debug */
-	u32 osc24m_cfg;		/* 0x50 osc24m control */
-	u32 cpu_ahb_apb0_cfg;	/* 0x54 cpu,ahb and apb0 divide ratio */
-	u32 apb1_clk_div_cfg;	/* 0x58 apb1 clock dividor */
-	u32 axi_gate;		/* 0x5c axi module clock gating */
-	u32 ahb_gate0;		/* 0x60 ahb module clock gating 0 */
-	u32 ahb_gate1;		/* 0x64 ahb module clock gating 1 */
-	u32 apb0_gate;		/* 0x68 apb0 module clock gating */
-	u32 apb1_gate;		/* 0x6c apb1 module clock gating */
-	u8 res4[0x10];
-	u32 nand_sclk_cfg;	/* 0x80 nand sub clock control */
-	u32 ms_sclk_cfg;	/* 0x84 memory stick sub clock control */
-	u32 sd0_clk_cfg;	/* 0x88 sd0 clock control */
-	u32 sd1_clk_cfg;	/* 0x8c sd1 clock control */
-	u32 sd2_clk_cfg;	/* 0x90 sd2 clock control */
-	u32 sd3_clk_cfg;	/* 0x94 sd3 clock control */
-	u32 ts_clk_cfg;		/* 0x98 transport stream clock control */
-	u32 ss_clk_cfg;		/* 0x9c */
-	u32 spi0_clk_cfg;	/* 0xa0 */
-	u32 spi1_clk_cfg;	/* 0xa4 */
-	u32 spi2_clk_cfg;	/* 0xa8 */
-	u32 pata_clk_cfg;	/* 0xac */
-	u32 ir0_clk_cfg;	/* 0xb0 */
-	u32 ir1_clk_cfg;	/* 0xb4 */
-	u32 iis_clk_cfg;	/* 0xb8 */
-	u32 ac97_clk_cfg;	/* 0xbc */
-	u32 spdif_clk_cfg;	/* 0xc0 */
-	u32 keypad_clk_cfg;	/* 0xc4 */
-	u32 sata_clk_cfg;	/* 0xc8 */
-	u32 usb_clk_cfg;	/* 0xcc */
-	u32 gps_clk_cfg;	/* 0xd0 */
-	u32 spi3_clk_cfg;	/* 0xd4 */
-	u8 res5[0x28];
-	u32 dram_clk_cfg;	/* 0x100 */
-	u32 be0_clk_cfg;	/* 0x104 */
-	u32 be1_clk_cfg;	/* 0x108 */
-	u32 fe0_clk_cfg;	/* 0x10c */
-	u32 fe1_clk_cfg;	/* 0x110 */
-	u32 mp_clk_cfg;		/* 0x114 */
-	u32 lcd0_ch0_clk_cfg;	/* 0x118 */
-	u32 lcd1_ch0_clk_cfg;	/* 0x11c */
-	u32 csi_isp_clk_cfg;	/* 0x120 */
-	u8 res6[0x4];
-	u32 tvd_clk_reg;	/* 0x128 */
-	u32 lcd0_ch1_clk_cfg;	/* 0x12c */
-	u32 lcd1_ch1_clk_cfg;	/* 0x130 */
-	u32 csi0_clk_cfg;	/* 0x134 */
-	u32 csi1_clk_cfg;	/* 0x138 */
-	u32 ve_clk_cfg;		/* 0x13c */
-	u32 audio_codec_clk_cfg;	/* 0x140 */
-	u32 avs_clk_cfg;	/* 0x144 */
-	u32 ace_clk_cfg;	/* 0x148 */
-	u32 lvds_clk_cfg;	/* 0x14c */
-	u32 hdmi_clk_cfg;	/* 0x150 */
-	u32 mali_clk_cfg;	/* 0x154 */
-	u8 res7[0x4];
-	u32 mbus_clk_cfg;	/* 0x15c */
-};
-
 #define DEVMEM_FILE "/dev/mem"
 static int devmem_fd;
 
@@ -211,6 +123,68 @@ volatile void *map_physical_memory(uint32_t addr, size_t len)
     }
 
     return mem;
+}
+
+/*
+ * Libv's favourite register handling calls.
+ */
+unsigned int
+sunxi_io_read(void *base, int offset)
+{
+	return inl((unsigned long) (base + offset));
+}
+
+void
+sunxi_io_write(void *base, int offset, unsigned int value)
+{
+	outl(value, (unsigned long) (base + offset));
+}
+
+void
+sunxi_io_mask(void *base, int offset, unsigned int value, unsigned int mask)
+{
+	unsigned int tmp = inl((unsigned long) (base + offset));
+
+	tmp &= ~mask;
+	tmp |= value & mask;
+
+	outl(tmp, (unsigned long) (base + offset));
+}
+
+/*
+ * Read DRAM clock.
+ */
+#define SUNXI_IO_CCM_BASE	0x01C20000
+#define SUNXI_IO_CCM_SIZE	0x00001000
+
+#define SUNXI_IO_CCM_PLL5_CFG	0x20
+
+static int
+dram_clock_read(struct dram_para *dram_para)
+{
+	void *base;
+	unsigned int tmp;
+	int n, k, m;
+
+	base = mmap(NULL, SUNXI_IO_CCM_SIZE, PROT_READ,
+		    MAP_SHARED, devmem_fd, SUNXI_IO_CCM_BASE);
+	if (base == MAP_FAILED) {
+		fprintf(stderr, "Failed to map ccm registers: %s\n",
+			strerror(errno));
+		return errno;
+	}
+
+	tmp = sunxi_io_read(base, SUNXI_IO_CCM_PLL5_CFG);
+
+	munmap(base, SUNXI_IO_CCM_SIZE);
+
+	n = (tmp >> 8) & 0x1F;
+	k = ((tmp >> 4) & 0x03) + 1;
+	m = (tmp & 0x03) + 1;
+
+	dram_para->clock = (24 * n * k) / m;
+
+	return 0;
 }
 
 /*
@@ -256,8 +230,8 @@ dram_para_print_uboot(struct dram_para *dram_para)
 int main(int argc, char **argv)
 {
 	volatile struct sunxi_dram_reg *r;
-	volatile struct sunxi_ccm_reg *ccm;
 	struct dram_para p = {0};
+	int ret;
 
 	devmem_fd = open(DEVMEM_FILE, O_RDWR);
 	if (devmem_fd == -1) {
@@ -267,7 +241,6 @@ int main(int argc, char **argv)
 	}
 
 	r  = map_physical_memory(SUNXI_DRAMC_BASE, 4096);
-	ccm = map_physical_memory(SUNXI_CCM_BASE, 4096);
 
     /* Convert information found inside registers back to dram_para struct */
     p.tpr0   = r->tpr0;
@@ -291,24 +264,15 @@ int main(int argc, char **argv)
     p.rank_num = (r->dcr >> 10 & 3)+1;
     p.io_width = (r->dcr >> 1 & 3) << 3;
     p.bus_width = ((r->dcr >> 6 & 3)+1) << 3;
-    /*
-     * The clock for DDR is calculated as:
-     * (24 MHz * N * K) / M
-     * PLL5 has a second output port isn't interesting for memory info,
-     * but is calculated as:
-     * (24 MHz * N * K) / P
-     */
-     p.clock = (24 *
-         ((ccm->pll5_cfg >> CCM_PLL5_FACTOR_N) & CCM_PLL5_FACTOR_N_SIZE) *
-         (((ccm->pll5_cfg >> CCM_PLL5_FACTOR_K) & CCM_PLL5_FACTOR_K_SIZE) + 1) /
-         (((ccm->pll5_cfg >> CCM_PLL5_FACTOR_M) & CCM_PLL5_FACTOR_M_SIZE) + 1)
-    );
+
+	ret = dram_clock_read(&p);
+	if (ret)
+		return ret;
 
 	dram_para_print_uboot(&p);
 
     /* Clean up */
     munmap((void *)r, 4096);
-    munmap((void *)ccm, 4096);
 
     return 0;
 }
