@@ -182,6 +182,7 @@ dram_clock_read(struct dram_para *dram_para)
 #define SUNXI_IO_DRAM_BASE	0x01C01000
 #define SUNXI_IO_DRAM_SIZE	0x00001000
 
+#define SUNXI_IO_DRAM_CCR	0x000 /* controller configuration register */
 #define SUNXI_IO_DRAM_DCR	0x004 /* dram configuration */
 #define SUNXI_IO_DRAM_IOCR	0x008 /* i/o configuration */
 
@@ -190,6 +191,7 @@ dram_clock_read(struct dram_para *dram_para)
 #define SUNXI_IO_DRAM_TPR2	0x01C /* dram timing parameters register 2 */
 
 #define SUNXI_IO_DRAM_ZQCR0	0x0A8 /* zq control register 0 */
+#define SUNXI_IO_DRAM_ZQCR1	0x0AC /* zq control register 1 */
 
 #define SUNXI_IO_DRAM_MR	0x1F0 /* mode register */
 #define SUNXI_IO_DRAM_EMR	0x1F4 /* extended mode register */
@@ -229,6 +231,13 @@ dram_parameters_read(struct dram_para *dram_para)
 
 	dram_para->tpr3 = (dllcr0 << 16) |
 		(dllcr4 << 12) | (dllcr3 << 8) | (dllcr2 << 4) | dllcr1;
+
+	if (soc_version == SUNXI_SOC_SUN7I) {
+		if (sunxi_io_read(base, SUNXI_IO_DRAM_CCR) & 0x20)
+			dram_para->tpr4 |= 0x01;
+		if (!(sunxi_io_read(base, SUNXI_IO_DRAM_ZQCR1) & 0x01000000))
+			dram_para->tpr4 |= 0x02;
+	}
 
 	dram_para->cas = (sunxi_io_read(base, SUNXI_IO_DRAM_MR) >> 4) & 0x0F;
 	dram_para->emr1 = sunxi_io_read(base, SUNXI_IO_DRAM_EMR);
