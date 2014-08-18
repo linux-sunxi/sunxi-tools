@@ -53,6 +53,16 @@ struct dram_para {
 #define DEVMEM_FILE "/dev/mem"
 static int devmem_fd;
 
+enum sunxi_soc_version {
+	SUNXI_SOC_SUN4I = 0x1623, /* A10 */
+	SUNXI_SOC_SUN5I = 0x1625, /* A13, A10s */
+	SUNXI_SOC_SUN6I = 0x1633, /* A31 */
+	SUNXI_SOC_SUN7I = 0x1651, /* A20 */
+	SUNXI_SOC_SUN8I = 0x1650, /* A23 */
+};
+
+static enum sunxi_soc_version soc_version;
+
 /*
  * Libv's favourite register handling calls.
  */
@@ -77,6 +87,57 @@ sunxi_io_mask(void *base, int offset, unsigned int value, unsigned int mask)
 	tmp |= value & mask;
 
 	outl(tmp, (unsigned long) (base + offset));
+}
+
+
+/*
+ * Find out exactly which SoC we are dealing with.
+ */
+#define SUNXI_IO_SRAM_BASE	0x01C00000
+#define SUNXI_IO_SRAM_SIZE	0x00001000
+
+#define SUNXI_IO_SRAM_VERSION	0x24
+
+static int
+soc_version_read(void)
+{
+	void *base;
+	unsigned int restore;
+
+	base = mmap(NULL, SUNXI_IO_SRAM_SIZE, PROT_READ|PROT_WRITE,
+		    MAP_SHARED, devmem_fd, SUNXI_IO_SRAM_BASE);
+	if (base == MAP_FAILED) {
+		fprintf(stderr, "Failed to map sram registers: %s\n",
+			strerror(errno));
+		return errno;
+	}
+
+	restore = sunxi_io_read(base, SUNXI_IO_SRAM_VERSION);
+
+	sunxi_io_mask(base, SUNXI_IO_SRAM_VERSION, 0x8000, 0x8000);
+
+	soc_version = sunxi_io_read(base, SUNXI_IO_SRAM_VERSION) >> 16;
+
+	sunxi_io_mask(base, SUNXI_IO_SRAM_VERSION, restore, 0x8000);
+
+	munmap(base, SUNXI_IO_SRAM_SIZE);
+
+	return 0;
+}
+
+static int
+soc_version_check(void)
+{
+	switch (soc_version) {
+	case SUNXI_SOC_SUN4I:
+	case SUNXI_SOC_SUN5I:
+	case SUNXI_SOC_SUN7I:
+		return 0;
+	default:
+		fprintf(stderr, "Error: unknown or unhandled Soc: 0x%04X\n",
+			soc_version);
+		return -1;
+	}
 }
 
 /*
@@ -249,6 +310,13 @@ main(int argc, char *argv[])
 			strerror(errno));
 		return errno;
 	}
+
+	ret = soc_version_read();
+	if (ret)
+		return ret;
+	ret = soc_version_check();
+	if (ret)
+		return ret;
 
 	ret = dram_parameters_read(&dram_para);
 	if (ret)
