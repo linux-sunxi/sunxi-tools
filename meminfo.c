@@ -22,67 +22,7 @@
 #include <errno.h>
 #include <sys/io.h>
 
-#define SUNXI_DRAMC_BASE    0x01c01000
-
 typedef uint32_t u32;
-typedef uint8_t u8;
-
-/*
- * Memory header definition copied from u-boot arch/arm/include/asm/arch-sunxi/dram.h
- * (C) Copyright 2007-2012 Allwinner Technology Co., Ltd. <www.allwinnertech.com>)
- */
-struct sunxi_dram_reg {
-	u32 ccr;		/* 0x00 controller configuration register */
-	u32 dcr;		/* 0x04 dram configuration register */
-	u32 iocr;		/* 0x08 i/o configuration register */
-	u32 csr;		/* 0x0c controller status register */
-	u32 drr;		/* 0x10 dram refresh register */
-	u32 tpr0;		/* 0x14 dram timing parameters register 0 */
-	u32 tpr1;		/* 0x18 dram timing parameters register 1 */
-	u32 tpr2;		/* 0x1c dram timing parameters register 2 */
-	u32 gdllcr;		/* 0x20 global dll control register */
-	u8 res0[0x28];
-	u32 rslr0;		/* 0x4c rank system latency register */
-	u32 rslr1;		/* 0x50 rank system latency register */
-	u8 res1[0x8];
-	u32 rdgr0;		/* 0x5c rank dqs gating register */
-	u32 rdgr1;		/* 0x60 rank dqs gating register */
-	u8 res2[0x34];
-	u32 odtcr;		/* 0x98 odt configuration register */
-	u32 dtr0;		/* 0x9c data training register 0 */
-	u32 dtr1;		/* 0xa0 data training register 1 */
-	u32 dtar;		/* 0xa4 data training address register */
-	u32 zqcr0;		/* 0xa8 zq control register 0 */
-	u32 zqcr1;		/* 0xac zq control register 1 */
-	u32 zqsr;		/* 0xb0 zq status register */
-	u32 idcr;		/* 0xb4 initializaton delay configure reg */
-	u8 res3[0x138];
-	u32 mr;			/* 0x1f0 mode register */
-	u32 emr;		/* 0x1f4 extended mode register */
-	u32 emr2;		/* 0x1f8 extended mode register */
-	u32 emr3;		/* 0x1fc extended mode register */
-	u32 dllctr;		/* 0x200 dll control register */
-	u32 dllcr[5];	/* 0x204 dll control register 0(byte 0) */
-	/* 0x208 dll control register 1(byte 1) */
-	/* 0x20c dll control register 2(byte 2) */
-	/* 0x210 dll control register 3(byte 3) */
-	/* 0x214 dll control register 4(byte 4) */
-	u32 dqtr0;		/* 0x218 dq timing register */
-	u32 dqtr1;		/* 0x21c dq timing register */
-	u32 dqtr2;		/* 0x220 dq timing register */
-	u32 dqtr3;		/* 0x224 dq timing register */
-	u32 dqstr;		/* 0x228 dqs timing register */
-	u32 dqsbtr;		/* 0x22c dqsb timing register */
-	u32 mcr;		/* 0x230 mode configure register */
-	u8 res[0x8];
-	u32 reg_23c;	/* 0x23c register description unknown!!! */
-	u32 apr;		/* 0x240 arbiter period register */
-	u32 pldtr;		/* 0x244 priority level data threshold reg */
-	u8 res5[0x8];
-	u32 hpcr[32];	/* 0x250 host port configure register */
-	u8 res6[0x10];
-	u32 csel;		/* 0x2e0 controller select register */
-};
 
 struct dram_para {
 	u32 baseaddr;
@@ -109,21 +49,6 @@ struct dram_para {
 
 #define DEVMEM_FILE "/dev/mem"
 static int devmem_fd;
-
-volatile void *map_physical_memory(uint32_t addr, size_t len)
-{
-    volatile void *mem;
-
-    mem = (volatile void *) mmap(NULL, len, PROT_READ, MAP_SHARED, devmem_fd, (off_t) addr);
-    
-    if (mem == MAP_FAILED)
-    {
-        perror("mmap");
-        exit (1);
-    }
-
-    return mem;
-}
 
 /*
  * Libv's favourite register handling calls.
@@ -188,6 +113,88 @@ dram_clock_read(struct dram_para *dram_para)
 }
 
 /*
+ * Read DRAM parameters.
+ */
+#define SUNXI_IO_DRAM_BASE	0x01C01000
+#define SUNXI_IO_DRAM_SIZE	0x00001000
+
+#define SUNXI_IO_DRAM_DCR	0x004 /* dram configuration */
+#define SUNXI_IO_DRAM_IOCR	0x008 /* i/o configuration */
+
+#define SUNXI_IO_DRAM_TPR0	0x014 /* dram timing parameters register 0 */
+#define SUNXI_IO_DRAM_TPR1	0x018 /* dram timing parameters register 1 */
+#define SUNXI_IO_DRAM_TPR2	0x01C /* dram timing parameters register 2 */
+
+#define SUNXI_IO_DRAM_ZQCR0	0x0A8 /* zq control register 0 */
+
+#define SUNXI_IO_DRAM_MR	0x1F0 /* mode register */
+#define SUNXI_IO_DRAM_EMR	0x1F4 /* extended mode register */
+#define SUNXI_IO_DRAM_EMR2	0x1F8 /* extended mode register */
+#define SUNXI_IO_DRAM_EMR3	0x1FC /* extended mode register */
+
+#define SUNXI_IO_DRAM_DLLCR0	0x204 /* dll control register 0(byte 0) */
+#define SUNXI_IO_DRAM_DLLCR1	0x208 /* dll control register 1(byte 1) */
+#define SUNXI_IO_DRAM_DLLCR2	0x20C /* dll control register 2(byte 2) */
+#define SUNXI_IO_DRAM_DLLCR3	0x210 /* dll control register 3(byte 3) */
+#define SUNXI_IO_DRAM_DLLCR4	0x214 /* dll control register 4(byte 4) */
+
+static int
+dram_parameters_read(struct dram_para *dram_para)
+{
+	void *base;
+	unsigned int zqcr0, dcr;
+	unsigned int dllcr0, dllcr1, dllcr2, dllcr3, dllcr4;
+
+	base = mmap(NULL, SUNXI_IO_DRAM_SIZE, PROT_READ,
+		    MAP_SHARED, devmem_fd, SUNXI_IO_DRAM_BASE);
+	if (base == MAP_FAILED) {
+		fprintf(stderr, "Failed to map dram registers: %s\n",
+			strerror(errno));
+		return errno;
+	}
+
+	dram_para->tpr0 = sunxi_io_read(base, SUNXI_IO_DRAM_TPR0);
+	dram_para->tpr1 = sunxi_io_read(base, SUNXI_IO_DRAM_TPR1);
+	dram_para->tpr2 = sunxi_io_read(base, SUNXI_IO_DRAM_TPR2);
+
+	dllcr0 = (sunxi_io_read(base, SUNXI_IO_DRAM_DLLCR0) >> 6) & 0x3F;
+	dllcr1 = (sunxi_io_read(base, SUNXI_IO_DRAM_DLLCR1) >> 14) & 0x0F;
+	dllcr2 = (sunxi_io_read(base, SUNXI_IO_DRAM_DLLCR2) >> 14) & 0x0F;
+	dllcr3 = (sunxi_io_read(base, SUNXI_IO_DRAM_DLLCR3) >> 14) & 0x0F;
+	dllcr4 = (sunxi_io_read(base, SUNXI_IO_DRAM_DLLCR4) >> 14) & 0x0F;
+
+	dram_para->tpr3 = (dllcr0 << 16) |
+		(dllcr4 << 12) | (dllcr3 << 8) | (dllcr2 << 4) | dllcr1;
+
+	dram_para->cas = (sunxi_io_read(base, SUNXI_IO_DRAM_MR) >> 4) & 0x0F;
+	dram_para->emr1 = sunxi_io_read(base, SUNXI_IO_DRAM_EMR);
+	dram_para->emr2 = sunxi_io_read(base, SUNXI_IO_DRAM_EMR2);
+	dram_para->emr3 = sunxi_io_read(base, SUNXI_IO_DRAM_EMR3);
+
+	dram_para->odt_en = sunxi_io_read(base, SUNXI_IO_DRAM_IOCR) & 0x03;
+	zqcr0 = sunxi_io_read(base, SUNXI_IO_DRAM_ZQCR0);
+	dram_para->zq = (zqcr0 & 0xf0000000) |
+		((zqcr0 >> 20) & 0xff) |
+		((zqcr0 & 0xfffff) << 8);
+
+	dcr = sunxi_io_read(base, SUNXI_IO_DRAM_DCR);
+	if (dcr & 0x01) {
+		dram_para->cas += 4;
+		dram_para->type = 3;
+	} else
+		dram_para->type = 2;
+
+	dram_para->density = (1 << ((dcr >> 3) & 0x07)) * 256;
+	dram_para->rank_num = ((dcr >> 10) & 0x03) + 1;
+	dram_para->io_width = ((dcr >> 1) & 0x03) * 8;
+	dram_para->bus_width = (((dcr >> 6) & 3) + 1) * 8;
+
+	munmap(base, SUNXI_IO_DRAM_SIZE);
+
+	return 0;
+}
+
+/*
  * Print a dram.c that can be stuck immediately into u-boot.
  */
 void
@@ -229,7 +236,6 @@ dram_para_print_uboot(struct dram_para *dram_para)
 
 int main(int argc, char **argv)
 {
-	volatile struct sunxi_dram_reg *r;
 	struct dram_para p = {0};
 	int ret;
 
@@ -240,39 +246,15 @@ int main(int argc, char **argv)
 		return errno;
 	}
 
-	r  = map_physical_memory(SUNXI_DRAMC_BASE, 4096);
-
-    /* Convert information found inside registers back to dram_para struct */
-    p.tpr0   = r->tpr0;
-    p.tpr1   = r->tpr1;
-    p.tpr2   = r->tpr2;
-    p.tpr3   = ((((r->dllcr[0]) >> 6) & 0x3f) << 16) |
-               ((((r->dllcr[1]) >> 14) & 0xf) << 0) |
-               ((((r->dllcr[2]) >> 14) & 0xf) << 4) |
-               ((((r->dllcr[3]) >> 14) & 0xf) << 8) |
-               ((((r->dllcr[4]) >> 14) & 0xf) << 12);
-    p.emr1   = r->emr;
-    p.emr2   = r->emr2;
-    p.emr3   = r->emr3;
-    p.type   = (r->dcr & 0x1 ? 3 : 2);
-    p.odt_en = (r->iocr & 0x3);
-    p.zq     = (r->zqcr0 & 0xf0000000)+(r->zqcr0 >> 20 & 0xff)+((r->zqcr0 & 0xfffff) << 8);
-    p.cas    = (r->mr >> 4 & 15);
-    if (p.type == 3)
-        p.cas += 4;
-    p.density  = 1 << (8 + ((r->dcr >> 3) & 7));
-    p.rank_num = (r->dcr >> 10 & 3)+1;
-    p.io_width = (r->dcr >> 1 & 3) << 3;
-    p.bus_width = ((r->dcr >> 6 & 3)+1) << 3;
+	ret = dram_parameters_read(&p);
+	if (ret)
+		return ret;
 
 	ret = dram_clock_read(&p);
 	if (ret)
 		return ret;
 
 	dram_para_print_uboot(&p);
-
-    /* Clean up */
-    munmap((void *)r, 4096);
 
     return 0;
 }
