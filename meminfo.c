@@ -19,6 +19,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <errno.h>
 
 #define SUNXI_DRAMC_BASE    0x01c01000
 #define SUNXI_CCM_BASE      0x01C20000
@@ -194,20 +195,14 @@ struct sunxi_ccm_reg {
 	u32 mbus_clk_cfg;	/* 0x15c */
 };
 
+#define DEVMEM_FILE "/dev/mem"
+static int devmem_fd;
 
-int mem_fd = -1;
-
-volatile unsigned *map_physical_memory(uint32_t addr, size_t len)
+volatile void *map_physical_memory(uint32_t addr, size_t len)
 {
-    volatile unsigned *mem;
+    volatile void *mem;
 
-    if (mem_fd == -1 && (mem_fd = open("/dev/mem", O_RDWR|O_SYNC) ) < 0)
-    {
-        perror("opening /dev/mem");
-        exit(1);
-    }
-
-    mem = (volatile unsigned *) mmap(NULL, len, PROT_READ, MAP_SHARED, mem_fd, (off_t) addr);
+    mem = (volatile void *) mmap(NULL, len, PROT_READ, MAP_SHARED, devmem_fd, (off_t) addr);
     
     if (mem == MAP_FAILED)
     {
@@ -221,10 +216,20 @@ volatile unsigned *map_physical_memory(uint32_t addr, size_t len)
 
 int main(int argc, char **argv)
 {
-    volatile struct sunxi_dram_reg *r  = (volatile struct sunxi_dram_reg *) map_physical_memory(SUNXI_DRAMC_BASE, 4096);
-    volatile struct sunxi_ccm_reg *ccm = (volatile struct sunxi_ccm_reg *) map_physical_memory(SUNXI_CCM_BASE, 4096);
-    struct dram_para p = {0};
-    
+	volatile struct sunxi_dram_reg *r;
+	volatile struct sunxi_ccm_reg *ccm;
+	struct dram_para p = {0};
+
+	devmem_fd = open(DEVMEM_FILE, O_RDWR);
+	if (devmem_fd == -1) {
+		fprintf(stderr, "Error: failed to open %s: %s\n", DEVMEM_FILE,
+			strerror(errno));
+		return errno;
+	}
+
+	r  = map_physical_memory(SUNXI_DRAMC_BASE, 4096);
+	ccm = map_physical_memory(SUNXI_CCM_BASE, 4096);
+
     /* Convert information found inside registers back to dram_para struct */
     p.tpr0   = r->tpr0;
     p.tpr1   = r->tpr1;
@@ -282,7 +287,7 @@ int main(int argc, char **argv)
     /* Clean up */
     munmap((void *)r, 4096);
     munmap((void *)ccm, 4096);
-    close(mem_fd);
+
     return 0;
 }
 
