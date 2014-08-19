@@ -23,6 +23,7 @@
 #include <stdint.h>
 #include <errno.h>
 #include <sys/io.h>
+#include <stdbool.h>
 
 typedef uint32_t u32;
 
@@ -307,11 +308,84 @@ dram_para_print_uboot(struct dram_para *dram_para)
 	printf("}\n");
 }
 
+/*
+ * Print output matching the .fex output, so it can be stuck in a
+ * fex file directly.
+ */
+void
+dram_para_print_fex(struct dram_para *dram_para)
+{
+	printf("; Insert this section into your .fex file\n");
+	printf("[dram_para]\n");
+	printf("dram_baseaddr = 0x40000000\n");
+	printf("dram_clk = %d\n", dram_para->clock);
+	printf("dram_type = %d\n", dram_para->type);
+	printf("dram_rank_num = %d\n", dram_para->rank_num);
+	printf("dram_chip_density = %d\n", dram_para->density);
+	printf("dram_io_width = %d\n", dram_para->io_width);
+	printf("dram_bus_width = %d\n", dram_para->bus_width);
+	printf("dram_cas = %d\n", dram_para->cas);
+	printf("dram_zq = 0x%02x\n", dram_para->zq);
+	printf("dram_odt_en = %d\n", dram_para->odt_en);
+	printf("dram_size = !!! FIXME !!!\n");
+	printf("dram_tpr0 = 0x%08x\n", dram_para->tpr0);
+	printf("dram_tpr1 = 0x%04x\n", dram_para->tpr1);
+	printf("dram_tpr2 = 0x%05x\n", dram_para->tpr2);
+	printf("dram_tpr3 = 0x%02x\n", dram_para->tpr3);
+	printf("dram_tpr4 = 0x%02x\n", dram_para->tpr4);
+	printf("dram_tpr5 = 0x%02x\n", dram_para->tpr5);
+	printf("dram_emr1 = 0x%02x\n", dram_para->emr1);
+	printf("dram_emr2 = 0x%02x\n", dram_para->emr2);
+	printf("dram_emr3 = 0x%02x\n", dram_para->emr3);
+}
+
+static void
+print_usage(const char *name)
+{
+	printf("Utility to retrieve DRAM information from registers on "
+	       "Allwinner SoCs.\n");
+	printf("\n");
+	printf("This is part of the sunxi-tools package from the sunxi "
+	       "project. ");
+	printf("For more \ninformation visit "
+	       "http://linux-sunxi.org/Sunxi-tools.\n");
+	printf("\n");
+	printf("Usage: %s [OPTION]\n", name);
+	printf("\n");
+	printf("Options:\n");
+	printf("  -f: print in FEX format (default).\n");
+	printf("  -u: print in sunxi U-Boot dram.c file format.\n");
+	printf("  -h: print this usage information.\n");
+}
+
 int
 main(int argc, char *argv[])
 {
 	struct dram_para dram_para = {0};
+	bool uboot;
 	int ret;
+
+	if (argc == 2) {
+		if (argv[1][0] == '-') {
+			if (argv[1][1] == 'f')
+				uboot = false;
+			else if (argv[1][1] == 'u')
+				uboot = true;
+			else if (argv[1][1] == 'h')
+				 goto help;
+			else if ((argv[1][1] == '-') && (argv[1][2] == 'h'))
+				goto help;
+			else
+				goto usage;
+
+			if (argv[1][2] != 0)
+				goto usage;
+		} else
+			goto usage;
+	} else if (argc == 1)
+		uboot = false;
+	else
+		goto usage;
 
 	devmem_fd = open(DEVMEM_FILE, O_RDWR);
 	if (devmem_fd == -1) {
@@ -335,7 +409,18 @@ main(int argc, char *argv[])
 	if (ret)
 		return ret;
 
-	dram_para_print_uboot(&dram_para);
+	if (uboot)
+		dram_para_print_uboot(&dram_para);
+	else
+		dram_para_print_fex(&dram_para);
 
+	return 0;
+
+ usage:
+	fprintf(stderr, "Error: wrong argument(s).\n");
+	print_usage(argv[0]);
+	return EINVAL;
+ help:
+	print_usage(argv[0]);
 	return 0;
 }
