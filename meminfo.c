@@ -28,7 +28,7 @@
 typedef uint32_t u32;
 
 /* from u-boot code: */
-struct dram_para {
+struct sun4i_dram_para {
 	u32 baseaddr;
 	u32 clock;
 	u32 type;
@@ -182,78 +182,78 @@ sunxi_dram_clock_read(unsigned int *clock)
 /*
  * Read DRAM parameters.
  */
-#define SUNXI_IO_DRAM_BASE	0x01C01000
-#define SUNXI_IO_DRAM_SIZE	0x00001000
+#define SUN4I_IO_DRAM_BASE	0x01C01000
+#define SUN4I_IO_DRAM_SIZE	0x00001000
 
-#define SUNXI_IO_DRAM_CCR	0x000 /* controller configuration register */
-#define SUNXI_IO_DRAM_DCR	0x004 /* dram configuration */
-#define SUNXI_IO_DRAM_IOCR	0x008 /* i/o configuration */
+#define SUN4I_IO_DRAM_CCR	0x000 /* controller configuration register */
+#define SUN4I_IO_DRAM_DCR	0x004 /* dram configuration */
+#define SUN4I_IO_DRAM_IOCR	0x008 /* i/o configuration */
 
-#define SUNXI_IO_DRAM_TPR0	0x014 /* dram timing parameters register 0 */
-#define SUNXI_IO_DRAM_TPR1	0x018 /* dram timing parameters register 1 */
-#define SUNXI_IO_DRAM_TPR2	0x01C /* dram timing parameters register 2 */
+#define SUN4I_IO_DRAM_TPR0	0x014 /* dram timing parameters register 0 */
+#define SUN4I_IO_DRAM_TPR1	0x018 /* dram timing parameters register 1 */
+#define SUN4I_IO_DRAM_TPR2	0x01C /* dram timing parameters register 2 */
 
-#define SUNXI_IO_DRAM_ZQCR0	0x0A8 /* zq control register 0 */
-#define SUNXI_IO_DRAM_ZQCR1	0x0AC /* zq control register 1 */
+#define SUN4I_IO_DRAM_ZQCR0	0x0A8 /* zq control register 0 */
+#define SUN4I_IO_DRAM_ZQCR1	0x0AC /* zq control register 1 */
 
-#define SUNXI_IO_DRAM_MR	0x1F0 /* mode register */
-#define SUNXI_IO_DRAM_EMR	0x1F4 /* extended mode register */
-#define SUNXI_IO_DRAM_EMR2	0x1F8 /* extended mode register */
-#define SUNXI_IO_DRAM_EMR3	0x1FC /* extended mode register */
+#define SUN4I_IO_DRAM_MR	0x1F0 /* mode register */
+#define SUN4I_IO_DRAM_EMR	0x1F4 /* extended mode register */
+#define SUN4I_IO_DRAM_EMR2	0x1F8 /* extended mode register */
+#define SUN4I_IO_DRAM_EMR3	0x1FC /* extended mode register */
 
-#define SUNXI_IO_DRAM_DLLCR0	0x204 /* dll control register 0(byte 0) */
-#define SUNXI_IO_DRAM_DLLCR1	0x208 /* dll control register 1(byte 1) */
-#define SUNXI_IO_DRAM_DLLCR2	0x20C /* dll control register 2(byte 2) */
-#define SUNXI_IO_DRAM_DLLCR3	0x210 /* dll control register 3(byte 3) */
-#define SUNXI_IO_DRAM_DLLCR4	0x214 /* dll control register 4(byte 4) */
+#define SUN4I_IO_DRAM_DLLCR0	0x204 /* dll control register 0(byte 0) */
+#define SUN4I_IO_DRAM_DLLCR1	0x208 /* dll control register 1(byte 1) */
+#define SUN4I_IO_DRAM_DLLCR2	0x20C /* dll control register 2(byte 2) */
+#define SUN4I_IO_DRAM_DLLCR3	0x210 /* dll control register 3(byte 3) */
+#define SUN4I_IO_DRAM_DLLCR4	0x214 /* dll control register 4(byte 4) */
 
 static int
-dram_parameters_read(struct dram_para *dram_para)
+sun4i_dram_parameters_read(struct sun4i_dram_para *dram_para)
 {
 	void *base;
 	unsigned int zqcr0, dcr;
 	unsigned int dllcr0, dllcr1, dllcr2, dllcr3, dllcr4;
 
-	base = mmap(NULL, SUNXI_IO_DRAM_SIZE, PROT_READ,
-		    MAP_SHARED, devmem_fd, SUNXI_IO_DRAM_BASE);
+	base = mmap(NULL, SUN4I_IO_DRAM_SIZE, PROT_READ,
+		    MAP_SHARED, devmem_fd, SUN4I_IO_DRAM_BASE);
 	if (base == MAP_FAILED) {
 		fprintf(stderr, "Failed to map dram registers: %s\n",
 			strerror(errno));
 		return errno;
 	}
 
-	dram_para->tpr0 = sunxi_io_read(base, SUNXI_IO_DRAM_TPR0);
-	dram_para->tpr1 = sunxi_io_read(base, SUNXI_IO_DRAM_TPR1);
-	dram_para->tpr2 = sunxi_io_read(base, SUNXI_IO_DRAM_TPR2);
+	dram_para->tpr0 = sunxi_io_read(base, SUN4I_IO_DRAM_TPR0);
+	dram_para->tpr1 = sunxi_io_read(base, SUN4I_IO_DRAM_TPR1);
+	dram_para->tpr2 = sunxi_io_read(base, SUN4I_IO_DRAM_TPR2);
 
-	dllcr0 = (sunxi_io_read(base, SUNXI_IO_DRAM_DLLCR0) >> 6) & 0x3F;
-	dllcr1 = (sunxi_io_read(base, SUNXI_IO_DRAM_DLLCR1) >> 14) & 0x0F;
-	dllcr2 = (sunxi_io_read(base, SUNXI_IO_DRAM_DLLCR2) >> 14) & 0x0F;
-	dllcr3 = (sunxi_io_read(base, SUNXI_IO_DRAM_DLLCR3) >> 14) & 0x0F;
-	dllcr4 = (sunxi_io_read(base, SUNXI_IO_DRAM_DLLCR4) >> 14) & 0x0F;
+	dllcr0 = (sunxi_io_read(base, SUN4I_IO_DRAM_DLLCR0) >> 6) & 0x3F;
+	dllcr1 = (sunxi_io_read(base, SUN4I_IO_DRAM_DLLCR1) >> 14) & 0x0F;
+	dllcr2 = (sunxi_io_read(base, SUN4I_IO_DRAM_DLLCR2) >> 14) & 0x0F;
+	dllcr3 = (sunxi_io_read(base, SUN4I_IO_DRAM_DLLCR3) >> 14) & 0x0F;
+	dllcr4 = (sunxi_io_read(base, SUN4I_IO_DRAM_DLLCR4) >> 14) & 0x0F;
 
 	dram_para->tpr3 = (dllcr0 << 16) |
 		(dllcr4 << 12) | (dllcr3 << 8) | (dllcr2 << 4) | dllcr1;
 
 	if (soc_version == SUNXI_SOC_SUN7I) {
-		if (sunxi_io_read(base, SUNXI_IO_DRAM_CCR) & 0x20)
+		if (sunxi_io_read(base, SUN4I_IO_DRAM_CCR) & 0x20)
 			dram_para->tpr4 |= 0x01;
-		if (!(sunxi_io_read(base, SUNXI_IO_DRAM_ZQCR1) & 0x01000000))
+		if (!(sunxi_io_read(base, SUN4I_IO_DRAM_ZQCR1) & 0x01000000))
 			dram_para->tpr4 |= 0x02;
 	}
 
-	dram_para->cas = (sunxi_io_read(base, SUNXI_IO_DRAM_MR) >> 4) & 0x0F;
-	dram_para->emr1 = sunxi_io_read(base, SUNXI_IO_DRAM_EMR);
-	dram_para->emr2 = sunxi_io_read(base, SUNXI_IO_DRAM_EMR2);
-	dram_para->emr3 = sunxi_io_read(base, SUNXI_IO_DRAM_EMR3);
+	dram_para->cas = (sunxi_io_read(base, SUN4I_IO_DRAM_MR) >> 4) & 0x0F;
+	dram_para->emr1 = sunxi_io_read(base, SUN4I_IO_DRAM_EMR);
+	dram_para->emr2 = sunxi_io_read(base, SUN4I_IO_DRAM_EMR2);
+	dram_para->emr3 = sunxi_io_read(base, SUN4I_IO_DRAM_EMR3);
 
-	dram_para->odt_en = sunxi_io_read(base, SUNXI_IO_DRAM_IOCR) & 0x03;
-	zqcr0 = sunxi_io_read(base, SUNXI_IO_DRAM_ZQCR0);
+	dram_para->odt_en = sunxi_io_read(base, SUN4I_IO_DRAM_IOCR) & 0x03;
+	zqcr0 = sunxi_io_read(base, SUN4I_IO_DRAM_ZQCR0);
 	dram_para->zq = (zqcr0 & 0xf0000000) |
 		((zqcr0 >> 20) & 0xff) |
 		((zqcr0 & 0xfffff) << 8);
 
-	dcr = sunxi_io_read(base, SUNXI_IO_DRAM_DCR);
+	dcr = sunxi_io_read(base, SUN4I_IO_DRAM_DCR);
 	if (dcr & 0x01) {
 		dram_para->cas += 4;
 		dram_para->type = 3;
@@ -265,7 +265,7 @@ dram_parameters_read(struct dram_para *dram_para)
 	dram_para->io_width = ((dcr >> 1) & 0x03) * 8;
 	dram_para->bus_width = (((dcr >> 6) & 3) + 1) * 8;
 
-	munmap(base, SUNXI_IO_DRAM_SIZE);
+	munmap(base, SUN4I_IO_DRAM_SIZE);
 
 	return 0;
 }
@@ -274,7 +274,7 @@ dram_parameters_read(struct dram_para *dram_para)
  * Print a dram.c that can be stuck immediately into u-boot.
  */
 void
-dram_para_print_uboot(struct dram_para *dram_para)
+sun4i_dram_para_print_uboot(struct sun4i_dram_para *dram_para)
 {
 	printf("// place this file in board/sunxi/ in u-boot\n");
 	printf("/* this file is generated, don't edit it yourself */\n");
@@ -315,7 +315,7 @@ dram_para_print_uboot(struct dram_para *dram_para)
  * fex file directly.
  */
 void
-dram_para_print_fex(struct dram_para *dram_para)
+sun4i_dram_para_print_fex(struct sun4i_dram_para *dram_para)
 {
 	printf("; Insert this section into your .fex file\n");
 	printf("[dram_para]\n");
@@ -363,7 +363,7 @@ print_usage(const char *name)
 int
 main(int argc, char *argv[])
 {
-	struct dram_para dram_para = {0};
+	struct sun4i_dram_para dram_para = {0};
 	bool uboot;
 	int ret;
 
@@ -403,7 +403,7 @@ main(int argc, char *argv[])
 	if (ret)
 		return ret;
 
-	ret = dram_parameters_read(&dram_para);
+	ret = sun4i_dram_parameters_read(&dram_para);
 	if (ret)
 		return ret;
 
@@ -412,9 +412,9 @@ main(int argc, char *argv[])
 		return ret;
 
 	if (uboot)
-		dram_para_print_uboot(&dram_para);
+		sun4i_dram_para_print_uboot(&dram_para);
 	else
-		dram_para_print_fex(&dram_para);
+		sun4i_dram_para_print_fex(&dram_para);
 
 	return 0;
 
