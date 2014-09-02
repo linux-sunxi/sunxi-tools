@@ -341,6 +341,28 @@ sun4i_dram_para_print_fex(struct sun4i_dram_para *dram_para)
 	printf("dram_emr3 = 0x%02x\n", dram_para->emr3);
 }
 
+static int
+sun4i_dram_para_print(bool uboot)
+{
+	struct sun4i_dram_para dram_para = {0};
+	int ret;
+
+	ret = sunxi_dram_clock_read(&dram_para.clock);
+	if (ret)
+		return ret;
+
+	ret = sun4i_dram_parameters_read(&dram_para);
+	if (ret)
+		return ret;
+
+	if (uboot)
+		sun4i_dram_para_print_uboot(&dram_para);
+	else
+		sun4i_dram_para_print_fex(&dram_para);
+
+	return 0;
+}
+
 static void
 print_usage(const char *name)
 {
@@ -363,7 +385,6 @@ print_usage(const char *name)
 int
 main(int argc, char *argv[])
 {
-	struct sun4i_dram_para dram_para = {0};
 	bool uboot;
 	int ret;
 
@@ -403,18 +424,7 @@ main(int argc, char *argv[])
 	if (ret)
 		return ret;
 
-	ret = sun4i_dram_parameters_read(&dram_para);
-	if (ret)
-		return ret;
-
-	ret = sunxi_dram_clock_read(&dram_para.clock);
-	if (ret)
-		return ret;
-
-	if (uboot)
-		sun4i_dram_para_print_uboot(&dram_para);
-	else
-		sun4i_dram_para_print_fex(&dram_para);
+	sun4i_dram_para_print(uboot);
 
 	return 0;
 
