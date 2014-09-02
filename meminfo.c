@@ -152,7 +152,7 @@ soc_version_check(void)
 #define SUNXI_IO_CCM_PLL5_CFG	0x20
 
 static int
-dram_clock_read(struct dram_para *dram_para)
+sunxi_dram_clock_read(unsigned int *clock)
 {
 	void *base;
 	unsigned int tmp;
@@ -174,7 +174,7 @@ dram_clock_read(struct dram_para *dram_para)
 	k = ((tmp >> 4) & 0x03) + 1;
 	m = (tmp & 0x03) + 1;
 
-	dram_para->clock = (24 * n * k) / m;
+	*clock = (24 * n * k) / m;
 
 	return 0;
 }
@@ -407,7 +407,7 @@ main(int argc, char *argv[])
 	if (ret)
 		return ret;
 
-	ret = dram_clock_read(&dram_para);
+	ret = sunxi_dram_clock_read(&dram_para.clock);
 	if (ret)
 		return ret;
 
