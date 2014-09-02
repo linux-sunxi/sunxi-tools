@@ -173,6 +173,80 @@ sunxi_dram_clock_read(unsigned int *clock)
 	return 0;
 }
 
+struct regs {
+	int offset;
+	char *name;
+};
+
+static int
+dram_registers_print(unsigned int address, int size, const struct regs *regs,
+		     const char *description, const char *prefix)
+{
+	void *base;
+	int i, j;
+
+	base = mmap(NULL, size, PROT_READ, MAP_SHARED, devmem_fd, address);
+	if (base == MAP_FAILED) {
+		fprintf(stderr, "Failed to map %s registers: %s\n",
+			description, strerror(errno));
+		return errno;
+	}
+
+	printf("/*\n");
+	printf(" * %s Registers\n", description);
+	printf(" */\n");
+
+	for (i = 0; i < size; i += 4) {
+		unsigned int reg = sunxi_io_read(base, i);
+
+		for (j = 0; regs[j].name; j++)
+			if (i == regs[j].offset) {
+				printf("%s = 0x%08x;\n", regs[j].name, reg);
+			}
+
+		if (reg && !regs[j].name)
+			printf("%s_%03X = 0x%08x;\n", prefix, i, reg);
+	}
+
+	printf("\n");
+
+	munmap(base, size);
+
+	return 0;
+}
+
+static int
+dram_register_range_print(unsigned int address, int size,
+			  const char *description, const char *prefix)
+{
+	void *base;
+	int i;
+
+	base = mmap(NULL, size, PROT_READ, MAP_SHARED, devmem_fd, address);
+	if (base == MAP_FAILED) {
+		fprintf(stderr, "Failed to map %s registers: %s\n",
+			description, strerror(errno));
+		return errno;
+	}
+
+	printf("/*\n");
+	printf(" * %s Registers\n", description);
+	printf(" */\n");
+
+	for (i = 0; i < size; i += 4) {
+		unsigned int reg = sunxi_io_read(base, i);
+
+		if (reg)
+			printf("%s_%03X = 0x%08x;\n", prefix, i, reg);
+	}
+
+	printf("\n");
+
+	munmap(base, size);
+
+	return 0;
+}
+
 /*
  * Read DRAM parameters.
  */
@@ -357,6 +431,282 @@ sun4i_dram_para_print(bool uboot)
 	return 0;
 }
 
+/*
+ *
+ */
+#define SUN6I_IO_DRAMCOM_BASE 0x01C62000
+#define SUN6I_IO_DRAMCOM_SIZE 0x0300
+#define SUN6I_IO_DRAMCTL_BASE 0x01C63000
+#define SUN6I_IO_DRAMCTL_SIZE 0x0400
+#define SUN6I_IO_DRAMPHY_BASE 0x01C65000
+#define SUN6I_IO_DRAMPHY_SIZE 0x0400
+
+static struct regs
+sun6i_dramcom_regs[] = {
+	{0x00, "SDR_COM_CR"},
+	{0x04, "SDR_COM_CCR"},
+	{0x10, "SDR_COM_MFACR"},
+	{0x30, "SDR_COM_MSACR"},
+	{0x50, "SDR_COM_MBACR"},
+	{0, NULL}
+};
+
+static struct regs
+sun6i_dramctl_regs[] = {
+	{0x004, "SDR_SCTL"},
+	{0x008, "SDR_SSTAT"},
+	{0x040, "SDR_MCMD"},
+	{0x04c, "SDR_CMDSTAT"},
+	{0x050, "SDR_CMDSTATEN"},
+	{0x060, "SDR_MRRCFG0"},
+	{0x064, "SDR_MRRSTAT0"},
+	{0x068, "SDR_MRRSTAT1"},
+	{0x07c, "SDR_MCFG1"},
+	{0x080, "SDR_MCFG"},
+	{0x084, "SDR_PPCFG"},
+	{0x088, "SDR_MSTAT"},
+	{0x08c, "SDR_LP2ZQCFG"},
+	{0x094, "SDR_DTUSTAT"},
+	{0x098, "SDR_DTUNA"},
+	{0x09c, "SDR_DTUNE"},
+	{0x0a0, "SDR_DTUPRD0"},
+	{0x0a4, "SDR_DTUPRD1"},
+	{0x0a8, "SDR_DTUPRD2"},
+	{0x0ac, "SDR_DTUPRD3"},
+	{0x0b0, "SDR_DTUAWDT"},
+	{0x0c0, "SDR_TOGCNT1U"},
+	{0x0cc, "SDR_TOGCNT100N"},
+	{0x0d0, "SDR_TREFI"},
+	{0x0d4, "SDR_TMRD"},
+	{0x0d8, "SDR_TRFC"},
+	{0x0dc, "SDR_TRP"},
+	{0x0e0, "SDR_TRTW"},
+	{0x0e4, "SDR_TAL"},
+	{0x0e8, "SDR_TCL"},
+	{0x0ec, "SDR_TCWL"},
+	{0x0f0, "SDR_TRAS"},
+	{0x0f4, "SDR_TRC"},
+	{0x0f8, "SDR_TRCD"},
+	{0x0fc, "SDR_TRRD"},
+	{0x100, "SDR_TRTP"},
+	{0x104, "SDR_TWR"},
+	{0x108, "SDR_TWTR"},
+	{0x10c, "SDR_TEXSR"},
+	{0x110, "SDR_TXP"},
+	{0x114, "SDR_TXPDLL"},
+	{0x118, "SDR_TZQCS"},
+	{0x11c, "SDR_TZQCSI"},
+	{0x120, "SDR_TDQS"},
+	{0x124, "SDR_TCKSRE"},
+	{0x128, "SDR_TCKSRX"},
+	{0x12c, "SDR_TCKE"},
+	{0x130, "SDR_TMOD"},
+	{0x134, "SDR_TRSTL"},
+	{0x138, "SDR_TZQCL"},
+	{0x13c, "SDR_TMRR"},
+	{0x140, "SDR_TCKESR"},
+	{0x144, "SDR_TDPD"},
+	{0x200, "SDR_DTUWACTL"},
+	{0x204, "SDR_DTURACTL"},
+	{0x208, "SDR_DTUCFG"},
+	{0x20c, "SDR_DTUECTL"},
+	{0x210, "SDR_DTUWD0"},
+	{0x214, "SDR_DTUWD1"},
+	{0x218, "SDR_DTUWD2"},
+	{0x21c, "SDR_DTUWD3"},
+	{0x220, "SDR_DTUWDM"},
+	{0x224, "SDR_DTURD0"},
+	{0x224, "SDR_DTURD1"},
+	{0x22c, "SDR_DTURD2"},
+	{0x230, "SDR_DTURD3"},
+	{0x234, "SDR_DTULFSRWD"},
+	{0x238, "SDR_DTULFSRRD"},
+	{0x23c, "SDR_DTUEAF"},
+	{0x240, "SDR_DFITCTLDLY"},
+	{0x244, "SDR_DFIODTCFG"},
+	{0x248, "SDR_DFIODTCFG1"},
+	{0x24c, "SDR_DFIODTRMAP"},
+	{0x250, "SDR_DFITPHYWRD"},
+	{0x254, "SDR_DFITPHYWRL"},
+	{0x260, "SDR_DFITRDDEN"},
+	{0x264, "SDR_DFITPHYRDL"},
+	{0x270, "SDR_DFITPHYUPDTYPE0"},
+	{0x274, "SDR_DFITPHYUPDTYPE1"},
+	{0x278, "SDR_DFITPHYUPDTYPE2"},
+	{0x27c, "SDR_DFITPHYUPDTYPE3"},
+	{0x280, "SDR_DFITCTRLUPDMIN"},
+	{0x284, "SDR_DFITCTRLUPDMAX"},
+	{0x288, "SDR_DFITCTRLUPDDLY"},
+	{0x290, "SDR_DFIUPDCFG"},
+	{0x294, "SDR_DFITREFMSKI"},
+	{0x298, "SDR_DFITCRLUPDI"},
+	{0x2ac, "SDR_DFITRCFG0"},
+	{0x2b0, "SDR_DFITRSTAT0"},
+	{0x2b4, "SDR_DFITRWRLVLEN"},
+	{0x2b8, "SDR_DFITRRDLVLEN"},
+	{0x2bc, "SDR_DFITRRDLVLGATEEN"},
+	{0x2c4, "SDR_DFISTCFG0"},
+	{0x2c8, "SDR_DFISTCFG1"},
+	{0x2d0, "SDR_DFITDRAMCLKEN"},
+	{0x2d4, "SDR_DFITDRAMCLKDIS"},
+	{0x2f0, "SDR_DFILPCFG0"},
+	{0, NULL}
+};
+
+static struct regs
+sun6i_dramphy_regs[] = {
+	{0x004, "SDR_PIR"},
+	{0x008, "SDR_PGCR"},
+	{0x00c, "SDR_PGSR"},
+	{0x010, "SDR_DLLGCR"},
+	{0x014, "SDR_ACDLLCR"},
+	{0x018, "SDR_PTR0"},
+	{0x01c, "SDR_PTR1"},
+	{0x020, "SDR_PTR2"},
+	{0x024, "SDR_ACIOCR"},
+	{0x028, "SDR_DXCCR"},
+	{0x02c, "SDR_DSGCR"},
+	{0x030, "SDR_DCR"},
+	{0x034, "SDR_DTPR0"},
+	{0x038, "SDR_DTPR1"},
+	{0x03c, "SDR_DTPR2"},
+	{0x040, "SDR_MR0"},
+	{0x044, "SDR_MR1"},
+	{0x048, "SDR_MR2"},
+	{0x04c, "SDR_MR3"},
+	{0x050, "SDR_ODTCR"},
+	{0x054, "SDR_DTAR"},
+	{0x058, "SDR_DTDT0"},
+	{0x05c, "SDR_DTDT1"},
+	{0x0c0, "SDR_DCUAR"},
+	{0x0c4, "SDR_DCUDR"},
+	{0x0c8, "SDR_DCURR"},
+	{0x0cc, "SDR_DCULR"},
+	{0x0d0, "SDR_DCUGCR"},
+	{0x0d4, "SDR_DCUTPR"},
+	{0x0d8, "SDR_DCUSR0"},
+	{0x0dc, "SDR_DCUSR1"},
+	{0x100, "SDR_BISTRR"},
+	{0x104, "SDR_BISTMSKR0"},
+	{0x108, "SDR_BISTMSKR1"},
+	{0x10c, "SDR_BISTWCR"},
+	{0x110, "SDR_BISTLSR"},
+	{0x114, "SDR_BISTAR0"},
+	{0x118, "SDR_BISTAR1"},
+	{0x11c, "SDR_BISTAR2"},
+	{0x120, "SDR_BISTUDPR"},
+	{0x124, "SDR_BISTGSR"},
+	{0x128, "SDR_BISTWER"},
+	{0x12c, "SDR_BISTBER0"},
+	{0x130, "SDR_BISTBER1"},
+	{0x134, "SDR_BISTBER2"},
+	{0x138, "SDR_BISTWCSR"},
+	{0x13c, "SDR_BISTFWR0"},
+	{0x140, "SDR_BISTFWR1"},
+	{0x180, "SDR_ZQ0CR0"},
+	{0x184, "SDR_ZQ0CR1"},
+	{0x188, "SDR_ZQ0SR0"},
+	{0x18c, "SDR_ZQ0SR1"},
+	{0x1c0, "SDR_DX0GCR"},
+	{0x1c4, "SDR_DX0GSR0"},
+	{0x1c8, "SDR_DX0GSR1"},
+	{0x1cc, "SDR_DX0DLLCR"},
+	{0x1d0, "SDR_DX0DQTR"},
+	{0x1d4, "SDR_DX0DQSTR"},
+	{0x200, "SDR_DX1GCR"},
+	{0x204, "SDR_DX1GSR0"},
+	{0x208, "SDR_DX1GSR1"},
+	{0x20c, "SDR_DX1DLLCR"},
+	{0x210, "SDR_DX1DQTR"},
+	{0x214, "SDR_DX1DQSTR"},
+	{0x240, "SDR_DX2GCR"},
+	{0x244, "SDR_DX2GSR0"},
+	{0x248, "SDR_DX2GSR1"},
+	{0x24c, "SDR_DX2DLLCR"},
+	{0x250, "SDR_DX2DQTR"},
+	{0x254, "SDR_DX2DQSTR"},
+	{0x280, "SDR_DX3GCR"},
+	{0x284, "SDR_DX3GSR0"},
+	{0x288, "SDR_DX3GSR1"},
+	{0x28c, "SDR_DX3DLLCR"},
+	{0x290, "SDR_DX3DQTR"},
+	{0x294, "SDR_DX3DQSTR"},
+	{0, NULL}
+};
+
+static int
+sun6i_dram_regs_print(void)
+{
+	unsigned int clock;
+	int ret;
+
+	ret = sunxi_dram_clock_read(&clock);
+	if (ret)
+		return ret;
+
+	printf("DRAM Clock: %dMHz\n", clock);
+
+	ret = dram_registers_print(SUN6I_IO_DRAMCOM_BASE,
+				   SUN6I_IO_DRAMCOM_SIZE,
+				   &sun6i_dramcom_regs[0],
+				   "DRAM COM", "SDR_COM");
+	if (ret)
+		return ret;
+
+	ret = dram_registers_print(SUN6I_IO_DRAMCTL_BASE,
+				   SUN6I_IO_DRAMCTL_SIZE,
+				   &sun6i_dramctl_regs[0],
+				   "DRAM CTL", "SDR_CTL");
+	if (ret)
+		return ret;
+
+	ret = dram_registers_print(SUN6I_IO_DRAMPHY_BASE,
+				   SUN6I_IO_DRAMPHY_SIZE,
+				   &sun6i_dramphy_regs[0],
+				   "DRAM PHY", "SDR_PHY");
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+/*
+ *
+ */
+static int
+sun8i_dram_regs_print(void)
+{
+	unsigned int clock;
+	int ret;
+
+	ret = sunxi_dram_clock_read(&clock);
+	if (ret)
+		return ret;
+
+	printf("DRAM Clock: %dMHz\n", clock);
+
+	ret = dram_register_range_print(SUN6I_IO_DRAMCOM_BASE,
+					SUN6I_IO_DRAMCOM_SIZE,
+					"DRAM COM", "SDR_COM");
+	if (ret)
+		return ret;
+
+
+	ret = dram_register_range_print(SUN6I_IO_DRAMCTL_BASE,
+					SUN6I_IO_DRAMCTL_SIZE,
+					"DRAM CTL", "SDR_CTL");
+	if (ret)
+		return ret;
+
+	ret = dram_register_range_print(SUN6I_IO_DRAMPHY_BASE,
+					SUN6I_IO_DRAMPHY_SIZE,
+					"DRAM PHY", "SDR_PHY");
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static void
 print_usage(const char *name)
 {
@@ -419,6 +769,10 @@ main(int argc, char *argv[])
 	case SUNXI_SOC_SUN5I:
 	case SUNXI_SOC_SUN7I:
 		return sun4i_dram_para_print(uboot);
+	case SUNXI_SOC_SUN6I:
+		return sun6i_dram_regs_print();
+	case SUNXI_SOC_SUN8I:
+		return sun8i_dram_regs_print();
 	default:
 		fprintf(stderr, "Error: unknown or unhandled Soc: 0x%04X\n",
 			soc_version);
