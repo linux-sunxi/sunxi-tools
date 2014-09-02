@@ -159,6 +159,15 @@ sunxi_dram_clock_read(unsigned int *clock)
 	k = ((tmp >> 4) & 0x03) + 1;
 	m = (tmp & 0x03) + 1;
 
+	switch (soc_version) {
+	case SUNXI_SOC_SUN6I:
+	case SUNXI_SOC_SUN8I:
+		n++;
+		break;
+	default:
+		break;
+	}
+
 	*clock = (24 * n * k) / m;
 
 	return 0;
