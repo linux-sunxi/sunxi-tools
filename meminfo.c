@@ -60,6 +60,8 @@ enum sunxi_soc_version {
 	SUNXI_SOC_SUN6I = 0x1633, /* A31 */
 	SUNXI_SOC_SUN7I = 0x1651, /* A20 */
 	SUNXI_SOC_SUN8I = 0x1650, /* A23 */
+	SUNXI_SOC_SUN9I = 0x1667, /* A33 */
+	SUNXI_SOC_SUN10I = 0x1635, /* A80 */
 };
 
 static enum sunxi_soc_version soc_version;
