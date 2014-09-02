@@ -128,21 +128,6 @@ soc_version_read(void)
 	return 0;
 }
 
-static int
-soc_version_check(void)
-{
-	switch (soc_version) {
-	case SUNXI_SOC_SUN4I:
-	case SUNXI_SOC_SUN5I:
-	case SUNXI_SOC_SUN7I:
-		return 0;
-	default:
-		fprintf(stderr, "Error: unknown or unhandled Soc: 0x%04X\n",
-			soc_version);
-		return -1;
-	}
-}
-
 /*
  * Read DRAM clock.
  */
@@ -420,13 +405,16 @@ main(int argc, char *argv[])
 	ret = soc_version_read();
 	if (ret)
 		return ret;
-	ret = soc_version_check();
-	if (ret)
-		return ret;
-
-	sun4i_dram_para_print(uboot);
-
-	return 0;
+	switch (soc_version) {
+	case SUNXI_SOC_SUN4I:
+	case SUNXI_SOC_SUN5I:
+	case SUNXI_SOC_SUN7I:
+		return sun4i_dram_para_print(uboot);
+	default:
+		fprintf(stderr, "Error: unknown or unhandled Soc: 0x%04X\n",
+			soc_version);
+		return -1;
+	}
 
  usage:
 	fprintf(stderr, "Error: wrong argument(s).\n");
