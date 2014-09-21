@@ -44,8 +44,8 @@ struct  aw_usb_request {
 static const int AW_USB_READ = 0x11;
 static const int AW_USB_WRITE = 0x12;
 
-static const int AW_USB_FEL_BULK_EP_OUT=0x01;
-static const int AW_USB_FEL_BULK_EP_IN=0x82;
+static int AW_USB_FEL_BULK_EP_OUT;
+static int AW_USB_FEL_BULK_EP_IN;
 static int timeout = 60000;
 
 void usb_bulk_send(libusb_device_handle *usb, int ep, const void *data, int length)
@@ -285,6 +285,46 @@ void aw_fel_fill(libusb_device_handle *usb, uint32_t offset, size_t size, unsign
 	aw_fel_write(usb, buf, offset, size);
 }
 
+static int aw_fel_get_endpoint(libusb_device_handle *usb)
+{
+	struct libusb_device *dev = libusb_get_device(usb);
+	struct libusb_config_descriptor *config;
+	int if_idx, set_idx, ep_idx, ret;
+
+	ret = libusb_get_active_config_descriptor(dev, &config);
+	if (ret)
+		return ret;
+
+	for (if_idx = 0; if_idx < config->bNumInterfaces; if_idx++) {
+		const struct libusb_interface *iface = config->interface + if_idx;
+
+		for (set_idx = 0; set_idx < iface->num_altsetting; set_idx++) {
+			const struct libusb_interface_descriptor *setting =
+				iface->altsetting + set_idx;
+
+			for (ep_idx = 0; ep_idx < setting->bNumEndpoints; ep_idx++) {
+				const struct libusb_endpoint_descriptor *ep =
+					setting->endpoint + ep_idx;
+
+				// Test for bulk transfer endpoint
+				if ((ep->bmAttributes & LIBUSB_TRANSFER_TYPE_MASK) !=
+						LIBUSB_TRANSFER_TYPE_BULK)
+					continue;
+
+				if ((ep->bEndpointAddress & LIBUSB_ENDPOINT_DIR_MASK) ==
+						LIBUSB_ENDPOINT_IN)
+					AW_USB_FEL_BULK_EP_IN = ep->bEndpointAddress;
+				else
+					AW_USB_FEL_BULK_EP_OUT = ep->bEndpointAddress;
+			}
+		}
+	}
+
+	libusb_free_config_descriptor(config);
+
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
 	int rc;
@@ -328,6 +368,11 @@ int main(int argc, char **argv)
 	}
 #endif
 	assert(rc == 0);
+
+	if (aw_fel_get_endpoint(handle)) {
+		fprintf(stderr, "ERROR: Failed to get FEL mode endpoint addresses!\n");
+		exit(1);
+	}
 
 	while (argc > 1 ) {
 		int skip = 1;
