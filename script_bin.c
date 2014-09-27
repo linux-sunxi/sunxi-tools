@@ -290,8 +290,11 @@ static int decompile_section(void *bin, size_t bin_size,
 				goto malloc_error;
 			}; break;
 		case SCRIPT_VALUE_TYPE_NULL:
-			if (!script_null_entry_new(s, entry->name))
+			if (!*entry->name) {
+				pr_err("%s: empty entry in section: %s\n", filename, section->name);
+			} else if (!script_null_entry_new(s, entry->name)) {
 				goto malloc_error;
+			}
 			break;
 		default:
 			pr_err("%s: %s.%s: unknown type %d\n",
