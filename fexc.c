@@ -247,7 +247,13 @@ int main(int argc, char *argv[])
 
 	int app_mode = app_choose_mode(argv[0]);
 
-	const char *opt_string = "I:O:vq?"+ ((app_mode == 0)? 0: 4);
+	char str1[10];
+	char str2[2];
+	strcpy(str1, "I:O:vq?");
+	sprintf(str2, "%i", ((app_mode == 0)? 0: 4) );
+	strcat(str1, str2);
+	const char *opt_string = str1;
+	
 	int opt, ret = 1;
 	int verbose = 0;
 
