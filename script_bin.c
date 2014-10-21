@@ -82,10 +82,8 @@ size_t script_bin_size(struct script *script,
 			}
 			words += WORDS(size);
 		}
-		if (c>0) {
-			*sections += 1;
-			*entries += c;
-		}
+		*sections += 1;
+		*entries += c;
 	}
 
 	bin_size = sizeof(struct script_bin_head) +
@@ -133,9 +131,6 @@ int script_generate_bin(void *bin, size_t UNUSED(bin_size),
 		size_t c = 0;
 		s = container_of(ls, struct script_section, sections);
 
-		/* skip empty sections */
-		if (list_empty(&s->entries))
-			continue;
 		memcpy(section->name, s->name, strlen(s->name));
 		section->offset = ((void*)entry-bin)>>2;
 
@@ -227,7 +222,7 @@ static int decompile_section(void *bin, size_t bin_size,
 
 	size = bin_size - 4 * section->offset;
 
-	if ((section->length <= 0) ||
+	if ((section->length < 0) ||
 	    (section->length > (size / (int)sizeof(struct script_bin_entry)))) {
 		pr_err("Malformed data: invalid section length: %d\n",
 		       section->length);
