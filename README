@@ -62,9 +62,15 @@ phoenix_info:
 
 meminfo:
 	Tool for reading DRAM settings from registers. Compiled as a
-	static binary for use on android and other OSes. To build this,
-	get a toolchain, and run:
-		make CROSS_COMPILE=arm-linux-gnueabihf- meminfo
+	static binary for use on android and other OSes.
+
+Build instructions:
+	To build host sunxi-tools:
+	    make tools [CC=<compiler> CFLAGS=<cflags>]
+	To build target sunxi-tools:
+	    make cross-tools CROSS_COMPILE=<arm compiler> [CC=<compiler> CFLAGS=<cflags>]
+	To build sunxi core processor tools:
+	    make baremetal CROSS_COMPILE=<arm compiler> [CC=<compiler> CFLAGS=<cflags> OBJCOPY=<object copy tool> NM=<name mapper tool>]
 
 This software is licensed under the terms of GPLv2+ as defined by the
 Free Software Foundation, details can be read in the COPYING file.
