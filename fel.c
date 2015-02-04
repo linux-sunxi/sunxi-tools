@@ -73,11 +73,14 @@ static void pr_info(const char *fmt, ...)
 	}
 }
 
+static const int AW_USB_MAX_BULK_SEND = 4 * 1024 * 1024; // 4 MiB per bulk request
+
 void usb_bulk_send(libusb_device_handle *usb, int ep, const void *data, int length)
 {
 	int rc, sent;
 	while (length > 0) {
-		rc = libusb_bulk_transfer(usb, ep, (void *)data, length, &sent, timeout);
+		int len = length < AW_USB_MAX_BULK_SEND ? length : AW_USB_MAX_BULK_SEND;
+		rc = libusb_bulk_transfer(usb, ep, (void *)data, len, &sent, timeout);
 		if (rc != 0) {
 			fprintf(stderr, "libusb usb_bulk_send error %d\n", rc);
 			exit(2);
