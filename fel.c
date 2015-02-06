@@ -41,6 +41,17 @@ struct  aw_usb_request {
 	char	pad[10];
 }  __attribute__((packed));
 
+struct aw_fel_version {
+	char signature[8];
+	uint32_t soc_id;	/* 0x00162300 */
+	uint32_t unknown_0a;	/* 1 */
+	uint16_t protocol;	/* 1 */
+	uint8_t  unknown_12;	/* 0x44 */
+	uint8_t  unknown_13;	/* 0x08 */
+	uint32_t scratchpad;	/* 0x7e00 */
+	uint32_t pad[2];	/* unused */
+} __attribute__((packed));
+
 static const int AW_USB_READ = 0x11;
 static const int AW_USB_WRITE = 0x12;
 
@@ -136,32 +147,27 @@ void aw_read_fel_status(libusb_device_handle *usb)
 	aw_usb_read(usb, &buf, sizeof(buf));
 }
 
-void aw_fel_get_version(libusb_device_handle *usb)
+void aw_fel_get_version(libusb_device_handle *usb, struct aw_fel_version *buf)
 {
-	struct aw_fel_version {
-		char signature[8];
-		uint32_t soc_id;	/* 0x00162300 */
-		uint32_t unknown_0a;	/* 1 */
-		uint16_t protocol;	/* 1 */
-		uint8_t  unknown_12;	/* 0x44 */
-		uint8_t  unknown_13;	/* 0x08 */
-		uint32_t scratchpad;	/* 0x7e00 */
-		uint32_t pad[2];	/* unused */
-	} __attribute__((packed)) buf;
-
 	aw_send_fel_request(usb, AW_FEL_VERSION, 0, 0);
-	aw_usb_read(usb, &buf, sizeof(buf));
+	aw_usb_read(usb, buf, sizeof(*buf));
 	aw_read_fel_status(usb);
 
-	buf.soc_id = le32toh(buf.soc_id);
-	buf.unknown_0a = le32toh(buf.unknown_0a);
-	buf.protocol = le32toh(buf.protocol);
-	buf.scratchpad = le16toh(buf.scratchpad);
-	buf.pad[0] = le32toh(buf.pad[0]);
-	buf.pad[1] = le32toh(buf.pad[1]);
+	buf->soc_id = (le32toh(buf->soc_id) >> 8) & 0xFFFF;
+	buf->unknown_0a = le32toh(buf->unknown_0a);
+	buf->protocol = le32toh(buf->protocol);
+	buf->scratchpad = le16toh(buf->scratchpad);
+	buf->pad[0] = le32toh(buf->pad[0]);
+	buf->pad[1] = le32toh(buf->pad[1]);
+}
+
+void aw_fel_print_version(libusb_device_handle *usb)
+{
+	struct aw_fel_version buf;
+	aw_fel_get_version(usb, &buf);
 
 	const char *soc_name="unknown";
-	switch ((buf.soc_id >> 8) & 0xFFFF) {
+	switch (buf.soc_id) {
 	case 0x1623: soc_name="A10";break;
 	case 0x1625: soc_name="A13";break;
 	case 0x1633: soc_name="A31";break;
@@ -170,7 +176,10 @@ void aw_fel_get_version(libusb_device_handle *usb)
 	case 0x1639: soc_name="A80";break;
 	}
 
-	printf("%.8s soc=%08x(%s) %08x ver=%04x %02x %02x scratchpad=%08x %08x %08x\n", buf.signature, buf.soc_id, soc_name, buf.unknown_0a, buf.protocol, buf.unknown_12, buf.unknown_13, buf.scratchpad, buf.pad[0], buf.pad[1]);
+	printf("%.8s soc=%08x(%s) %08x ver=%04x %02x %02x scratchpad=%08x %08x %08x\n",
+		buf.signature, buf.soc_id, soc_name, buf.unknown_0a,
+		buf.protocol, buf.unknown_12, buf.unknown_13,
+		buf.scratchpad, buf.pad[0], buf.pad[1]);
 }
 
 void aw_fel_read(libusb_device_handle *usb, uint32_t offset, void *buf, size_t len)
@@ -387,7 +396,7 @@ int main(int argc, char **argv)
 			aw_fel_execute(handle, strtoul(argv[2], NULL, 0));
 			skip=3;
 		} else if (strncmp(argv[1], "ver", 3) == 0 && argc > 1) {
-			aw_fel_get_version(handle);
+			aw_fel_print_version(handle);
 			skip=1;
 		} else if (strcmp(argv[1], "write") == 0 && argc > 3) {
 			size_t size;
