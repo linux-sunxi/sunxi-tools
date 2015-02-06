@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
+#include <unistd.h>
 
 #include "endian_compat.h"
 
@@ -294,6 +295,237 @@ void aw_fel_fill(libusb_device_handle *usb, uint32_t offset, size_t size, unsign
 	aw_fel_write(usb, buf, offset, size);
 }
 
+/*
+ * The 'sram_swap_buffers' structure is used to describe information about
+ * two buffers in SRAM, the content of which needs to be exchanged before
+ * calling the U-Boot SPL code and then exchanged again before returning
+ * control back to the FEL code from the BROM.
+ */
+
+typedef struct {
+	uint32_t buf1; /* BROM buffer */
+	uint32_t buf2; /* backup storage location */
+	uint32_t size; /* buffer size */
+} sram_swap_buffers;
+
+/*
+ * Each SoC variant may have its own list of memory buffers to be exchanged
+ * and the information about the placement of the thunk code, which handles
+ * the transition of execution from the BROM FEL code to the U-Boot SPL and
+ * back.
+ *
+ * Note: the entries in the 'swap_buffers' tables need to be sorted by 'buf1'
+ * addresses. And the 'buf1' addresses are the BROM data buffers, while 'buf2'
+ * addresses are the intended backup locations.
+ */
+typedef struct {
+	uint32_t           soc_id;     /* ID of the SoC */
+	uint32_t           thunk_addr; /* Address of the thunk code */
+	uint32_t           thunk_size; /* Maximal size of the thunk code */
+	sram_swap_buffers *swap_buffers;
+} soc_sram_info;
+
+/*
+ * The FEL code from BROM in A10/A13/A20 sets up two stacks for itself. One
+ * at 0x2000 (and growing down) for the IRQ handler. And another one at 0x7000
+ * (and also growing down) for the regular code. In order to use the whole
+ * 32 KiB in the A1/A2 sections of SRAM, we need to temporarily move these
+ * stacks elsewhere. And the addresses above 0x7000 are also a bit suspicious,
+ * so it might be safer to backup the 0x7000-0x8000 area too. On A10/A13/A20
+ * we can use the SRAM section A3 (0x8000) for this purpose.
+ */
+sram_swap_buffers a10_a13_a20_sram_swap_buffers[] = {
+	{ .buf1 = 0x01800, .buf2 = 0x8000, .size = 0x800 },
+	{ .buf1 = 0x05C00, .buf2 = 0x8800, .size = 0x8000 - 0x5C00 },
+	{ 0 }  /* End of the table */
+};
+
+/*
+ * A31 is very similar to A10/A13/A20, except that it has no SRAM at 0x8000.
+ * So we use the SRAM section at 0x44000 instead. This is the memory, which
+ * is normally shared with the OpenRISC core (should we do an extra check to
+ * ensure that this core is powered off and can't interfere?).
+ */
+sram_swap_buffers a31_sram_swap_buffers[] = {
+	{ .buf1 = 0x01800, .buf2 = 0x44000, .size = 0x800 },
+	{ .buf1 = 0x05C00, .buf2 = 0x44800, .size = 0x8000 - 0x5C00 },
+	{ 0 }  /* End of the table */
+};
+
+soc_sram_info soc_sram_info_table[] = {
+	{
+		.soc_id       = 0x1623, /* Allwinner A10 */
+		.thunk_addr   = 0xAE00, .thunk_size = 0x200,
+		.swap_buffers = a10_a13_a20_sram_swap_buffers,
+	},
+	{
+		.soc_id       = 0x1625, /* Allwinner A13 */
+		.thunk_addr   = 0xAE00, .thunk_size = 0x200,
+		.swap_buffers = a10_a13_a20_sram_swap_buffers,
+	},
+	{
+		.soc_id       = 0x1651, /* Allwinner A20 */
+		.thunk_addr   = 0xAE00, .thunk_size = 0x200,
+		.swap_buffers = a10_a13_a20_sram_swap_buffers,
+	},
+	{
+		.soc_id       = 0x1633, /* Allwinner A31 */
+		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
+		.swap_buffers = a31_sram_swap_buffers,
+	},
+	{ 0 } /* End of the table */
+};
+
+/*
+ * This generic record assumes BROM with similar properties to A10/A13/A20/A31,
+ * but no extra SRAM sections beyond 0x8000. It also assumes that the IRQ
+ * handler stack usage never exceeds 0x400 bytes.
+ *
+ * The users may or may not hope that the 0x7000-0x8000 area is also unused
+ * by the BROM and re-purpose it for the SPL stack.
+ *
+ * The size limit for the ".text + .data" sections is ~21 KiB.
+ */
+sram_swap_buffers generic_sram_swap_buffers[] = {
+	{ .buf1 = 0x01C00, .buf2 = 0x5800, .size = 0x400 },
+	{ 0 }  /* End of the table */
+};
+
+soc_sram_info generic_sram_info = {
+	.thunk_addr   = 0x5680, .thunk_size = 0x180,
+	.swap_buffers = generic_sram_swap_buffers,
+};
+
+soc_sram_info *aw_fel_get_sram_info(libusb_device_handle *usb)
+{
+	int i;
+	struct aw_fel_version buf;
+
+	aw_fel_get_version(usb, &buf);
+
+	for (i = 0; soc_sram_info_table[i].swap_buffers; i++)
+		if (soc_sram_info_table[i].soc_id == buf.soc_id)
+			return &soc_sram_info_table[i];
+
+	printf("Warning: no 'soc_sram_info' data for your SoC (id=%04X)\n",
+	       buf.soc_id);
+	return &generic_sram_info;
+}
+
+static uint32_t fel_to_spl_thunk[] = {
+	#include "fel-to-spl-thunk.h"
+};
+
+void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
+				  uint8_t *buf, size_t len)
+{
+	soc_sram_info *sram_info = aw_fel_get_sram_info(usb);
+	sram_swap_buffers *swap_buffers;
+	char header_signature[9] = { 0 };
+	size_t i, thunk_size;
+	uint32_t *thunk_buf;
+	uint32_t spl_checksum, spl_len, spl_len_limit = 0x8000;
+	uint32_t *buf32 = (uint32_t *)buf;
+	uint32_t written = 0;
+
+	if (!sram_info || !sram_info->swap_buffers) {
+		fprintf(stderr, "SPL: Unsupported SoC type\n");
+		exit(1);
+	}
+
+	if (len < 32 || memcmp(buf + 4, "eGON.BT0", 8) != 0) {
+		fprintf(stderr, "SPL: eGON header is not found\n");
+		exit(1);
+	}
+
+	spl_checksum = 2 * le32toh(buf32[3]) - 0x5F0A6C39;
+	spl_len = le32toh(buf32[4]);
+
+	if (spl_len > len || (spl_len % 4) != 0) {
+		fprintf(stderr, "SPL: bad length in the eGON header\n");
+		exit(1);
+	}
+
+	len = spl_len;
+	for (i = 0; i < len / 4; i++)
+		spl_checksum -= le32toh(buf32[i]);
+
+	if (spl_checksum != 0) {
+		fprintf(stderr, "SPL: checksum check failed\n");
+		exit(1);
+	}
+
+	swap_buffers = sram_info->swap_buffers;
+	for (i = 0; swap_buffers[i].size; i++) {
+		if (swap_buffers[i].buf2 < spl_len_limit)
+			spl_len_limit = swap_buffers[i].buf2;
+		if (len > 0 && written < swap_buffers[i].buf1) {
+			uint32_t tmp = swap_buffers[i].buf1 - written;
+			if (tmp > len)
+				tmp = len;
+			aw_fel_write(usb, buf, written, tmp);
+			written += tmp;
+			buf += tmp;
+			len -= tmp;
+		}
+		if (len > 0 && written == swap_buffers[i].buf1) {
+			uint32_t tmp = swap_buffers[i].size;
+			if (tmp > len)
+				tmp = len;
+			aw_fel_write(usb, buf, swap_buffers[i].buf2, tmp);
+			written += tmp;
+			buf += tmp;
+			len -= tmp;
+		}
+	}
+
+	/* Clarify the SPL size limitations, and bail out if they are not met */
+	if (sram_info->thunk_addr < spl_len_limit)
+		spl_len_limit = sram_info->thunk_addr;
+
+	if (spl_len > spl_len_limit) {
+		fprintf(stderr, "SPL: too large (need %d, have %d)\n",
+			(int)spl_len, (int)spl_len_limit);
+		exit(1);
+	}
+
+	/* Write the remaining part of the SPL */
+	if (len > 0)
+		aw_fel_write(usb, buf, written, len);
+
+	thunk_size = sizeof(fel_to_spl_thunk) + (i + 1) * sizeof(*swap_buffers);
+
+	if (thunk_size > sram_info->thunk_size) {
+		fprintf(stderr, "SPL: bad thunk size (need %d, have %d)\n",
+			(int)sizeof(fel_to_spl_thunk), sram_info->thunk_size);
+		exit(1);
+	}
+
+	thunk_buf = malloc(thunk_size);
+	memcpy(thunk_buf, fel_to_spl_thunk, sizeof(fel_to_spl_thunk));
+	memcpy(thunk_buf + sizeof(fel_to_spl_thunk) / sizeof(uint32_t),
+	       swap_buffers, (i + 1) * sizeof(*swap_buffers));
+
+	for (i = 0; i < thunk_size / sizeof(uint32_t); i++)
+		thunk_buf[i] = htole32(thunk_buf[i]);
+
+	aw_fel_write(usb, thunk_buf, sram_info->thunk_addr, thunk_size);
+	aw_fel_execute(usb, sram_info->thunk_addr);
+
+	free(thunk_buf);
+
+	/* TODO: Try to find and fix the bug, which needs this workaround */
+	usleep(250000);
+
+	/* Read back the result and check if everything was fine */
+	aw_fel_read(usb, 4, header_signature, 8);
+	if (strcmp(header_signature, "eGON.FEL") != 0) {
+		fprintf(stderr, "SPL: failure code '%s'\n",
+			header_signature);
+		exit(1);
+	}
+}
+
 static int aw_fel_get_endpoint(libusb_device_handle *usb)
 {
 	struct libusb_device *dev = libusb_get_device(usb);
@@ -352,6 +584,7 @@ int main(int argc, char **argv)
 			"	ver[sion]			Show BROM version\n"
 			"	clear address length		Clear memory\n"
 			"	fill address length value	Fill memory\n"
+			"	spl file			Load and execute U-Boot SPL\n"
 			, argv[0]
 		);
 	}
@@ -417,6 +650,11 @@ int main(int argc, char **argv)
 		} else if (strcmp(argv[1], "fill") == 0 && argc > 3) {
 			aw_fel_fill(handle, strtoul(argv[2], NULL, 0), strtoul(argv[3], NULL, 0), (unsigned char)strtoul(argv[4], NULL, 0));
 			skip=4;
+		} else if (strcmp(argv[1], "spl") == 0 && argc > 2) {
+			size_t size;
+			uint8_t *buf = load_file(argv[2], &size);
+			aw_fel_write_and_execute_spl(handle, buf, size);
+			skip=2;
 		} else {
 			fprintf(stderr,"Invalid command %s\n", argv[1]);
 			exit(1);
