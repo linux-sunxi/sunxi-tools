@@ -28,8 +28,10 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <errno.h>
 #include <unistd.h>
+#include <sys/time.h>
 
 #include "endian_compat.h"
 
@@ -59,6 +61,17 @@ static const int AW_USB_WRITE = 0x12;
 static int AW_USB_FEL_BULK_EP_OUT;
 static int AW_USB_FEL_BULK_EP_IN;
 static int timeout = 60000;
+static int verbose = 0; /* Makes the 'fel' tool more talkative if non-zero */
+
+static void pr_info(const char *fmt, ...)
+{
+	va_list arglist;
+	if (verbose) {
+		va_start(arglist, fmt);
+		vprintf(fmt, arglist);
+		va_end(arglist);
+	}
+}
 
 void usb_bulk_send(libusb_device_handle *usb, int ep, const void *data, int length)
 {
@@ -566,6 +579,14 @@ static int aw_fel_get_endpoint(libusb_device_handle *usb)
 	return 0;
 }
 
+/* Less reliable than clock_gettime, but does not require linking with -lrt */
+static double gettime(void)
+{
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	return tv.tv_sec + (double)tv.tv_usec / 1000000.;
+}
+
 int main(int argc, char **argv)
 {
 	int rc;
@@ -575,7 +596,8 @@ int main(int argc, char **argv)
 	assert(rc == 0);
 
 	if (argc <= 1) {
-		printf("Usage: %s command arguments... [command...]\n"
+		printf("Usage: %s [options] command arguments... [command...]\n"
+			"	-v, --verbose			Verbose logging\n"
 			"	hex[dump] address length	Dumps memory region in hex\n"
 			"	dump address length		Binary memory dump\n"
 			"	exe[cute] address		Call function address\n"
@@ -616,6 +638,13 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
+	if (argc > 1 && (strcmp(argv[1], "--verbose") == 0 ||
+			 strcmp(argv[1], "-v") == 0)) {
+		verbose = 1;
+		argc -= 1;
+		argv += 1;
+	}
+
 	while (argc > 1 ) {
 		int skip = 1;
 		if (strncmp(argv[1], "hex", 3) == 0 && argc > 3) {
@@ -632,9 +661,16 @@ int main(int argc, char **argv)
 			aw_fel_print_version(handle);
 			skip=1;
 		} else if (strcmp(argv[1], "write") == 0 && argc > 3) {
+			double t1, t2;
 			size_t size;
 			void *buf = load_file(argv[3], &size);
+			t1 = gettime();
 			aw_fel_write(handle, buf, strtoul(argv[2], NULL, 0), size);
+			t2 = gettime();
+			if (t2 > t1)
+				pr_info("Written %.1f KB in %.1f sec (speed: %.1f KB/s)\n",
+					(double)size / 1000., t2 - t1,
+					(double)size / (t2 - t1) / 1000.);
 			free(buf);
 			skip=3;
 		} else if (strcmp(argv[1], "read") == 0 && argc > 4) {
