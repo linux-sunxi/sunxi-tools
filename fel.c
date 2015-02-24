@@ -473,9 +473,11 @@ uint32_t *aw_backup_and_disable_mmu(libusb_device_handle *usb)
 	uint32_t i;
 
 	uint32_t arm_code[] = {
-		/* Disable MMU */
+		/* Disable I-cache, MMU and branch prediction */
 		htole32(0xee110f10), /* mrc        15, 0, r0, cr1, cr0, {0}  */
 		htole32(0xe3c00001), /* bic        r0, r0, #1                */
+		htole32(0xe3c00a01), /* bic        r0, r0, #4096             */
+		htole32(0xe3c00b02), /* bic        r0, r0, #2048             */
 		htole32(0xee010f10), /* mcr        15, 0, r0, cr1, cr0, {0}  */
 		/* Return back to FEL */
 		htole32(0xe12fff1e), /* bx         lr                        */
@@ -513,7 +515,7 @@ uint32_t *aw_backup_and_disable_mmu(libusb_device_handle *usb)
 		}
 	}
 
-	pr_info("Disabling MMU...");
+	pr_info("Disabling I-cache, MMU and branch prediction...");
 	aw_fel_write(usb, arm_code, FEL_EXEC_SCRATCH_AREA, sizeof(arm_code));
 	aw_fel_execute(usb, FEL_EXEC_SCRATCH_AREA);
 	pr_info(" done.\n");
@@ -527,20 +529,45 @@ void aw_restore_and_enable_mmu(libusb_device_handle *usb, uint32_t *tt)
 	uint32_t ttbr0 = aw_get_ttbr0(usb);
 
 	uint32_t arm_code[] = {
-		/* Enable MMU */
+		/* Invalidate I-cache, TLB and BTB */
+		htole32(0xe3a00000), /* mov        r0, #0                    */
+		htole32(0xee080f17), /* mcr        15, 0, r0, cr8, cr7, {0}  */
+		htole32(0xee070f15), /* mcr        15, 0, r0, cr7, cr5, {0}  */
+		htole32(0xee070fd5), /* mcr        15, 0, r0, cr7, cr5, {6}  */
+		htole32(0xf57ff04f), /* dsb        sy                        */
+		htole32(0xf57ff06f), /* isb        sy                        */
+		/* Enable I-cache, MMU and branch prediction */
 		htole32(0xee110f10), /* mrc        15, 0, r0, cr1, cr0, {0}  */
 		htole32(0xe3800001), /* orr        r0, r0, #1                */
+		htole32(0xe3800a01), /* orr        r0, r0, #4096             */
+		htole32(0xe3800b02), /* orr        r0, r0, #2048             */
 		htole32(0xee010f10), /* mcr        15, 0, r0, cr1, cr0, {0}  */
 		/* Return back to FEL */
 		htole32(0xe12fff1e), /* bx         lr                        */
 	};
+
+	pr_info("Setting write-combine mapping for DRAM.\n");
+	for (i = (DRAM_BASE >> 20); i < ((DRAM_BASE + DRAM_SIZE) >> 20); i++) {
+		/* Clear TEXCB bits */
+		tt[i] &= ~((7 << 12) | (1 << 3) | (1 << 2));
+		/* Set TEXCB to 00100 (Normal uncached mapping) */
+		tt[i] |= (1 << 12);
+	}
+
+	pr_info("Setting cached mapping for BROM.\n");
+	/* Clear TEXCB bits first */
+	tt[0xFFF] &= ~((7 << 12) | (1 << 3) | (1 << 2));
+	/* Set TEXCB to 00111 (Normal write-back cached mapping) */
+	tt[0xFFF] |= (1 << 12) | /* TEX */
+		     (1 << 3)  | /* C */
+		     (1 << 2);   /* B */
 
 	pr_info("Writing back the MMU translation table.\n");
 	for (i = 0; i < 4096; i++)
 		tt[i] = htole32(tt[i]);
 	aw_fel_write(usb, tt, ttbr0, 16 * 1024);
 
-	pr_info("Enabling MMU...");
+	pr_info("Enabling I-cache, MMU and branch prediction...");
 	aw_fel_write(usb, arm_code, FEL_EXEC_SCRATCH_AREA, sizeof(arm_code));
 	aw_fel_execute(usb, FEL_EXEC_SCRATCH_AREA);
 	pr_info(" done.\n");
