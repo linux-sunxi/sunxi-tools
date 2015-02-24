@@ -429,6 +429,126 @@ static uint32_t fel_to_spl_thunk[] = {
 	#include "fel-to-spl-thunk.h"
 };
 
+#define	FEL_EXEC_SCRATCH_AREA	0x2000
+#define	DRAM_BASE		0x40000000
+#define	DRAM_SIZE		0x80000000
+
+uint32_t aw_get_ttbr0(libusb_device_handle *usb)
+{
+	uint32_t ttbr0 = 0;
+	uint32_t arm_code[] = {
+		htole32(0xee122f10), /* mrc        15, 0, r2, cr2, cr0, {0}  */
+		htole32(0xe58f2008), /* str        r2, [pc, #8]              */
+		htole32(0xe12fff1e), /* bx         lr                        */
+	};
+
+	aw_fel_write(usb, arm_code, FEL_EXEC_SCRATCH_AREA, sizeof(arm_code));
+	aw_fel_execute(usb, FEL_EXEC_SCRATCH_AREA);
+	aw_fel_read(usb, 0x2014, &ttbr0, sizeof(ttbr0));
+	ttbr0 = le32toh(ttbr0);
+	return ttbr0;
+}
+
+uint32_t aw_get_sctlr(libusb_device_handle *usb)
+{
+	uint32_t sctlr = 0;
+	uint32_t arm_code[] = {
+		htole32(0xee112f10), /* mrc        15, 0, r2, cr1, cr0, {0}  */
+		htole32(0xe58f2008), /* str        r2, [pc, #8]              */
+		htole32(0xe12fff1e), /* bx         lr                        */
+	};
+
+	aw_fel_write(usb, arm_code, FEL_EXEC_SCRATCH_AREA, sizeof(arm_code));
+	aw_fel_execute(usb, FEL_EXEC_SCRATCH_AREA);
+	aw_fel_read(usb, 0x2014, &sctlr, sizeof(sctlr));
+	sctlr = le32toh(sctlr);
+	return sctlr;
+}
+
+uint32_t *aw_backup_and_disable_mmu(libusb_device_handle *usb)
+{
+	uint32_t *tt = malloc(16 * 1024);
+	uint32_t ttbr0 = aw_get_ttbr0(usb);
+	uint32_t sctlr = aw_get_sctlr(usb);
+	uint32_t i;
+
+	uint32_t arm_code[] = {
+		/* Disable MMU */
+		htole32(0xee110f10), /* mrc        15, 0, r0, cr1, cr0, {0}  */
+		htole32(0xe3c00001), /* bic        r0, r0, #1                */
+		htole32(0xee010f10), /* mcr        15, 0, r0, cr1, cr0, {0}  */
+		/* Return back to FEL */
+		htole32(0xe12fff1e), /* bx         lr                        */
+	};
+
+	if (!(sctlr & 1)) {
+		fprintf(stderr, "MMU is not enabled by BROM\n");
+		exit(1);
+	}
+
+	if ((sctlr >> 28) & 1) {
+		fprintf(stderr, "TEX remap is enabled!\n");
+		exit(1);
+	}
+
+	if (ttbr0 & 0x3FFF) {
+		fprintf(stderr, "Unexpected TTBR0 (%08X)\n", ttbr0);
+		exit(1);
+	}
+
+	pr_info("Reading the MMU translation table from 0x%08X\n", ttbr0);
+	aw_fel_read(usb, ttbr0, tt, 16 * 1024);
+	for (i = 0; i < 4096; i++)
+		tt[i] = le32toh(tt[i]);
+
+	/* Basic sanity checks to be sure that this is a valid table */
+	for (i = 0; i < 4096; i++) {
+		if (((tt[i] >> 1) & 1) != 1 || ((tt[i] >> 18) & 1) != 0) {
+			fprintf(stderr, "MMU: not a section descriptor\n");
+			exit(1);
+		}
+		if ((tt[i] >> 20) != i) {
+			fprintf(stderr, "MMU: not a direct mapping\n");
+			exit(1);
+		}
+	}
+
+	pr_info("Disabling MMU...");
+	aw_fel_write(usb, arm_code, FEL_EXEC_SCRATCH_AREA, sizeof(arm_code));
+	aw_fel_execute(usb, FEL_EXEC_SCRATCH_AREA);
+	pr_info(" done.\n");
+
+	return tt;
+}
+
+void aw_restore_and_enable_mmu(libusb_device_handle *usb, uint32_t *tt)
+{
+	uint32_t i;
+	uint32_t ttbr0 = aw_get_ttbr0(usb);
+
+	uint32_t arm_code[] = {
+		/* Enable MMU */
+		htole32(0xee110f10), /* mrc        15, 0, r0, cr1, cr0, {0}  */
+		htole32(0xe3800001), /* orr        r0, r0, #1                */
+		htole32(0xee010f10), /* mcr        15, 0, r0, cr1, cr0, {0}  */
+		/* Return back to FEL */
+		htole32(0xe12fff1e), /* bx         lr                        */
+	};
+
+	pr_info("Writing back the MMU translation table.\n");
+	for (i = 0; i < 4096; i++)
+		tt[i] = htole32(tt[i]);
+	aw_fel_write(usb, tt, ttbr0, 16 * 1024);
+
+	pr_info("Enabling MMU...");
+	aw_fel_write(usb, arm_code, FEL_EXEC_SCRATCH_AREA, sizeof(arm_code));
+	aw_fel_execute(usb, FEL_EXEC_SCRATCH_AREA);
+	pr_info(" done.\n");
+
+	free(tt);
+}
+
+
 void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 				  uint8_t *buf, size_t len)
 {
@@ -440,6 +560,7 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 	uint32_t spl_checksum, spl_len, spl_len_limit = 0x8000;
 	uint32_t *buf32 = (uint32_t *)buf;
 	uint32_t written = 0;
+	uint32_t *tt = NULL;
 
 	if (!sram_info || !sram_info->swap_buffers) {
 		fprintf(stderr, "SPL: Unsupported SoC type\n");
@@ -467,6 +588,8 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 		fprintf(stderr, "SPL: checksum check failed\n");
 		exit(1);
 	}
+
+	tt = aw_backup_and_disable_mmu(usb);
 
 	swap_buffers = sram_info->swap_buffers;
 	for (i = 0; swap_buffers[i].size; i++) {
@@ -522,8 +645,10 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 	for (i = 0; i < thunk_size / sizeof(uint32_t); i++)
 		thunk_buf[i] = htole32(thunk_buf[i]);
 
+	pr_info("=> Executing the SPL...");
 	aw_fel_write(usb, thunk_buf, sram_info->thunk_addr, thunk_size);
 	aw_fel_execute(usb, sram_info->thunk_addr);
+	pr_info(" done.\n");
 
 	free(thunk_buf);
 
@@ -537,6 +662,8 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 			header_signature);
 		exit(1);
 	}
+
+	aw_restore_and_enable_mmu(usb, tt);
 }
 
 static int aw_fel_get_endpoint(libusb_device_handle *usb)
