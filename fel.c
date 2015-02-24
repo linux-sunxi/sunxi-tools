@@ -388,6 +388,11 @@ soc_sram_info soc_sram_info_table[] = {
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 	},
 	{
+		.soc_id       = 0x1650, /* Allwinner A23 */
+		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
+		.swap_buffers = a31_sram_swap_buffers,
+	},
+	{
 		.soc_id       = 0x1633, /* Allwinner A31 */
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = a31_sram_swap_buffers,
