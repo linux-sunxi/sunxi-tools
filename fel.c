@@ -338,6 +338,7 @@ typedef struct {
 	uint32_t           soc_id;     /* ID of the SoC */
 	uint32_t           thunk_addr; /* Address of the thunk code */
 	uint32_t           thunk_size; /* Maximal size of the thunk code */
+	uint32_t           needs_l2en; /* Set the L2EN bit */
 	sram_swap_buffers *swap_buffers;
 } soc_sram_info;
 
@@ -373,11 +374,13 @@ soc_sram_info soc_sram_info_table[] = {
 		.soc_id       = 0x1623, /* Allwinner A10 */
 		.thunk_addr   = 0xAE00, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
+		.needs_l2en   = 1,
 	},
 	{
 		.soc_id       = 0x1625, /* Allwinner A13 */
 		.thunk_addr   = 0xAE00, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
+		.needs_l2en   = 1,
 	},
 	{
 		.soc_id       = 0x1651, /* Allwinner A20 */
@@ -435,6 +438,19 @@ static uint32_t fel_to_spl_thunk[] = {
 #define	FEL_EXEC_SCRATCH_AREA	0x2000
 #define	DRAM_BASE		0x40000000
 #define	DRAM_SIZE		0x80000000
+
+void aw_enable_l2_cache(libusb_device_handle *usb)
+{
+	uint32_t arm_code[] = {
+		htole32(0xee112f30), /* mrc        15, 0, r2, cr1, cr0, {1}  */
+		htole32(0xe3822002), /* orr        r2, r2, #2                */
+		htole32(0xee012f30), /* mcr        15, 0, r2, cr1, cr0, {1}  */
+		htole32(0xe12fff1e), /* bx         lr                        */
+	};
+
+	aw_fel_write(usb, arm_code, FEL_EXEC_SCRATCH_AREA, sizeof(arm_code));
+	aw_fel_execute(usb, FEL_EXEC_SCRATCH_AREA);
+}
 
 uint32_t aw_get_ttbr0(libusb_device_handle *usb)
 {
@@ -617,6 +633,11 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 	if (spl_checksum != 0) {
 		fprintf(stderr, "SPL: checksum check failed\n");
 		exit(1);
+	}
+
+	if (sram_info->needs_l2en) {
+		pr_info("Enabling the L2 cache\n");
+		aw_enable_l2_cache(usb);
 	}
 
 	tt = aw_backup_and_disable_mmu(usb);
