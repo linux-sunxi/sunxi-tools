@@ -22,7 +22,7 @@ CFLAGS += -std=c99 -D_POSIX_C_SOURCE=200112L
 CFLAGS += -Iinclude/
 
 TOOLS = fexc bin2fex fex2bin bootinfo fel pio
-TOOLS += nand-part
+TOOLS += nand-part readmem
 
 MISC_TOOLS = phoenix_info
 
