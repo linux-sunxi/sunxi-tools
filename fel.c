@@ -62,6 +62,9 @@ static int AW_USB_FEL_BULK_EP_OUT;
 static int AW_USB_FEL_BULK_EP_IN;
 static int timeout = 60000;
 static int verbose = 0; /* Makes the 'fel' tool more talkative if non-zero */
+static uint32_t uboot_entry = 0; /* entry point (address) of U-Boot */
+static uint32_t uboot_size  = 0; /* size of U-Boot binary */
+static int uboot_autostart  = 0; /* "uboot" command flag = autostart U-Boot */
 
 static void pr_info(const char *fmt, ...)
 {
@@ -208,6 +211,14 @@ void aw_fel_read(libusb_device_handle *usb, uint32_t offset, void *buf, size_t l
 
 void aw_fel_write(libusb_device_handle *usb, void *buf, uint32_t offset, size_t len)
 {
+	/* safeguard against overwriting an already loaded U-Boot binary */
+	if (uboot_size > 0 && offset <= uboot_entry + uboot_size && offset + len >= uboot_entry) {
+		fprintf(stderr, "ERROR: Attempt to overwrite U-Boot! "
+			"Request 0x%08X-0x%08X overlaps 0x%08X-0x%08X.\n",
+			offset, offset + (int)len,
+			uboot_entry, uboot_entry + uboot_size);
+		exit(1);
+	}
 	aw_send_fel_request(usb, AW_FEL_1_WRITE, offset, len);
 	aw_usb_write(usb, buf, len);
 	aw_read_fel_status(usb);
@@ -599,6 +610,11 @@ void aw_restore_and_enable_mmu(libusb_device_handle *usb, uint32_t *tt)
 	free(tt);
 }
 
+/*
+ * Maximum size of SPL, at the same time this is the start offset
+ * of the main U-Boot image within u-boot-sunxi-with-spl.bin
+ */
+static const int SPL_LEN_LIMIT = 0x8000;
 
 void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 				  uint8_t *buf, size_t len)
@@ -608,7 +624,7 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 	char header_signature[9] = { 0 };
 	size_t i, thunk_size;
 	uint32_t *thunk_buf;
-	uint32_t spl_checksum, spl_len, spl_len_limit = 0x8000;
+	uint32_t spl_checksum, spl_len, spl_len_limit = SPL_LEN_LIMIT;
 	uint32_t *buf32 = (uint32_t *)buf;
 	uint32_t written = 0;
 	uint32_t *tt = NULL;
@@ -722,6 +738,86 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 	aw_restore_and_enable_mmu(usb, tt);
 }
 
+/* Constants taken from ${U-BOOT}/include/image.h */
+#define IH_MAGIC	0x27051956	/* Image Magic Number	*/
+#define IH_ARCH_ARM		2	/* ARM			*/
+#define IH_TYPE_FIRMWARE	5	/* Firmware Image	*/
+#define IH_NMLEN		32	/* Image Name Length	*/
+
+#define HEADER_NAME_OFFSET	32	/* offset of name field	*/
+#define HEADER_SIZE		(HEADER_NAME_OFFSET + IH_NMLEN)
+
+/*
+ * This function tests a given buffer address and length for a valid U-Boot
+ * image. Upon success, the image data gets transferred to the default memory
+ * address stored within the image header; and the function preserves the
+ * U-Boot entry point (offset) and size values.
+ */
+void aw_fel_write_uboot_image(libusb_device_handle *usb,
+		uint8_t *buf, size_t len)
+{
+	if (len <= HEADER_SIZE)
+		return; /* Insufficient size (no actual data), just bail out */
+
+	/* Check for a valid mkimage header */
+	uint32_t *buf32 = (uint32_t *)buf;
+
+	if (be32toh(buf32[0]) != IH_MAGIC) {
+		fprintf(stderr, "U-Boot image verification failure: "
+			"expected IH_MAGIC, got 0x%X\n", be32toh(buf32[0]));
+		exit(1);
+	}
+	if (buf[29] != IH_ARCH_ARM|| buf[30] != IH_TYPE_FIRMWARE) {
+		fprintf(stderr, "U-Boot image verification failure: "
+			"expected ARM firmware, got %02X %02X\n", buf[29], buf[30]);
+		exit(1);
+	}
+	uint32_t data_size = be32toh(buf32[3]); /* Image Data Size */
+	uint32_t load_addr = be32toh(buf32[4]); /* Data Load Address */
+	if ((size_t)data_size != len - HEADER_SIZE) {
+		fprintf(stderr, "U-Boot image data size mismatch: "
+			"expected %d, got %u\n", (int)len - HEADER_SIZE,
+			data_size);
+		exit(1);
+	}
+	/* TODO: Verify image data integrity using the checksum field ih_dcrc,
+	 * available from be32toh(buf32[6])
+	 *
+	 * However, this requires CRC routines that mimic their U-Boot
+	 * counterparts, namely image_check_dcrc() in ${U-BOOT}/common/image.cabs
+	 * and crc_wd() in ${U-BOOT}/lib/crc32.c
+	 *
+	 * It should be investigated if existing CRC routines in sunxi-tools
+	 * could be factored out and reused for this purpose - e.g. calc_crc32()
+	 * from nand-part-main.c
+	 */
+
+	/* If we get here, we're "good to go" (i.e. actually write the data) */
+	pr_info("Writing image \"%.*s\", %u bytes @ 0x%08X.\n",
+		IH_NMLEN, buf + HEADER_NAME_OFFSET, data_size, load_addr);
+
+	aw_fel_write(usb, buf + HEADER_SIZE, load_addr, data_size);
+
+	/* keep track of U-Boot memory region in global vars */
+	uboot_entry = load_addr;
+	uboot_size = data_size;
+}
+
+/*
+ * This function handles the common part of both "spl" and "uboot" commands.
+ */
+void aw_fel_process_spl_and_uboot(libusb_device_handle *usb,
+		const char *filename)
+{
+	/* load file into memory buffer */
+	size_t size;
+	uint8_t *buf = load_file(filename, &size);
+	/* write and execute the SPL from the buffer */
+	aw_fel_write_and_execute_spl(usb, buf, size);
+	/* check for optional main U-Boot binary (and transfer it, if applicable) */
+	aw_fel_write_uboot_image(usb, buf + SPL_LEN_LIMIT, size - SPL_LEN_LIMIT);
+}
+
 static int aw_fel_get_endpoint(libusb_device_handle *usb)
 {
 	struct libusb_device *dev = libusb_get_device(usb);
@@ -781,6 +877,17 @@ int main(int argc, char **argv)
 	if (argc <= 1) {
 		printf("Usage: %s [options] command arguments... [command...]\n"
 			"	-v, --verbose			Verbose logging\n"
+			"\n"
+			"	spl file			Load and execute U-Boot SPL\n"
+			"		If file additionally contains a main U-Boot binary\n"
+			"		(u-boot-sunxi-with-spl.bin), this command also transfers that\n"
+			"		to memory (default address from image), but won't execute it.\n"
+			"\n"
+			"	uboot file-with-spl		like \"spl\", but actually starts U-Boot\n"
+			"		U-Boot execution will take place when the fel utility exits.\n"
+			"		This allows combining \"uboot\" with further \"write\" commands\n"
+			"		(to transfer other files needed for the boot).\n"
+			"\n"
 			"	hex[dump] address length	Dumps memory region in hex\n"
 			"	dump address length		Binary memory dump\n"
 			"	exe[cute] address		Call function address\n"
@@ -789,7 +896,6 @@ int main(int argc, char **argv)
 			"	ver[sion]			Show BROM version\n"
 			"	clear address length		Clear memory\n"
 			"	fill address length value	Fill memory\n"
-			"	spl file			Load and execute U-Boot SPL\n"
 			, argv[0]
 		);
 	}
@@ -870,9 +976,13 @@ int main(int argc, char **argv)
 			aw_fel_fill(handle, strtoul(argv[2], NULL, 0), strtoul(argv[3], NULL, 0), (unsigned char)strtoul(argv[4], NULL, 0));
 			skip=4;
 		} else if (strcmp(argv[1], "spl") == 0 && argc > 2) {
-			size_t size;
-			uint8_t *buf = load_file(argv[2], &size);
-			aw_fel_write_and_execute_spl(handle, buf, size);
+			aw_fel_process_spl_and_uboot(handle, argv[2]);
+			skip=2;
+		} else if (strcmp(argv[1], "uboot") == 0 && argc > 2) {
+			aw_fel_process_spl_and_uboot(handle, argv[2]);
+			uboot_autostart = (uboot_entry > 0 && uboot_size > 0);
+			if (!uboot_autostart)
+				printf("Warning: \"uboot\" command failed to detect image! Can't execute U-Boot.\n");
 			skip=2;
 		} else {
 			fprintf(stderr,"Invalid command %s\n", argv[1]);
@@ -880,6 +990,12 @@ int main(int argc, char **argv)
 		}
 		argc-=skip;
 		argv+=skip;
+	}
+
+	// auto-start U-Boot if requested (by the "uboot" command)
+	if (uboot_autostart) {
+		pr_info("Starting U-Boot (0x%08X).\n", uboot_entry);
+		aw_fel_execute(handle, uboot_entry);
 	}
 
 #if defined(__linux__)
