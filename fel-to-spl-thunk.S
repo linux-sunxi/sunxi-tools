@@ -25,7 +25,12 @@
 /* Usage instructions: "ruby -x fel-to-spl-thunk.S > fel-to-spl-thunk.h" */
 /*************************************************************************/
 
-#if 0 
+/* Open a comment for gas.
+
+   Do not close the comment until after the Ruby code terminator (__END__).
+   Write the '*' '/' sequence of characters as "\x2a/" in string literals to
+   avoid doing so.
+
 #!/usr/bin/env ruby
 
 def tool_exists(tool_name)
@@ -40,19 +45,19 @@ toolchains = [
   "armv7a-hardfloat-linux-gnueabi-",
 ]
 
-toolchain = toolchains.find { |toolchain| tool_exists("#{toolchain}gcc") }
+toolchain = toolchains.find { |toolchain| tool_exists("#{toolchain}as") }
 abort "Can't find any ARM crosscompiler\n" unless toolchain
 
-system("#{toolchain}gcc -o #{$PROGRAM_NAME}.o -c #{$PROGRAM_NAME}")
+system("#{toolchain}as -o #{$PROGRAM_NAME}.o #{$PROGRAM_NAME}")
 exit($?.to_i) if $?.to_i != 0
 
 `#{toolchain}objdump -d #{$PROGRAM_NAME}.o`.each_line {|l|
     next unless l =~ /(\h+)\:\s+(\h+)\s+(\S+)\s+([^;]*)/
-    printf("\t0x%s, /* %8s:    %-10s %-28s */\n", $2, $1, $3, $4.strip)
+    printf("\t0x%s, /* %8s:    %-10s %-28s \x2a/\n", $2, $1, $3, $4.strip)
 }
 
 __END__
-#endif
+*/
 
 /*************************************************************************/
 
