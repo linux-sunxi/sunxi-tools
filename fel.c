@@ -502,7 +502,7 @@ uint32_t aw_get_sctlr(libusb_device_handle *usb)
 
 uint32_t *aw_backup_and_disable_mmu(libusb_device_handle *usb)
 {
-	uint32_t *tt = malloc(16 * 1024);
+	uint32_t *tt = NULL;
 	uint32_t ttbr0 = aw_get_ttbr0(usb);
 	uint32_t sctlr = aw_get_sctlr(usb);
 	uint32_t i;
@@ -519,8 +519,8 @@ uint32_t *aw_backup_and_disable_mmu(libusb_device_handle *usb)
 	};
 
 	if (!(sctlr & 1)) {
-		fprintf(stderr, "MMU is not enabled by BROM\n");
-		exit(1);
+		pr_info("MMU is not enabled by BROM\n");
+		return NULL;
 	}
 
 	if ((sctlr >> 28) & 1) {
@@ -533,6 +533,7 @@ uint32_t *aw_backup_and_disable_mmu(libusb_device_handle *usb)
 		exit(1);
 	}
 
+	tt = malloc(16 * 1024);
 	pr_info("Reading the MMU translation table from 0x%08X\n", ttbr0);
 	aw_fel_read(usb, ttbr0, tt, 16 * 1024);
 	for (i = 0; i < 4096; i++)
@@ -735,7 +736,9 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 		exit(1);
 	}
 
-	aw_restore_and_enable_mmu(usb, tt);
+	/* re-enable the MMU if it was enabled by BROM */
+	if(tt != NULL)
+		aw_restore_and_enable_mmu(usb, tt);
 }
 
 /* Constants taken from ${U-BOOT}/include/image.h */
