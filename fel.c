@@ -485,6 +485,43 @@ void aw_enable_l2_cache(libusb_device_handle *usb)
 	aw_fel_execute(usb, FEL_EXEC_SCRATCH_AREA);
 }
 
+void aw_get_stackinfo(libusb_device_handle *usb, uint32_t *sp_irq, uint32_t *sp)
+{
+	uint32_t results[2] = { 0 };
+#if 0
+	/* Does not work on Cortex-A8 (needs Virtualization Extensions) */
+	uint32_t arm_code[] = {
+		htole32(0xe1010300), /* mrs        r0, SP_irq                */
+		htole32(0xe58f0004), /* str        r0, [pc, #4]              */
+		htole32(0xe58fd004), /* str        sp, [pc, #4]              */
+		htole32(0xe12fff1e), /* bx         lr                        */
+	};
+
+	aw_fel_write(usb, arm_code, FEL_EXEC_SCRATCH_AREA, sizeof(arm_code));
+	aw_fel_execute(usb, FEL_EXEC_SCRATCH_AREA);
+	aw_fel_read(usb, FEL_EXEC_SCRATCH_AREA + 0x10, results, 8);
+#else
+	/* Works everywhere */
+	uint32_t arm_code[] = {
+		htole32(0xe10f0000), /* mrs        r0, CPSR                  */
+		htole32(0xe3c0101f), /* bic        r1, r0, #31               */
+		htole32(0xe3811012), /* orr        r1, r1, #18               */
+		htole32(0xe121f001), /* msr        CPSR_c, r1                */
+		htole32(0xe1a0100d), /* mov        r1, sp                    */
+		htole32(0xe121f000), /* msr        CPSR_c, r0                */
+		htole32(0xe58f1004), /* str        r1, [pc, #4]              */
+		htole32(0xe58fd004), /* str        sp, [pc, #4]              */
+		htole32(0xe12fff1e), /* bx         lr                        */
+	};
+
+	aw_fel_write(usb, arm_code, FEL_EXEC_SCRATCH_AREA, sizeof(arm_code));
+	aw_fel_execute(usb, FEL_EXEC_SCRATCH_AREA);
+	aw_fel_read(usb, FEL_EXEC_SCRATCH_AREA + 0x24, results, 8);
+#endif
+	*sp_irq = le32toh(results[0]);
+	*sp     = le32toh(results[1]);
+}
+
 uint32_t aw_get_ttbr0(libusb_device_handle *usb)
 {
 	uint32_t ttbr0 = 0;
@@ -496,7 +533,7 @@ uint32_t aw_get_ttbr0(libusb_device_handle *usb)
 
 	aw_fel_write(usb, arm_code, FEL_EXEC_SCRATCH_AREA, sizeof(arm_code));
 	aw_fel_execute(usb, FEL_EXEC_SCRATCH_AREA);
-	aw_fel_read(usb, 0x2014, &ttbr0, sizeof(ttbr0));
+	aw_fel_read(usb, FEL_EXEC_SCRATCH_AREA + 0x14, &ttbr0, sizeof(ttbr0));
 	ttbr0 = le32toh(ttbr0);
 	return ttbr0;
 }
@@ -512,7 +549,7 @@ uint32_t aw_get_sctlr(libusb_device_handle *usb)
 
 	aw_fel_write(usb, arm_code, FEL_EXEC_SCRATCH_AREA, sizeof(arm_code));
 	aw_fel_execute(usb, FEL_EXEC_SCRATCH_AREA);
-	aw_fel_read(usb, 0x2014, &sctlr, sizeof(sctlr));
+	aw_fel_read(usb, FEL_EXEC_SCRATCH_AREA + 0x14, &sctlr, sizeof(sctlr));
 	sctlr = le32toh(sctlr);
 	return sctlr;
 }
@@ -642,6 +679,7 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 	char header_signature[9] = { 0 };
 	size_t i, thunk_size;
 	uint32_t *thunk_buf;
+	uint32_t sp, sp_irq;
 	uint32_t spl_checksum, spl_len, spl_len_limit = SPL_LEN_LIMIT;
 	uint32_t *buf32 = (uint32_t *)buf;
 	uint32_t written = 0;
@@ -678,6 +716,9 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 		pr_info("Enabling the L2 cache\n");
 		aw_enable_l2_cache(usb);
 	}
+
+	aw_get_stackinfo(usb, &sp_irq, &sp);
+	pr_info("Stack pointers: sp_irq=0x%08X, sp=0x%08X\n", sp_irq, sp);
 
 	tt = aw_backup_and_disable_mmu(usb);
 
