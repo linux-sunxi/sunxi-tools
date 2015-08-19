@@ -158,7 +158,7 @@ cache_is_unsupported:
 	movw	TMP1,      (('?' << 8) + '.')
 	movt	TMP1,      (('?' << 8) + '?')
 	str	TMP1,      [BUF1, #8]
-	b	return_to_fel
+	b	return_to_fel_noswap
 
 checksum_is_bad:
 	/* The checksum test failed, so change 'eGON.BT0' -> 'eGON.BAD' */
@@ -169,6 +169,7 @@ checksum_is_bad:
 
 return_to_fel:
 	bl	swap_all_buffers
+return_to_fel_noswap:
 	pop	{TMP1, lr}
 	msr	cpsr_c,    TMP1 /* Restore the original CPSR */
 	ldr     sp,        [sp]

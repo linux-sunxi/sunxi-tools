@@ -57,7 +57,7 @@
 	0xe3032f2e, /*       e0:    movw       r2, #16174                   */
 	0xe3432f3f, /*       e4:    movt       r2, #16191                   */
 	0xe5802008, /*       e8:    str        r2, [r0, #8]                 */
-	0xea000003, /*       ec:    b          100 <return_to_fel>          */
+	0xea000004, /*       ec:    b          104 <return_to_fel_noswap>   */
 	0xe3a00000, /*       f0:    mov        r0, #0                       */
 	0xe304222e, /*       f4:    movw       r2, #16942                   */
 	0xe3442441, /*       f8:    movt       r2, #17473                   */
