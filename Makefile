@@ -52,7 +52,7 @@ LIBUSB = libusb-1.0
 LIBUSB_CFLAGS = `pkg-config --cflags $(LIBUSB)`
 LIBUSB_LIBS = `pkg-config --libs $(LIBUSB)`
 
-fel: fel.c
+fel: fel.c fel-to-spl-thunk.h
 	$(CC) $(CFLAGS) $(LIBUSB_CFLAGS) $(LDFLAGS) -o $@ $(filter %.c,$^) $(LIBS) $(LIBUSB_LIBS)
 
 nand-part: nand-part-main.c nand-part.c nand-part-a10.h nand-part-a20.h
