@@ -69,6 +69,7 @@ SWAPTBL		.req	r4
 FULLSIZE	.req	r5
 BUFSIZE		.req	r6
 CHECKSUM	.req	r7
+SPL_ADDR	.req	r8
 
 entry_point:
 	b	setup_stack
@@ -87,7 +88,7 @@ stack_end:
 
 	/* A function, which walks the table and swaps all buffers */
 swap_all_buffers:
-	adr	SWAPTBL,   swaptbl_start
+	adr	SWAPTBL,   appended_data + 4
 swap_next_buffer:
 	ldr	BUF1,      [SWAPTBL],  #4
 	ldr	BUF2,      [SWAPTBL],  #4
@@ -104,6 +105,7 @@ swap_next_word:
 	b	swap_next_buffer
 
 setup_stack: /* Save the original SP, LR and CPSR to stack */
+	ldr	SPL_ADDR,  appended_data
 	adr	BUF1,      stack_end
 	str	sp,        [BUF1, #-4]!
 	mov	sp,        BUF1
@@ -125,7 +127,7 @@ setup_stack: /* Save the original SP, LR and CPSR to stack */
 verify_checksum:
 	movw	CHECKSUM,  #0x6c39
 	movt	CHECKSUM,  #0x5f0a
-	mov	BUF1,      #0
+	mov	BUF1,      SPL_ADDR
 	ldr     FULLSIZE,  [BUF1, #16]
 check_next_word:
 	ldr	TMP1,      [BUF1],   #4
@@ -133,39 +135,35 @@ check_next_word:
 	add	CHECKSUM,  CHECKSUM, TMP1
 	bne	check_next_word
 
-	mov	BUF1,      #0
-	ldr	TMP1,      [BUF1, #12]
+	ldr	TMP1,      [SPL_ADDR, #12]
 	subs	CHECKSUM,  CHECKSUM, TMP1, lsl #1
 	bne	checksum_is_bad
 
 	/* Change 'eGON.BT0' -> 'eGON.FEL' */
-	mov	BUF1,      #0
 	movw	TMP1,      (('F' << 8) + '.')
 	movt	TMP1,      (('L' << 8) + 'E')
-	str	TMP1,      [BUF1, #8]
+	str	TMP1,      [SPL_ADDR, #8]
 
 	/* Call the SPL code */
 	dsb
 	isb
-	blx	BUF1
+	blx	SPL_ADDR
 
 	/* Return back to FEL */
 	b	return_to_fel
 
 cache_is_unsupported:
 	/* Bail out if cache is enabled and change 'eGON.BT0' -> 'eGON.???' */
-	mov	BUF1,      #0
 	movw	TMP1,      (('?' << 8) + '.')
 	movt	TMP1,      (('?' << 8) + '?')
-	str	TMP1,      [BUF1, #8]
+	str	TMP1,      [SPL_ADDR, #8]
 	b	return_to_fel_noswap
 
 checksum_is_bad:
 	/* The checksum test failed, so change 'eGON.BT0' -> 'eGON.BAD' */
-	mov	BUF1,      #0
 	movw	TMP1,      (('B' << 8) + '.')
 	movt	TMP1,      (('D' << 8) + 'A')
-	str	TMP1,      [BUF1, #8]
+	str	TMP1,      [SPL_ADDR, #8]
 
 return_to_fel:
 	bl	swap_all_buffers
@@ -175,4 +173,15 @@ return_to_fel_noswap:
 	ldr     sp,        [sp]
 	bx	lr
 
-swaptbl_start:
+appended_data:
+/*
+ * The appended data uses the following format:
+ *
+ *     struct {
+ *         uint32_t          spl_addr;
+ *         sram_swap_buffers swaptbl[];
+ *     };
+ *
+ * More details about the 'spl_addr' variable and the 'sram_swap_buffers'
+ * struct can be found in the 'fel.c' source file.
+ */

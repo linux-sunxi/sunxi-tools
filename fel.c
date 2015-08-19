@@ -349,6 +349,7 @@ typedef struct {
  */
 typedef struct {
 	uint32_t           soc_id;       /* ID of the SoC */
+	uint32_t           spl_addr;     /* SPL load address */
 	uint32_t           scratch_addr; /* A safe place to upload & run code */
 	uint32_t           thunk_addr;   /* Address of the thunk code */
 	uint32_t           thunk_size;   /* Maximal size of the thunk code */
@@ -695,7 +696,7 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 	uint32_t sp, sp_irq;
 	uint32_t spl_checksum, spl_len, spl_len_limit = SPL_LEN_LIMIT;
 	uint32_t *buf32 = (uint32_t *)buf;
-	uint32_t written = 0;
+	uint32_t cur_addr = sram_info->spl_addr;
 	uint32_t *tt = NULL;
 
 	if (!sram_info || !sram_info->swap_buffers) {
@@ -737,23 +738,24 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 
 	swap_buffers = sram_info->swap_buffers;
 	for (i = 0; swap_buffers[i].size; i++) {
-		if (swap_buffers[i].buf2 < spl_len_limit)
-			spl_len_limit = swap_buffers[i].buf2;
-		if (len > 0 && written < swap_buffers[i].buf1) {
-			uint32_t tmp = swap_buffers[i].buf1 - written;
+		if ((swap_buffers[i].buf2 >= sram_info->spl_addr) &&
+		    (swap_buffers[i].buf2 < sram_info->spl_addr + spl_len_limit))
+			spl_len_limit = swap_buffers[i].buf2 - sram_info->spl_addr;
+		if (len > 0 && cur_addr < swap_buffers[i].buf1) {
+			uint32_t tmp = swap_buffers[i].buf1 - cur_addr;
 			if (tmp > len)
 				tmp = len;
-			aw_fel_write(usb, buf, written, tmp);
-			written += tmp;
+			aw_fel_write(usb, buf, cur_addr, tmp);
+			cur_addr += tmp;
 			buf += tmp;
 			len -= tmp;
 		}
-		if (len > 0 && written == swap_buffers[i].buf1) {
+		if (len > 0 && cur_addr == swap_buffers[i].buf1) {
 			uint32_t tmp = swap_buffers[i].size;
 			if (tmp > len)
 				tmp = len;
 			aw_fel_write(usb, buf, swap_buffers[i].buf2, tmp);
-			written += tmp;
+			cur_addr += tmp;
 			buf += tmp;
 			len -= tmp;
 		}
@@ -771,9 +773,10 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 
 	/* Write the remaining part of the SPL */
 	if (len > 0)
-		aw_fel_write(usb, buf, written, len);
+		aw_fel_write(usb, buf, cur_addr, len);
 
-	thunk_size = sizeof(fel_to_spl_thunk) + (i + 1) * sizeof(*swap_buffers);
+	thunk_size = sizeof(fel_to_spl_thunk) + sizeof(sram_info->spl_addr) +
+		     (i + 1) * sizeof(*swap_buffers);
 
 	if (thunk_size > sram_info->thunk_size) {
 		fprintf(stderr, "SPL: bad thunk size (need %d, have %d)\n",
@@ -784,6 +787,8 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 	thunk_buf = malloc(thunk_size);
 	memcpy(thunk_buf, fel_to_spl_thunk, sizeof(fel_to_spl_thunk));
 	memcpy(thunk_buf + sizeof(fel_to_spl_thunk) / sizeof(uint32_t),
+	       &sram_info->spl_addr, sizeof(sram_info->spl_addr));
+	memcpy(thunk_buf + sizeof(fel_to_spl_thunk) / sizeof(uint32_t) + 1,
 	       swap_buffers, (i + 1) * sizeof(*swap_buffers));
 
 	for (i = 0; i < thunk_size / sizeof(uint32_t); i++)
@@ -800,7 +805,7 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 	usleep(250000);
 
 	/* Read back the result and check if everything was fine */
-	aw_fel_read(usb, 4, header_signature, 8);
+	aw_fel_read(usb, sram_info->spl_addr + 4, header_signature, 8);
 	if (strcmp(header_signature, "eGON.FEL") != 0) {
 		fprintf(stderr, "SPL: failure code '%s'\n",
 			header_signature);
