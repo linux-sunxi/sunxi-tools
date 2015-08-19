@@ -348,10 +348,11 @@ typedef struct {
  * addresses are the intended backup locations.
  */
 typedef struct {
-	uint32_t           soc_id;     /* ID of the SoC */
-	uint32_t           thunk_addr; /* Address of the thunk code */
-	uint32_t           thunk_size; /* Maximal size of the thunk code */
-	uint32_t           needs_l2en; /* Set the L2EN bit */
+	uint32_t           soc_id;       /* ID of the SoC */
+	uint32_t           scratch_addr; /* A safe place to upload & run code */
+	uint32_t           thunk_addr;   /* Address of the thunk code */
+	uint32_t           thunk_size;   /* Maximal size of the thunk code */
+	uint32_t           needs_l2en;   /* Set the L2EN bit */
 	sram_swap_buffers *swap_buffers;
 } soc_sram_info;
 
@@ -385,43 +386,51 @@ sram_swap_buffers a31_sram_swap_buffers[] = {
 soc_sram_info soc_sram_info_table[] = {
 	{
 		.soc_id       = 0x1623, /* Allwinner A10 */
+		.scratch_addr = 0x2000,
 		.thunk_addr   = 0xAE00, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.needs_l2en   = 1,
 	},
 	{
 		.soc_id       = 0x1625, /* Allwinner A13 */
+		.scratch_addr = 0x2000,
 		.thunk_addr   = 0xAE00, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.needs_l2en   = 1,
 	},
 	{
 		.soc_id       = 0x1651, /* Allwinner A20 */
+		.scratch_addr = 0x2000,
 		.thunk_addr   = 0xAE00, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 	},
 	{
 		.soc_id       = 0x1650, /* Allwinner A23 */
+		.scratch_addr = 0x2000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = a31_sram_swap_buffers,
 	},
 	{
 		.soc_id       = 0x1633, /* Allwinner A31 */
+		.scratch_addr = 0x2000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = a31_sram_swap_buffers,
 	},
 	{
 		.soc_id       = 0x1667, /* Allwinner A33 */
+		.scratch_addr = 0x2000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = a31_sram_swap_buffers,
 	},
 	{
 		.soc_id       = 0x1673, /* Allwinner A83T */
+		.scratch_addr = 0x2000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = a31_sram_swap_buffers,
 	},
 	{
 		.soc_id       = 0x1680, /* Allwinner H3 */
+		.scratch_addr = 0x2000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = a31_sram_swap_buffers,
 	},
@@ -444,6 +453,7 @@ sram_swap_buffers generic_sram_swap_buffers[] = {
 };
 
 soc_sram_info generic_sram_info = {
+	.scratch_addr = 0x2000,
 	.thunk_addr   = 0x5680, .thunk_size = 0x180,
 	.swap_buffers = generic_sram_swap_buffers,
 };
@@ -468,11 +478,10 @@ static uint32_t fel_to_spl_thunk[] = {
 	#include "fel-to-spl-thunk.h"
 };
 
-#define	FEL_EXEC_SCRATCH_AREA	0x2000
 #define	DRAM_BASE		0x40000000
 #define	DRAM_SIZE		0x80000000
 
-void aw_enable_l2_cache(libusb_device_handle *usb)
+void aw_enable_l2_cache(libusb_device_handle *usb, soc_sram_info *sram_info)
 {
 	uint32_t arm_code[] = {
 		htole32(0xee112f30), /* mrc        15, 0, r2, cr1, cr0, {1}  */
@@ -481,11 +490,12 @@ void aw_enable_l2_cache(libusb_device_handle *usb)
 		htole32(0xe12fff1e), /* bx         lr                        */
 	};
 
-	aw_fel_write(usb, arm_code, FEL_EXEC_SCRATCH_AREA, sizeof(arm_code));
-	aw_fel_execute(usb, FEL_EXEC_SCRATCH_AREA);
+	aw_fel_write(usb, arm_code, sram_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(usb, sram_info->scratch_addr);
 }
 
-void aw_get_stackinfo(libusb_device_handle *usb, uint32_t *sp_irq, uint32_t *sp)
+void aw_get_stackinfo(libusb_device_handle *usb, soc_sram_info *sram_info,
+                      uint32_t *sp_irq, uint32_t *sp)
 {
 	uint32_t results[2] = { 0 };
 #if 0
@@ -497,9 +507,9 @@ void aw_get_stackinfo(libusb_device_handle *usb, uint32_t *sp_irq, uint32_t *sp)
 		htole32(0xe12fff1e), /* bx         lr                        */
 	};
 
-	aw_fel_write(usb, arm_code, FEL_EXEC_SCRATCH_AREA, sizeof(arm_code));
-	aw_fel_execute(usb, FEL_EXEC_SCRATCH_AREA);
-	aw_fel_read(usb, FEL_EXEC_SCRATCH_AREA + 0x10, results, 8);
+	aw_fel_write(usb, arm_code, sram_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(usb, sram_info->scratch_addr);
+	aw_fel_read(usb, sram_info->scratch_addr + 0x10, results, 8);
 #else
 	/* Works everywhere */
 	uint32_t arm_code[] = {
@@ -514,15 +524,15 @@ void aw_get_stackinfo(libusb_device_handle *usb, uint32_t *sp_irq, uint32_t *sp)
 		htole32(0xe12fff1e), /* bx         lr                        */
 	};
 
-	aw_fel_write(usb, arm_code, FEL_EXEC_SCRATCH_AREA, sizeof(arm_code));
-	aw_fel_execute(usb, FEL_EXEC_SCRATCH_AREA);
-	aw_fel_read(usb, FEL_EXEC_SCRATCH_AREA + 0x24, results, 8);
+	aw_fel_write(usb, arm_code, sram_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(usb, sram_info->scratch_addr);
+	aw_fel_read(usb, sram_info->scratch_addr + 0x24, results, 8);
 #endif
 	*sp_irq = le32toh(results[0]);
 	*sp     = le32toh(results[1]);
 }
 
-uint32_t aw_get_ttbr0(libusb_device_handle *usb)
+uint32_t aw_get_ttbr0(libusb_device_handle *usb, soc_sram_info *sram_info)
 {
 	uint32_t ttbr0 = 0;
 	uint32_t arm_code[] = {
@@ -531,14 +541,14 @@ uint32_t aw_get_ttbr0(libusb_device_handle *usb)
 		htole32(0xe12fff1e), /* bx         lr                        */
 	};
 
-	aw_fel_write(usb, arm_code, FEL_EXEC_SCRATCH_AREA, sizeof(arm_code));
-	aw_fel_execute(usb, FEL_EXEC_SCRATCH_AREA);
-	aw_fel_read(usb, FEL_EXEC_SCRATCH_AREA + 0x14, &ttbr0, sizeof(ttbr0));
+	aw_fel_write(usb, arm_code, sram_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(usb, sram_info->scratch_addr);
+	aw_fel_read(usb, sram_info->scratch_addr + 0x14, &ttbr0, sizeof(ttbr0));
 	ttbr0 = le32toh(ttbr0);
 	return ttbr0;
 }
 
-uint32_t aw_get_sctlr(libusb_device_handle *usb)
+uint32_t aw_get_sctlr(libusb_device_handle *usb, soc_sram_info *sram_info)
 {
 	uint32_t sctlr = 0;
 	uint32_t arm_code[] = {
@@ -547,18 +557,19 @@ uint32_t aw_get_sctlr(libusb_device_handle *usb)
 		htole32(0xe12fff1e), /* bx         lr                        */
 	};
 
-	aw_fel_write(usb, arm_code, FEL_EXEC_SCRATCH_AREA, sizeof(arm_code));
-	aw_fel_execute(usb, FEL_EXEC_SCRATCH_AREA);
-	aw_fel_read(usb, FEL_EXEC_SCRATCH_AREA + 0x14, &sctlr, sizeof(sctlr));
+	aw_fel_write(usb, arm_code, sram_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(usb, sram_info->scratch_addr);
+	aw_fel_read(usb, sram_info->scratch_addr + 0x14, &sctlr, sizeof(sctlr));
 	sctlr = le32toh(sctlr);
 	return sctlr;
 }
 
-uint32_t *aw_backup_and_disable_mmu(libusb_device_handle *usb)
+uint32_t *aw_backup_and_disable_mmu(libusb_device_handle *usb,
+                                    soc_sram_info *sram_info)
 {
 	uint32_t *tt = NULL;
-	uint32_t ttbr0 = aw_get_ttbr0(usb);
-	uint32_t sctlr = aw_get_sctlr(usb);
+	uint32_t ttbr0 = aw_get_ttbr0(usb, sram_info);
+	uint32_t sctlr = aw_get_sctlr(usb, sram_info);
 	uint32_t i;
 
 	uint32_t arm_code[] = {
@@ -606,17 +617,19 @@ uint32_t *aw_backup_and_disable_mmu(libusb_device_handle *usb)
 	}
 
 	pr_info("Disabling I-cache, MMU and branch prediction...");
-	aw_fel_write(usb, arm_code, FEL_EXEC_SCRATCH_AREA, sizeof(arm_code));
-	aw_fel_execute(usb, FEL_EXEC_SCRATCH_AREA);
+	aw_fel_write(usb, arm_code, sram_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(usb, sram_info->scratch_addr);
 	pr_info(" done.\n");
 
 	return tt;
 }
 
-void aw_restore_and_enable_mmu(libusb_device_handle *usb, uint32_t *tt)
+void aw_restore_and_enable_mmu(libusb_device_handle *usb,
+                               soc_sram_info *sram_info,
+                               uint32_t *tt)
 {
 	uint32_t i;
-	uint32_t ttbr0 = aw_get_ttbr0(usb);
+	uint32_t ttbr0 = aw_get_ttbr0(usb, sram_info);
 
 	uint32_t arm_code[] = {
 		/* Invalidate I-cache, TLB and BTB */
@@ -658,8 +671,8 @@ void aw_restore_and_enable_mmu(libusb_device_handle *usb, uint32_t *tt)
 	aw_fel_write(usb, tt, ttbr0, 16 * 1024);
 
 	pr_info("Enabling I-cache, MMU and branch prediction...");
-	aw_fel_write(usb, arm_code, FEL_EXEC_SCRATCH_AREA, sizeof(arm_code));
-	aw_fel_execute(usb, FEL_EXEC_SCRATCH_AREA);
+	aw_fel_write(usb, arm_code, sram_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(usb, sram_info->scratch_addr);
 	pr_info(" done.\n");
 
 	free(tt);
@@ -714,13 +727,13 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 
 	if (sram_info->needs_l2en) {
 		pr_info("Enabling the L2 cache\n");
-		aw_enable_l2_cache(usb);
+		aw_enable_l2_cache(usb, sram_info);
 	}
 
-	aw_get_stackinfo(usb, &sp_irq, &sp);
+	aw_get_stackinfo(usb, sram_info, &sp_irq, &sp);
 	pr_info("Stack pointers: sp_irq=0x%08X, sp=0x%08X\n", sp_irq, sp);
 
-	tt = aw_backup_and_disable_mmu(usb);
+	tt = aw_backup_and_disable_mmu(usb, sram_info);
 
 	swap_buffers = sram_info->swap_buffers;
 	for (i = 0; swap_buffers[i].size; i++) {
@@ -796,7 +809,7 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 
 	/* re-enable the MMU if it was enabled by BROM */
 	if(tt != NULL)
-		aw_restore_and_enable_mmu(usb, tt);
+		aw_restore_and_enable_mmu(usb, sram_info, tt);
 }
 
 /* Constants taken from ${U-BOOT}/include/image.h */
