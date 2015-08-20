@@ -64,7 +64,6 @@ static int timeout = 60000;
 static int verbose = 0; /* Makes the 'fel' tool more talkative if non-zero */
 static uint32_t uboot_entry = 0; /* entry point (address) of U-Boot */
 static uint32_t uboot_size  = 0; /* size of U-Boot binary */
-static int uboot_autostart  = 0; /* "uboot" command flag = autostart U-Boot */
 
 static void pr_info(const char *fmt, ...)
 {
@@ -890,6 +889,7 @@ static double gettime(void)
 
 int main(int argc, char **argv)
 {
+	int uboot_autostart = 0; /* flag for "uboot" command = U-Boot autostart */
 	int rc;
 	libusb_device_handle *handle = NULL;
 	int iface_detached = -1;
