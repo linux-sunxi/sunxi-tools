@@ -633,7 +633,7 @@ void aw_restore_and_enable_mmu(libusb_device_handle *usb, uint32_t *tt)
  * Maximum size of SPL, at the same time this is the start offset
  * of the main U-Boot image within u-boot-sunxi-with-spl.bin
  */
-static const int SPL_LEN_LIMIT = 0x8000;
+#define SPL_LEN_LIMIT 0x8000
 
 void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 				  uint8_t *buf, size_t len)
@@ -836,7 +836,8 @@ void aw_fel_process_spl_and_uboot(libusb_device_handle *usb,
 	/* write and execute the SPL from the buffer */
 	aw_fel_write_and_execute_spl(usb, buf, size);
 	/* check for optional main U-Boot binary (and transfer it, if applicable) */
-	aw_fel_write_uboot_image(usb, buf + SPL_LEN_LIMIT, size - SPL_LEN_LIMIT);
+	if (size > SPL_LEN_LIMIT)
+		aw_fel_write_uboot_image(usb, buf + SPL_LEN_LIMIT, size - SPL_LEN_LIMIT);
 }
 
 static int aw_fel_get_endpoint(libusb_device_handle *usb)
