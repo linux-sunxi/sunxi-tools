@@ -24,11 +24,8 @@ fex2bin:
 fel:
 	script interface for talking to the FEL USB handler built in to
 	th CPU. You activate FEL mode by pushing the usboot/recovery
-	button at poweron.
-
-usb-boot:
-	Simple wrapper to automate USB booting in FEL mode
-	See http://linux-sunxi.org/FEL/USBBoot for details
+	button at poweron. See http://linux-sunxi.org/FEL/USBBoot for
+	a detailed usage guide.
 
 fel-gpio:
 	Simple wrapper around fel-pio and fel to allos GPIO manipulations
