@@ -863,7 +863,7 @@ void aw_fel_write_uboot_image(libusb_device_handle *usb,
 	 * available from be32toh(buf32[6])
 	 *
 	 * However, this requires CRC routines that mimic their U-Boot
-	 * counterparts, namely image_check_dcrc() in ${U-BOOT}/common/image.cabs
+	 * counterparts, namely image_check_dcrc() in ${U-BOOT}/common/image.c
 	 * and crc_wd() in ${U-BOOT}/lib/crc32.c
 	 *
 	 * It should be investigated if existing CRC routines in sunxi-tools
