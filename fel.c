@@ -108,6 +108,46 @@ void usb_bulk_recv(libusb_device_handle *usb, int ep, void *data, int length)
 	}
 }
 
+/* Constants taken from ${U-BOOT}/include/image.h */
+#define IH_MAGIC	0x27051956	/* Image Magic Number	*/
+#define IH_ARCH_ARM		2	/* ARM			*/
+#define IH_TYPE_INVALID		0	/* Invalid Image	*/
+#define IH_TYPE_FIRMWARE	5	/* Firmware Image	*/
+#define IH_TYPE_SCRIPT		6	/* Script file		*/
+#define IH_NMLEN		32	/* Image Name Length	*/
+
+/* Additional error codes, newly introduced for get_image_type() */
+#define IH_TYPE_ARCH_MISMATCH	-1
+
+#define HEADER_NAME_OFFSET	32	/* offset of name field	*/
+#define HEADER_SIZE		(HEADER_NAME_OFFSET + IH_NMLEN)
+
+/*
+ * Utility function to determine the image type from a mkimage-compatible
+ * header at given buffer (address).
+ *
+ * For invalid headers (insufficient size or 'magic' mismatch) the function
+ * will return IH_TYPE_INVALID. Negative return values might indicate
+ * special error conditions, e.g. IH_TYPE_ARCH_MISMATCH signals that the
+ * image doesn't match the expected (ARM) architecture.
+ * Otherwise the function will return the "ih_type" field for valid headers.
+ */
+int get_image_type(const uint8_t *buf, size_t len)
+{
+	uint32_t *buf32 = (uint32_t *)buf;
+
+	if (len <= HEADER_SIZE) /* insufficient length/size */
+		return IH_TYPE_INVALID;
+	if (be32toh(buf32[0]) != IH_MAGIC) /* signature mismatch */
+		return IH_TYPE_INVALID;
+	/* For sunxi, we always expect ARM architecture here */
+	if (buf[29] != IH_ARCH_ARM)
+		return IH_TYPE_ARCH_MISMATCH;
+
+	/* assume a valid header, and return ih_type */
+	return buf[30];
+}
+
 void aw_send_usb_request(libusb_device_handle *usb, int type, int length)
 {
 	struct aw_usb_request req;
@@ -819,15 +859,6 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 		aw_restore_and_enable_mmu(usb, sram_info, tt);
 }
 
-/* Constants taken from ${U-BOOT}/include/image.h */
-#define IH_MAGIC	0x27051956	/* Image Magic Number	*/
-#define IH_ARCH_ARM		2	/* ARM			*/
-#define IH_TYPE_FIRMWARE	5	/* Firmware Image	*/
-#define IH_NMLEN		32	/* Image Name Length	*/
-
-#define HEADER_NAME_OFFSET	32	/* offset of name field	*/
-#define HEADER_SIZE		(HEADER_NAME_OFFSET + IH_NMLEN)
-
 /*
  * This function tests a given buffer address and length for a valid U-Boot
  * image. Upon success, the image data gets transferred to the default memory
@@ -840,25 +871,34 @@ void aw_fel_write_uboot_image(libusb_device_handle *usb,
 	if (len <= HEADER_SIZE)
 		return; /* Insufficient size (no actual data), just bail out */
 
-	/* Check for a valid mkimage header */
 	uint32_t *buf32 = (uint32_t *)buf;
 
-	if (be32toh(buf32[0]) != IH_MAGIC) {
-		fprintf(stderr, "U-Boot image verification failure: "
-			"expected IH_MAGIC, got 0x%X\n", be32toh(buf32[0]));
+	/* Check for a valid mkimage header */
+	int image_type = get_image_type(buf, len);
+	if (image_type <= IH_TYPE_INVALID) {
+		switch (image_type) {
+		case IH_TYPE_INVALID:
+			fprintf(stderr, "Invalid U-Boot image: bad size or signature\n");
+			break;
+		case IH_TYPE_ARCH_MISMATCH:
+			fprintf(stderr, "Invalid U-Boot image: wrong architecture\n");
+			break;
+		default:
+			fprintf(stderr, "Invalid U-Boot image: error code %d\n",
+				image_type);
+		}
 		exit(1);
 	}
-	if (buf[29] != IH_ARCH_ARM|| buf[30] != IH_TYPE_FIRMWARE) {
-		fprintf(stderr, "U-Boot image verification failure: "
-			"expected ARM firmware, got %02X %02X\n", buf[29], buf[30]);
+	if (image_type != IH_TYPE_FIRMWARE) {
+		fprintf(stderr, "U-Boot image type mismatch: "
+			"expected IH_TYPE_FIRMWARE, got %02X\n", image_type);
 		exit(1);
 	}
 	uint32_t data_size = be32toh(buf32[3]); /* Image Data Size */
 	uint32_t load_addr = be32toh(buf32[4]); /* Data Load Address */
-	if ((size_t)data_size != len - HEADER_SIZE) {
+	if (data_size != len - HEADER_SIZE) {
 		fprintf(stderr, "U-Boot image data size mismatch: "
-			"expected %d, got %u\n", (int)len - HEADER_SIZE,
-			data_size);
+			"expected %zu, got %u\n", len - HEADER_SIZE, data_size);
 		exit(1);
 	}
 	/* TODO: Verify image data integrity using the checksum field ih_dcrc,
