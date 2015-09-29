@@ -949,6 +949,61 @@ void aw_fel_process_spl_and_uboot(libusb_device_handle *usb,
 		aw_fel_write_uboot_image(usb, buf + SPL_LEN_LIMIT, size - SPL_LEN_LIMIT);
 }
 
+/*
+ * Test the SPL header for our "sunxi" variant. We want to make sure that
+ * we can safely use specific header fields to pass information to U-Boot.
+ * In case of a missing signature (e.g. Allwinner boot0) or header version
+ * mismatch, this function will return "false". If all seems fine,
+ * the result is "true".
+ */
+#define SPL_SIGNATURE			"SPL" /* marks "sunxi" header */
+#define SPL_MIN_VERSION			1 /* minimum required version */
+#define SPL_MAX_VERSION			1 /* maximum supported version */
+int have_sunxi_spl(libusb_device_handle *usb, uint32_t spl_addr)
+{
+	uint8_t spl_signature[4];
+
+	aw_fel_read(usb, spl_addr + 0x14,
+		&spl_signature, sizeof(spl_signature));
+
+	if (memcmp(spl_signature, SPL_SIGNATURE, 3) != 0)
+		return 0; /* signature mismatch, no "sunxi" SPL */
+
+	if (spl_signature[3] < SPL_MIN_VERSION) {
+		fprintf(stderr, "sunxi SPL version mismatch: "
+			"found 0x%02X < required minimum 0x%02X\n",
+			spl_signature[3], SPL_MIN_VERSION);
+		fprintf(stderr, "You need to update your U-Boot (mksunxiboot) to a more recent version.\n");
+		return 0;
+	}
+	if (spl_signature[3] > SPL_MAX_VERSION) {
+		fprintf(stderr, "sunxi SPL version mismatch: "
+			"found 0x%02X > maximum supported 0x%02X\n",
+			spl_signature[3], SPL_MAX_VERSION);
+		fprintf(stderr, "You need a more recent version of this (sunxi-tools) fel utility.\n");
+		return 0;
+	}
+	return 1; /* sunxi SPL and suitable version */
+}
+
+/*
+ * Pass information to U-Boot via specialized fields in the SPL header
+ * (see "boot_file_head" in ${U-BOOT}/tools/mksunxiboot.c), providing
+ * information about the boot script address (DRAM location of boot.scr).
+ */
+void pass_fel_information(libusb_device_handle *usb, uint32_t script_address)
+{
+	soc_sram_info *sram_info = aw_fel_get_sram_info(usb);
+
+	/* write something _only_ if we have a suitable SPL header */
+	if (have_sunxi_spl(usb, sram_info->spl_addr)) {
+		pr_info("Passing boot info via sunxi SPL: script address = 0x%08X\n",
+			script_address);
+		aw_fel_write(usb, &script_address,
+			sram_info->spl_addr + 0x18, sizeof(script_address));
+	}
+}
+
 static int aw_fel_get_endpoint(libusb_device_handle *usb)
 {
 	struct libusb_device *dev = libusb_get_device(usb);
@@ -1085,13 +1140,21 @@ int main(int argc, char **argv)
 			double t1, t2;
 			size_t size;
 			void *buf = load_file(argv[3], &size);
+			uint32_t offset = strtoul(argv[2], NULL, 0);
 			t1 = gettime();
-			aw_fel_write(handle, buf, strtoul(argv[2], NULL, 0), size);
+			aw_fel_write(handle, buf, offset, size);
 			t2 = gettime();
 			if (t2 > t1)
 				pr_info("Written %.1f KB in %.1f sec (speed: %.1f KB/s)\n",
 					(double)size / 1000., t2 - t1,
 					(double)size / (t2 - t1) / 1000.);
+			/*
+			 * If we have transferred a script, try to inform U-Boot
+			 * about its address.
+			 */
+			if (get_image_type(buf, size) == IH_TYPE_SCRIPT)
+				pass_fel_information(handle, offset);
+
 			free(buf);
 			skip=3;
 		} else if (strcmp(argv[1], "read") == 0 && argc > 4) {
