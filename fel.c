@@ -503,18 +503,27 @@ soc_sram_info generic_sram_info = {
 
 soc_sram_info *aw_fel_get_sram_info(libusb_device_handle *usb)
 {
-	int i;
-	struct aw_fel_version buf;
+	/* persistent sram_info, retrieves result pointer once and caches it */
+	static soc_sram_info *result = NULL;
+	if (result == NULL) {
+		int i;
 
-	aw_fel_get_version(usb, &buf);
+		struct aw_fel_version buf;
+		aw_fel_get_version(usb, &buf);
 
-	for (i = 0; soc_sram_info_table[i].swap_buffers; i++)
-		if (soc_sram_info_table[i].soc_id == buf.soc_id)
-			return &soc_sram_info_table[i];
+		for (i = 0; soc_sram_info_table[i].swap_buffers; i++)
+			if (soc_sram_info_table[i].soc_id == buf.soc_id) {
+				result = &soc_sram_info_table[i];
+				break;
+			}
 
-	printf("Warning: no 'soc_sram_info' data for your SoC (id=%04X)\n",
-	       buf.soc_id);
-	return &generic_sram_info;
+		if (!result) {
+			printf("Warning: no 'soc_sram_info' data for your SoC (id=%04X)\n",
+			       buf.soc_id);
+			result = &generic_sram_info;
+		}
+	}
+	return result;
 }
 
 static uint32_t fel_to_spl_thunk[] = {
