@@ -21,24 +21,31 @@ CFLAGS = -g -O0 -Wall -Wextra
 CFLAGS += -std=c99 -D_POSIX_C_SOURCE=200112L
 CFLAGS += -Iinclude/
 
-TOOLS = sunxi-fexc bin2fex fex2bin sunxi-bootinfo sunxi-fel sunxi-pio
+# Tools useful on host and target
+TOOLS = sunxi-fexc bin2fex fex2bin sunxi-bootinfo sunxi-fel
 TOOLS += sunxi-nand-part
+
+# Tools which are only useful on the target
+TARGET_TOOLS = sunxi-pio
 
 MISC_TOOLS = phoenix_info
 
 CROSS_COMPILE ?= arm-none-eabi-
 
-.PHONY: all clean
+.PHONY: all clean tools target-tools
 
-all: $(TOOLS)
+all: tools target-tools
+
+tools: $(TOOLS)
+target-tools: $(TARGET_TOOLS)
 
 misc: $(MISC_TOOLS)
 
 clean:
-	@rm -vf $(TOOLS) $(MISC_TOOLS) *.o *.elf *.sunxi *.bin *.nm *.orig
+	@rm -vf $(TOOLS) $(TARGET_TOOLS) $(MISC_TOOLS) *.o *.elf *.sunxi *.bin *.nm *.orig
 
 
-$(TOOLS): Makefile common.h
+$(TOOLS) $(TARGET_TOOLS): Makefile common.h
 
 fex2bin bin2fex: sunxi-fexc
 	ln -s $< $@
@@ -115,6 +122,6 @@ sunxi-meminfo: meminfo.c
 	$(CROSS_COMPILE)gcc -g -O0 -Wall -static -o $@ $^
 
 .gitignore: Makefile
-	@for x in $(TOOLS) '*.o' '*.swp'; do \
+	@for x in $(TOOLS) $(TARGET_TOOLS) '*.o' '*.swp'; do \
 		echo "$$x"; \
 	done > $@
