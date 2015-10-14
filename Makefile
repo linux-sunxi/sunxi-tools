@@ -21,8 +21,8 @@ CFLAGS = -g -O0 -Wall -Wextra
 CFLAGS += -std=c99 -D_POSIX_C_SOURCE=200112L
 CFLAGS += -Iinclude/
 
-TOOLS = fexc bin2fex fex2bin bootinfo fel pio
-TOOLS += nand-part
+TOOLS = sunxi-fexc bin2fex fex2bin sunxi-bootinfo sunxi-fel sunxi-pio
+TOOLS += sunxi-nand-part
 
 MISC_TOOLS = phoenix_info
 
@@ -40,10 +40,10 @@ clean:
 
 $(TOOLS): Makefile common.h
 
-fex2bin bin2fex: fexc
+fex2bin bin2fex: sunxi-fexc
 	ln -s $< $@
 
-fexc: fexc.h script.h script.c \
+sunxi-fexc: fexc.h script.h script.c \
 	script_uboot.h script_uboot.c \
 	script_bin.h script_bin.c \
 	script_fex.h script_fex.c
@@ -52,16 +52,16 @@ LIBUSB = libusb-1.0
 LIBUSB_CFLAGS = `pkg-config --cflags $(LIBUSB)`
 LIBUSB_LIBS = `pkg-config --libs $(LIBUSB)`
 
-fel: fel.c fel-to-spl-thunk.h
+sunxi-fel: fel.c fel-to-spl-thunk.h
 	$(CC) $(CFLAGS) $(LIBUSB_CFLAGS) $(LDFLAGS) -o $@ $(filter %.c,$^) $(LIBS) $(LIBUSB_LIBS)
 
-nand-part: nand-part-main.c nand-part.c nand-part-a10.h nand-part-a20.h
+sunxi-nand-part: nand-part-main.c nand-part.c nand-part-a10.h nand-part-a20.h
 	$(CC) $(CFLAGS) -c -o nand-part-main.o nand-part-main.c
 	$(CC) $(CFLAGS) -c -o nand-part-a10.o nand-part.c -D A10
 	$(CC) $(CFLAGS) -c -o nand-part-a20.o nand-part.c -D A20
 	$(CC) $(LDFLAGS) -o $@ nand-part-main.o nand-part-a10.o nand-part-a20.o $(LIBS)
 
-%: %.c
+sunxi-%: %.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(filter %.c,$^) $(LIBS)
 
 fel-pio.bin: fel-pio.elf fel-pio.nm
@@ -109,9 +109,9 @@ boot_head_sun5i.elf: boot_head.S boot_head.lds
 boot_head_sun5i.bin: boot_head_sun5i.elf
 	$(CROSS_COMPILE)objcopy -O binary boot_head_sun5i.elf boot_head_sun5i.bin
 
-bootinfo: bootinfo.c
+sunxi-bootinfo: bootinfo.c
 
-meminfo: meminfo.c
+sunxi-meminfo: meminfo.c
 	$(CROSS_COMPILE)gcc -g -O0 -Wall -static -o $@ $^
 
 .gitignore: Makefile
