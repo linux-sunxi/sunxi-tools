@@ -64,6 +64,7 @@ static int AW_USB_FEL_BULK_EP_OUT;
 static int AW_USB_FEL_BULK_EP_IN;
 static int timeout = 60000;
 static int verbose = 0; /* Makes the 'fel' tool more talkative if non-zero */
+static int progress = 0; /* Makes the 'fel' tool print out '.' for each byte transferred */
 static uint32_t uboot_entry = 0; /* entry point (address) of U-Boot */
 static uint32_t uboot_size  = 0; /* size of U-Boot binary */
 
@@ -81,9 +82,9 @@ static const int AW_USB_MAX_BULK_SEND = 4 * 1024 * 1024; // 4 MiB per bulk reque
 
 void usb_bulk_send(libusb_device_handle *usb, int ep, const void *data, int length)
 {
-	int rc, sent;
+	int rc, sent, total=length, len;
 	while (length > 0) {
-		int len = length < AW_USB_MAX_BULK_SEND ? length : AW_USB_MAX_BULK_SEND;
+		len = length < AW_USB_MAX_BULK_SEND ? length : AW_USB_MAX_BULK_SEND;
 		rc = libusb_bulk_transfer(usb, ep, (void *)data, len, &sent, timeout);
 		if (rc != 0) {
 			fprintf(stderr, "libusb usb_bulk_send error %d\n", rc);
@@ -91,6 +92,27 @@ void usb_bulk_send(libusb_device_handle *usb, int ep, const void *data, int leng
 		}
 		length -= sent;
 		data += sent;
+
+		if(progress && (len<total)) {
+			int   w = 60;
+			float r = 1.0 - ((float)length)/total;
+			int   x = w * r;
+			int   i;
+
+			fprintf(stderr,"%3d%% [", (int)(r*100) );
+
+			for(i=0;i<x;i++) {
+				fprintf(stderr,"=");
+			}
+			for(i=x;i<w;i++) {
+				fprintf(stderr," ");
+			}
+
+			fprintf(stderr,"]\r");
+		}
+	}
+	if (progress && (len<total)) {
+		fprintf(stderr,"\n");
 	}
 }
 
@@ -1117,6 +1139,13 @@ int main(int argc, char **argv)
 	if (argc > 1 && (strcmp(argv[1], "--verbose") == 0 ||
 			 strcmp(argv[1], "-v") == 0)) {
 		verbose = 1;
+		argc -= 1;
+		argv += 1;
+	}
+
+	if (argc > 1 && (strcmp(argv[1], "--progress") == 0 ||
+			 strcmp(argv[1], "-p") == 0)) {
+		progress = 1;
 		argc -= 1;
 		argv += 1;
 	}
