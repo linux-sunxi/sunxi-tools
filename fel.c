@@ -64,6 +64,7 @@ static int AW_USB_FEL_BULK_EP_OUT;
 static int AW_USB_FEL_BULK_EP_IN;
 static int timeout = 60000;
 static int verbose = 0; /* Makes the 'fel' tool more talkative if non-zero */
+static int progress = 0; /* Makes the 'fel' tool show a progress bar when transferring large files */
 static uint32_t uboot_entry = 0; /* entry point (address) of U-Boot */
 static uint32_t uboot_size  = 0; /* size of U-Boot binary */
 
@@ -79,11 +80,34 @@ static void pr_info(const char *fmt, ...)
 
 static const int AW_USB_MAX_BULK_SEND = 4 * 1024 * 1024; // 4 MiB per bulk request
 
-void usb_bulk_send(libusb_device_handle *usb, int ep, const void *data, int length)
+typedef void (*progress_cb_t)(int total,int sent,int len);
+
+void progress_bar(int total,int sent,int len)
 {
-	int rc, sent;
+	if (progress && (len<total)) {
+		int   w = 60;
+		float r = ((float)sent)/total;
+		int   x = w * r;
+		int   i;
+
+		fprintf(stderr,"\r%3d%% [", (int)(r*100) );
+
+		for (i=0;i<x;i++) {
+			fprintf(stderr,"=");
+		}
+		for (i=x;i<w;i++) {
+			fprintf(stderr," ");
+		}
+
+		fprintf(stderr,"] ");
+	}
+}
+
+void usb_bulk_send(libusb_device_handle *usb, int ep, const void *data, int length, progress_cb_t progress_cb)
+{
+	int rc, sent, total=length, len;
 	while (length > 0) {
-		int len = length < AW_USB_MAX_BULK_SEND ? length : AW_USB_MAX_BULK_SEND;
+		len = length < AW_USB_MAX_BULK_SEND ? length : AW_USB_MAX_BULK_SEND;
 		rc = libusb_bulk_transfer(usb, ep, (void *)data, len, &sent, timeout);
 		if (rc != 0) {
 			fprintf(stderr, "libusb usb_bulk_send error %d\n", rc);
@@ -91,6 +115,10 @@ void usb_bulk_send(libusb_device_handle *usb, int ep, const void *data, int leng
 		}
 		length -= sent;
 		data += sent;
+
+		if (progress_cb) {
+			progress_cb(total, total-length, len);
+		}
 	}
 }
 
@@ -156,7 +184,7 @@ void aw_send_usb_request(libusb_device_handle *usb, int type, int length)
 	req.length = req.length2 = htole32(length);
 	req.request = htole16(type);
 	req.unknown1 = htole32(0x0c000000);
-	usb_bulk_send(usb, AW_USB_FEL_BULK_EP_OUT, &req, sizeof(req));
+	usb_bulk_send(usb, AW_USB_FEL_BULK_EP_OUT, &req, sizeof(req), NULL);
 }
 
 void aw_read_usb_response(libusb_device_handle *usb)
@@ -166,17 +194,17 @@ void aw_read_usb_response(libusb_device_handle *usb)
 	assert(strcmp(buf, "AWUS") == 0);
 }
 
-void aw_usb_write(libusb_device_handle *usb, const void *data, size_t len)
+void aw_usb_write(libusb_device_handle *usb, const void *data, size_t len, progress_cb_t progress_cb)
 {
 	aw_send_usb_request(usb, AW_USB_WRITE, len);
-	usb_bulk_send(usb, AW_USB_FEL_BULK_EP_OUT, data, len);
+	usb_bulk_send(usb, AW_USB_FEL_BULK_EP_OUT, data, len, progress_cb);
 	aw_read_usb_response(usb);
 }
 
-void aw_usb_read(libusb_device_handle *usb, const void *data, size_t len)
+void aw_usb_read(libusb_device_handle *usb, const void *data, size_t len, progress_cb_t progress_cb)
 {
 	aw_send_usb_request(usb, AW_USB_READ, len);
-	usb_bulk_send(usb, AW_USB_FEL_BULK_EP_IN, data, len);
+	usb_bulk_send(usb, AW_USB_FEL_BULK_EP_IN, data, len, progress_cb);
 	aw_read_usb_response(usb);
 }
 
@@ -199,19 +227,19 @@ void aw_send_fel_request(libusb_device_handle *usb, int type, uint32_t addr, uin
 	req.request = htole32(type);
 	req.address = htole32(addr);
 	req.length = htole32(length);
-	aw_usb_write(usb, &req, sizeof(req));
+	aw_usb_write(usb, &req, sizeof(req), NULL);
 }
 
 void aw_read_fel_status(libusb_device_handle *usb)
 {
 	char buf[8];
-	aw_usb_read(usb, &buf, sizeof(buf));
+	aw_usb_read(usb, &buf, sizeof(buf), NULL);
 }
 
 void aw_fel_get_version(libusb_device_handle *usb, struct aw_fel_version *buf)
 {
 	aw_send_fel_request(usb, AW_FEL_VERSION, 0, 0);
-	aw_usb_read(usb, buf, sizeof(*buf));
+	aw_usb_read(usb, buf, sizeof(*buf), NULL);
 	aw_read_fel_status(usb);
 
 	buf->soc_id = (le32toh(buf->soc_id) >> 8) & 0xFFFF;
@@ -249,7 +277,11 @@ void aw_fel_print_version(libusb_device_handle *usb)
 void aw_fel_read(libusb_device_handle *usb, uint32_t offset, void *buf, size_t len)
 {
 	aw_send_fel_request(usb, AW_FEL_1_READ, offset, len);
-	aw_usb_read(usb, buf, len);
+	aw_usb_read(usb, buf, len, progress ? progress_bar : NULL);
+	if (progress) {
+		fprintf(stderr,"\n");
+	}
+
 	aw_read_fel_status(usb);
 }
 
@@ -264,7 +296,10 @@ void aw_fel_write(libusb_device_handle *usb, void *buf, uint32_t offset, size_t 
 		exit(1);
 	}
 	aw_send_fel_request(usb, AW_FEL_1_WRITE, offset, len);
-	aw_usb_write(usb, buf, len);
+	aw_usb_write(usb, buf, len, progress ? progress_bar : NULL);
+	if (progress) {
+		fprintf(stderr,"\n");
+	}
 	aw_read_fel_status(usb);
 }
 
@@ -1064,6 +1099,7 @@ int main(int argc, char **argv)
 	if (argc <= 1) {
 		printf("Usage: %s [options] command arguments... [command...]\n"
 			"	-v, --verbose			Verbose logging\n"
+			"	-p, --progress			Show progress bar when transferring large files\n"
 			"\n"
 			"	spl file			Load and execute U-Boot SPL\n"
 			"		If file additionally contains a main U-Boot binary\n"
@@ -1114,16 +1150,18 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	if (argc > 1 && (strcmp(argv[1], "--verbose") == 0 ||
-			 strcmp(argv[1], "-v") == 0)) {
-		verbose = 1;
-		argc -= 1;
-		argv += 1;
-	}
-
 	while (argc > 1 ) {
 		int skip = 1;
-		if (strncmp(argv[1], "hex", 3) == 0 && argc > 3) {
+
+		if (argc > 1 && (strcmp(argv[1], "--verbose") == 0 ||
+				 strcmp(argv[1], "-v") == 0)) {
+			verbose = 1;
+			skip = 1;
+		} else if (argc > 1 && (strcmp(argv[1], "--progress") == 0 ||
+				 strcmp(argv[1], "-p") == 0)) {
+			progress = 1;
+			skip = 1;
+		} else if (strncmp(argv[1], "hex", 3) == 0 && argc > 3) {
 			aw_fel_hexdump(handle, strtoul(argv[2], NULL, 0), strtoul(argv[3], NULL, 0));
 			skip = 3;
 		} else if (strncmp(argv[1], "dump", 4) == 0 && argc > 3) {
