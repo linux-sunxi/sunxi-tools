@@ -72,7 +72,7 @@ clean:
 $(TOOLS) $(TARGET_TOOLS): Makefile common.h
 
 fex2bin bin2fex: sunxi-fexc
-	ln -s $< $@
+	ln -nsf $< $@
 
 sunxi-fexc: fexc.h script.h script.c \
 	script_uboot.h script_uboot.c \
