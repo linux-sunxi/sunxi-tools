@@ -486,6 +486,7 @@ soc_sram_info soc_sram_info_table[] = {
 	{
 		.soc_id       = 0x1680, /* Allwinner H3 */
 		.scratch_addr = 0x2000,
+		.mmu_tt_addr  = 0x44000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = a31_sram_swap_buffers,
 	},
