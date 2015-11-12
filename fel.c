@@ -36,6 +36,7 @@
 #include <sys/time.h>
 
 #include "endian_compat.h"
+#include "progress.h"
 
 struct  aw_usb_request {
 	char signature[8];
@@ -1042,14 +1043,6 @@ static int aw_fel_get_endpoint(libusb_device_handle *usb)
 	libusb_free_config_descriptor(config);
 
 	return 0;
-}
-
-/* Less reliable than clock_gettime, but does not require linking with -lrt */
-static double gettime(void)
-{
-	struct timeval tv;
-	gettimeofday(&tv, NULL);
-	return tv.tv_sec + (double)tv.tv_usec / 1000000.;
 }
 
 int main(int argc, char **argv)
