@@ -30,6 +30,23 @@ inline double gettime(void)
 	return tv.tv_sec + (double)tv.tv_usec / 1000000.;
 }
 
+/* Private progress state variable(s) */
+
+typedef struct {
+	progress_cb_t callback;
+} progress_private_t;
+
+static progress_private_t progress = {
+	.callback = NULL
+};
+
+/* Exposed functions to manipulate private variables */
+
+void set_progress_callback(progress_cb_t callback)
+{
+	progress.callback = callback;
+}
+
 /*
  * Update progress status, passing information to the callback function.
  * "quick" is an opaque flag that can indicate "small", frequent or
@@ -37,10 +54,27 @@ inline double gettime(void)
  * function, where it might possibly get consideration / special treatment.
  * If you have no use for that, simply always pass 'false'.
  */
-void progress_update(size_t UNUSED(total), size_t UNUSED(done), bool UNUSED(quick))
+void progress_update(size_t total, size_t done, bool quick)
 {
-	/*
-	 * This is a non-functional placeholder!
-	 * It will be replaced in a later patch.
-	 */
+	if (progress.callback)
+		progress.callback(total, done, quick);
+}
+
+/* Callback function implementing a simple progress bar written to stdout */
+void progress_bar(size_t total, size_t done, bool quick)
+{
+	static const int WIDTH = 60; /* # of characters to use for progress bar */
+
+	if (quick) return; /* ignore small transfers completing "instantly" */
+
+	float ratio = total > 0 ? (float)done / total : 0;
+	int i, pos = WIDTH * ratio;
+
+	printf("\r%3.0f%% [", ratio * 100); /* current percentage */
+	for (i = 0; i < pos; i++) putchar('=');
+	for (i = pos; i < WIDTH; i++) putchar(' ');
+	printf("] ");
+
+	if (done >= total) putchar('\n'); /* output newline when complete */
+	fflush(stdout);
 }

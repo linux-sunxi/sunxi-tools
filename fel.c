@@ -1084,6 +1084,7 @@ int main(int argc, char **argv)
 	if (argc <= 1) {
 		printf("Usage: %s [options] command arguments... [command...]\n"
 			"	-v, --verbose			Verbose logging\n"
+			"	-p, --progress			Show progress bar on larger transfers\n"
 			"\n"
 			"	spl file			Load and execute U-Boot SPL\n"
 			"		If file additionally contains a main U-Boot binary\n"
@@ -1134,16 +1135,16 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	if (argc > 1 && (strcmp(argv[1], "--verbose") == 0 ||
-			 strcmp(argv[1], "-v") == 0)) {
-		verbose = 1;
-		argc -= 1;
-		argv += 1;
-	}
-
 	while (argc > 1 ) {
 		int skip = 1;
-		if (strncmp(argv[1], "hex", 3) == 0 && argc > 3) {
+
+		if (strcmp(argv[1], "--verbose") == 0 ||
+		    strcmp(argv[1], "-v") == 0) {
+			verbose = true;
+		} else if (strcmp(argv[1], "--progress") == 0 ||
+			   strcmp(argv[1], "-p") == 0) {
+			set_progress_callback(progress_bar);
+		} else if (strncmp(argv[1], "hex", 3) == 0 && argc > 3) {
 			aw_fel_hexdump(handle, strtoul(argv[2], NULL, 0), strtoul(argv[3], NULL, 0));
 			skip = 3;
 		} else if (strncmp(argv[1], "dump", 4) == 0 && argc > 3) {

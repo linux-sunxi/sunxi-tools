@@ -29,6 +29,10 @@ typedef void (*progress_cb_t)(size_t total, size_t done, bool quick);
 
 double gettime(void);
 
+void set_progress_callback(progress_cb_t callback);
 void progress_update(size_t total, size_t done, bool quick);
+
+/* progress callback implementations for various display styles */
+void progress_bar(size_t total, size_t done, bool quick);
 
 #endif /* _SUNXI_TOOLS_PROGRESS_H */
