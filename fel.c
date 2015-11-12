@@ -22,6 +22,7 @@
 #define _NETBSD_SOURCE
 
 #include <libusb.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <assert.h>
 #include <stdlib.h>
@@ -80,18 +81,25 @@ static void pr_info(const char *fmt, ...)
 
 static const int AW_USB_MAX_BULK_SEND = 4 * 1024 * 1024; // 4 MiB per bulk request
 
-void usb_bulk_send(libusb_device_handle *usb, int ep, const void *data, int length)
+void usb_bulk_send(libusb_device_handle *usb, int ep, const void *data,
+		   size_t length, bool progress)
 {
+	size_t max_chunk = AW_USB_MAX_BULK_SEND; /* maximum chunk size */
+
+	size_t chunk, total = length;
 	int rc, sent;
 	while (length > 0) {
-		int len = length < AW_USB_MAX_BULK_SEND ? length : AW_USB_MAX_BULK_SEND;
-		rc = libusb_bulk_transfer(usb, ep, (void *)data, len, &sent, timeout);
+		chunk = length < max_chunk ? length : max_chunk;
+		rc = libusb_bulk_transfer(usb, ep, (void *)data, chunk, &sent, timeout);
 		if (rc != 0) {
 			fprintf(stderr, "libusb usb_bulk_send error %d\n", rc);
 			exit(2);
 		}
 		length -= sent;
 		data += sent;
+
+		if (progress)
+			progress_update(total, total - length, chunk == total);
 	}
 }
 
@@ -157,7 +165,7 @@ void aw_send_usb_request(libusb_device_handle *usb, int type, int length)
 	req.length = req.length2 = htole32(length);
 	req.request = htole16(type);
 	req.unknown1 = htole32(0x0c000000);
-	usb_bulk_send(usb, AW_USB_FEL_BULK_EP_OUT, &req, sizeof(req));
+	usb_bulk_send(usb, AW_USB_FEL_BULK_EP_OUT, &req, sizeof(req), false);
 }
 
 void aw_read_usb_response(libusb_device_handle *usb)
@@ -167,17 +175,18 @@ void aw_read_usb_response(libusb_device_handle *usb)
 	assert(strcmp(buf, "AWUS") == 0);
 }
 
-void aw_usb_write(libusb_device_handle *usb, const void *data, size_t len)
+void aw_usb_write(libusb_device_handle *usb, const void *data, size_t len,
+		  bool progress)
 {
 	aw_send_usb_request(usb, AW_USB_WRITE, len);
-	usb_bulk_send(usb, AW_USB_FEL_BULK_EP_OUT, data, len);
+	usb_bulk_send(usb, AW_USB_FEL_BULK_EP_OUT, data, len, progress);
 	aw_read_usb_response(usb);
 }
 
 void aw_usb_read(libusb_device_handle *usb, const void *data, size_t len)
 {
 	aw_send_usb_request(usb, AW_USB_READ, len);
-	usb_bulk_send(usb, AW_USB_FEL_BULK_EP_IN, data, len);
+	usb_bulk_send(usb, AW_USB_FEL_BULK_EP_IN, data, len, false);
 	aw_read_usb_response(usb);
 }
 
@@ -200,7 +209,7 @@ void aw_send_fel_request(libusb_device_handle *usb, int type, uint32_t addr, uin
 	req.request = htole32(type);
 	req.address = htole32(addr);
 	req.length = htole32(length);
-	aw_usb_write(usb, &req, sizeof(req));
+	aw_usb_write(usb, &req, sizeof(req), false);
 }
 
 void aw_read_fel_status(libusb_device_handle *usb)
@@ -257,7 +266,7 @@ void aw_fel_read(libusb_device_handle *usb, uint32_t offset, void *buf, size_t l
 void aw_fel_write(libusb_device_handle *usb, void *buf, uint32_t offset, size_t len)
 {
 	aw_send_fel_request(usb, AW_FEL_1_WRITE, offset, len);
-	aw_usb_write(usb, buf, len);
+	aw_usb_write(usb, buf, len, false);
 	aw_read_fel_status(usb);
 }
 
@@ -274,7 +283,7 @@ void aw_fel_execute(libusb_device_handle *usb, uint32_t offset)
  * The return value represents elapsed time in seconds (needed for execution).
  */
 double aw_write_buffer(libusb_device_handle *usb, void *buf, uint32_t offset,
-		       size_t len)
+		       size_t len, bool progress)
 {
 	/* safeguard against overwriting an already loaded U-Boot binary */
 	if (uboot_size > 0 && offset <= uboot_entry + uboot_size
@@ -288,7 +297,7 @@ double aw_write_buffer(libusb_device_handle *usb, void *buf, uint32_t offset,
 	}
 	double start = gettime();
 	aw_send_fel_request(usb, AW_FEL_1_WRITE, offset, len);
-	aw_usb_write(usb, buf, len);
+	aw_usb_write(usb, buf, len, progress);
 	aw_read_fel_status(usb);
 	return gettime() - start;
 }
@@ -382,7 +391,7 @@ void aw_fel_fill(libusb_device_handle *usb, uint32_t offset, size_t size, unsign
 {
 	unsigned char buf[size];
 	memset(buf, value, size);
-	aw_write_buffer(usb, buf, offset, size);
+	aw_write_buffer(usb, buf, offset, size, false);
 }
 
 /*
@@ -945,7 +954,7 @@ void aw_fel_write_uboot_image(libusb_device_handle *usb,
 	pr_info("Writing image \"%.*s\", %u bytes @ 0x%08X.\n",
 		IH_NMLEN, buf + HEADER_NAME_OFFSET, data_size, load_addr);
 
-	aw_write_buffer(usb, buf + HEADER_SIZE, load_addr, data_size);
+	aw_write_buffer(usb, buf + HEADER_SIZE, load_addr, data_size, false);
 
 	/* keep track of U-Boot memory region in global vars */
 	uboot_entry = load_addr;
@@ -1151,7 +1160,7 @@ int main(int argc, char **argv)
 			size_t size;
 			void *buf = load_file(argv[3], &size);
 			uint32_t offset = strtoul(argv[2], NULL, 0);
-			double elapsed = aw_write_buffer(handle, buf, offset, size);
+			double elapsed = aw_write_buffer(handle, buf, offset, size, true);
 			if (elapsed > 0)
 				pr_info("%.1f kB written in %.1f sec (speed: %.1f kB/s)\n",
 					kilo(size), elapsed, kilo(size) / elapsed);
