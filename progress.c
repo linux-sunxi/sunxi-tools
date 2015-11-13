@@ -30,14 +30,45 @@ inline double gettime(void)
 	return tv.tv_sec + (double)tv.tv_usec / 1000000.;
 }
 
+/* Calculate transfer rate (in bytes per second) */
+inline double rate(size_t transferred, double elapsed)
+{
+	if (elapsed > 0)
+		return (double)transferred / elapsed;
+	return 0.;
+}
+
+/* Estimate remaining time ("ETA") for given transfer rate */
+inline double estimate(size_t remaining, double rate)
+{
+	if (rate > 0)
+		return (double)remaining / rate;
+	return 0.;
+}
+
+/* Return ETA (in seconds) as string, formatted to minutes and seconds */
+const char *format_ETA(double remaining)
+{
+	static char result[6] = "";
+
+	int seconds = remaining + 0.5; /* simplistic round() */
+	if (seconds >= 0 && seconds < 6000) {
+		snprintf(result, sizeof(result),
+			 "%02d:%02d", seconds / 60, seconds % 60);
+		return result;
+	}
+	return "--:--";
+}
+
 /* Private progress state variable(s) */
 
 typedef struct {
 	progress_cb_t callback;
+	double start; /* start point (timestamp) for rate and ETA calculation */
 } progress_private_t;
 
 static progress_private_t progress = {
-	.callback = NULL
+	.callback = NULL, .start = 0.
 };
 
 /* Exposed functions to manipulate private variables */
@@ -45,6 +76,11 @@ static progress_private_t progress = {
 void set_progress_callback(progress_cb_t callback)
 {
 	progress.callback = callback;
+}
+
+void progress_start(void)
+{
+	progress.start = gettime(); /* reset start time */
 }
 
 /*
@@ -60,20 +96,30 @@ void progress_update(size_t total, size_t done, bool quick)
 		progress.callback(total, done, quick);
 }
 
+/* Return relative / "elapsed" time, since progress_start() */
+static inline double progress_elapsed(void)
+{
+	if (progress.start != 0.)
+		return gettime() - progress.start;
+	return 0.;
+}
+
 /* Callback function implementing a simple progress bar written to stdout */
 void progress_bar(size_t total, size_t done, bool quick)
 {
-	static const int WIDTH = 60; /* # of characters to use for progress bar */
+	static const int WIDTH = 48; /* # of characters to use for progress bar */
 
 	if (quick) return; /* ignore small transfers completing "instantly" */
 
 	float ratio = total > 0 ? (float)done / total : 0;
 	int i, pos = WIDTH * ratio;
+	double speed = rate(done, progress_elapsed());
+	double eta = estimate(total - done, speed);
 
 	printf("\r%3.0f%% [", ratio * 100); /* current percentage */
 	for (i = 0; i < pos; i++) putchar('=');
 	for (i = pos; i < WIDTH; i++) putchar(' ');
-	printf("] ");
+	printf("]%6.1f kB/s, ETA %s ", kilo(speed), format_ETA(eta));
 
 	if (done >= total) putchar('\n'); /* output newline when complete */
 	fflush(stdout);

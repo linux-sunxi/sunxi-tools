@@ -28,8 +28,11 @@ typedef void (*progress_cb_t)(size_t total, size_t done, bool quick);
 #define kibi(value)	((double)value / 1024.) /* binary prefix "Ki", "K" */
 
 double gettime(void);
+double rate(size_t transferred, double elapsed);
+double estimate(size_t remaining, double rate);
 
 void set_progress_callback(progress_cb_t callback);
+void progress_start(void);
 void progress_update(size_t total, size_t done, bool quick);
 
 /* progress callback implementations for various display styles */

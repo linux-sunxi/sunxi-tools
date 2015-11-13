@@ -1130,6 +1130,7 @@ int main(int argc, char **argv)
 		printf("Usage: %s [options] command arguments... [command...]\n"
 			"	-v, --verbose			Verbose logging\n"
 			"	-p, --progress			Show progress bar on larger transfers\n"
+			"	-np, --noprogress		No (more) progress display after this\n"
 			"\n"
 			"	spl file			Load and execute U-Boot SPL\n"
 			"		If file additionally contains a main U-Boot binary\n"
@@ -1189,6 +1190,9 @@ int main(int argc, char **argv)
 		} else if (strcmp(argv[1], "--progress") == 0 ||
 			   strcmp(argv[1], "-p") == 0) {
 			set_progress_callback(progress_bar);
+		} else if (strcmp(argv[1], "--noprogress") == 0 ||
+			   strcmp(argv[1], "-np") == 0) {
+			set_progress_callback(NULL);
 		} else if (strncmp(argv[1], "hex", 3) == 0 && argc > 3) {
 			aw_fel_hexdump(handle, strtoul(argv[2], NULL, 0), strtoul(argv[3], NULL, 0));
 			skip = 3;
@@ -1206,6 +1210,7 @@ int main(int argc, char **argv)
 			size_t size;
 			void *buf = load_file(argv[3], &size);
 			uint32_t offset = strtoul(argv[2], NULL, 0);
+			progress_start();
 			double elapsed = aw_write_buffer(handle, buf, offset, size, true);
 			if (elapsed > 0)
 				pr_info("%.1f kB written in %.1f sec (speed: %.1f kB/s)\n",
