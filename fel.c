@@ -34,6 +34,7 @@
 #include <stdarg.h>
 #include <errno.h>
 #include <unistd.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 
 #include "endian_compat.h"
@@ -386,6 +387,14 @@ void *load_file(const char *name, size_t *size)
 	if (in != stdin)
 		fclose(in);
 	return buf;
+}
+
+off_t file_size(const char *name)
+{
+	struct stat st;
+	if (stat(name, &st) == 0)
+		return st.st_size;
+	return 0;
 }
 
 void aw_fel_hexdump(libusb_device_handle *usb, uint32_t offset, size_t size)
@@ -1117,6 +1126,23 @@ static int aw_fel_get_endpoint(libusb_device_handle *usb)
 	return 0;
 }
 
+/* private helper function, handling "write" and "multiwrite" transfers */
+static void do_write(libusb_device_handle *handle,
+		     void *buf, size_t size, uint32_t offset)
+{
+	/* write data from given buffer, with (optional) progress updates */
+	double elapsed = aw_write_buffer(handle, buf, offset, size, true);
+	if (elapsed > 0)
+		pr_info("%.1f kB written in %.1f sec (speed: %.1f KB/s)\n",
+			kilo(size), elapsed, kilo(size) / elapsed);
+	/*
+	 * If we have transferred a script, try to inform U-Boot
+	 * about its address.
+	 */
+	if (get_image_type(buf, size) == IH_TYPE_SCRIPT)
+		pass_fel_information(handle, offset);
+}
+
 int main(int argc, char **argv)
 {
 	int uboot_autostart = 0; /* flag for "uboot" command = U-Boot autostart */
@@ -1149,6 +1175,8 @@ int main(int argc, char **argv)
 			"	exe[cute] address		Call function address\n"
 			"	read address length file	Write memory contents into file\n"
 			"	write address file		Store file contents into memory\n"
+			"	multi[write] # addr file ...	like \"write\", but handles multiple file\n"
+			"					transfers with a shared progress status\n"
 			"	ver[sion]			Show BROM version\n"
 			"	clear address length		Clear memory\n"
 			"	fill address length value	Fill memory\n"
@@ -1217,21 +1245,32 @@ int main(int argc, char **argv)
 		} else if (strcmp(argv[1], "write") == 0 && argc > 3) {
 			size_t size;
 			void *buf = load_file(argv[3], &size);
-			uint32_t offset = strtoul(argv[2], NULL, 0);
 			progress_start();
-			double elapsed = aw_write_buffer(handle, buf, offset, size, true);
-			if (elapsed > 0)
-				pr_info("%.1f kB written in %.1f sec (speed: %.1f kB/s)\n",
-					kilo(size), elapsed, kilo(size) / elapsed);
-			/*
-			 * If we have transferred a script, try to inform U-Boot
-			 * about its address.
-			 */
-			if (get_image_type(buf, size) == IH_TYPE_SCRIPT)
-				pass_fel_information(handle, offset);
-
+			do_write(handle, buf, size, strtoul(argv[2], NULL, 0));
 			free(buf);
 			skip=3;
+		} else if ((strcmp(argv[1], "multiwrite") == 0 ||
+			    strcmp(argv[1], "multi") == 0) && argc > 4) {
+			size_t count = strtoul(argv[2], NULL, 0); /* file count */
+			skip = 2;
+			if (count > 0) {
+				/* calculate total size in advance */
+				size_t total_bytes = 0;
+				unsigned int i;
+				for (i = 0; i < count; i++)
+					total_bytes += file_size(argv[4 + i*2]);
+				/* now transfer everything */
+				progress_expect(total_bytes);
+				progress_start();
+				for (i = 0; i < count; i++) {
+					size_t size;
+					void *buf = load_file(argv[4 + i*2], &size);
+					do_write(handle, buf, size,
+						 strtoul(argv[3 + i*2], NULL, 0));
+					free(buf);
+				}
+				skip += count * 2;
+			}
 		} else if (strcmp(argv[1], "read") == 0 && argc > 4) {
 			size_t size = strtoul(argv[3], NULL, 0);
 			void *buf = malloc(size);
