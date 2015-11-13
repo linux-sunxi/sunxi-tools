@@ -20,8 +20,6 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-#include "common.h"
-
 /* Less reliable than clock_gettime, but does not require linking with -lrt */
 inline double gettime(void)
 {
@@ -30,11 +28,48 @@ inline double gettime(void)
 	return tv.tv_sec + (double)tv.tv_usec / 1000000.;
 }
 
-/* Update progress status, passing information to the callback function. */
-void progress_update(size_t UNUSED(bytes_done))
+/* Private progress state variable */
+
+typedef struct {
+	progress_cb_t callback;
+	size_t total;
+	size_t done;
+} progress_private_t;
+
+static progress_private_t progress = {
+	.callback = NULL,
+};
+
+/* 'External' API */
+
+void progress_start(progress_cb_t callback, size_t expected_total)
 {
-	/*
-	 * This is a non-functional placeholder!
-	 * It will be replaced in a later patch.
-	 */
+	progress.callback = callback;
+	progress.total = expected_total;
+	progress.done = 0;
+}
+
+/* Update progress status, passing information to the callback function. */
+void progress_update(size_t bytes_done)
+{
+	progress.done += bytes_done;
+	if (progress.callback)
+		progress.callback(progress.total, progress.done);
+}
+
+/* Callback function implementing a simple progress bar written to stdout */
+void progress_bar(size_t total, size_t done)
+{
+	static const int WIDTH = 60; /* # of characters to use for progress bar */
+
+	float ratio = total > 0 ? (float)done / total : 0;
+	int i, pos = WIDTH * ratio;
+
+	printf("\r%3.0f%% [", ratio * 100); /* current percentage */
+	for (i = 0; i < pos; i++) putchar('=');
+	for (i = pos; i < WIDTH; i++) putchar(' ');
+	printf("] ");
+
+	if (done >= total) putchar('\n'); /* output newline when complete */
+	fflush(stdout);
 }

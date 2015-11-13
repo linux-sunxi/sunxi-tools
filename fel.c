@@ -81,7 +81,12 @@ static const int AW_USB_MAX_BULK_SEND = 4 * 1024 * 1024; // 4 MiB per bulk reque
 void usb_bulk_send(libusb_device_handle *usb, int ep, const void *data,
 		   size_t length, bool progress)
 {
-	size_t max_chunk = AW_USB_MAX_BULK_SEND; /* maximum chunk size */
+	/*
+	 * With no progress notifications, we'll use the maximum chunk size.
+	 * Otherwise, it's useful to lower the size (have more chunks) to get
+	 * more frequent status updates. 128 KiB per request seem suitable.
+	 */
+	size_t max_chunk = progress ? 128 * 1024 : AW_USB_MAX_BULK_SEND;
 
 	size_t chunk;
 	int rc, sent;
@@ -1215,6 +1220,7 @@ static int aw_fel_get_endpoint(libusb_device_handle *usb)
 
 int main(int argc, char **argv)
 {
+	bool pflag_active = false; /* -p switch, causing "write" to output progress */
 	int rc;
 	libusb_device_handle *handle = NULL;
 	int iface_detached = -1;
@@ -1224,6 +1230,7 @@ int main(int argc, char **argv)
 	if (argc <= 1) {
 		printf("Usage: %s [options] command arguments... [command...]\n"
 			"	-v, --verbose			Verbose logging\n"
+			"	-p, --progress			\"write\" transfers show a progress bar\n"
 			"\n"
 			"	spl file			Load and execute U-Boot SPL\n"
 			"		If file additionally contains a main U-Boot binary\n"
@@ -1283,7 +1290,11 @@ int main(int argc, char **argv)
 
 	while (argc > 1 ) {
 		int skip = 1;
-		if (strncmp(argv[1], "hex", 3) == 0 && argc > 3) {
+
+		if (strcmp(argv[1], "--progress") == 0 ||
+		    strcmp(argv[1], "-p") == 0) {
+			pflag_active = true;
+		} else if (strncmp(argv[1], "hex", 3) == 0 && argc > 3) {
 			aw_fel_hexdump(handle, strtoul(argv[2], NULL, 0), strtoul(argv[3], NULL, 0));
 			skip = 3;
 		} else if (strncmp(argv[1], "dump", 4) == 0 && argc > 3) {
@@ -1300,6 +1311,7 @@ int main(int argc, char **argv)
 			size_t size;
 			void *buf = load_file(argv[3], &size);
 			uint32_t offset = strtoul(argv[2], NULL, 0);
+			progress_start(pflag_active ? progress_bar : NULL, size);
 			double elapsed = aw_write_buffer(handle, buf, offset, size, true);
 			if (elapsed > 0)
 				pr_info("%.1f kB written in %.1f sec (speed: %.1f kB/s)\n",

@@ -28,6 +28,10 @@ typedef void (*progress_cb_t)(size_t total, size_t done);
 
 double gettime(void);
 
+void progress_start(progress_cb_t callback, size_t expected_total);
 void progress_update(size_t bytes_done);
+
+/* progress callback implementations for various display styles */
+void progress_bar(size_t total, size_t done);
 
 #endif /* _SUNXI_TOOLS_PROGRESS_H */
