@@ -65,10 +65,12 @@ const char *format_ETA(double remaining)
 typedef struct {
 	progress_cb_t callback;
 	double start; /* start point (timestamp) for rate and ETA calculation */
+	size_t expected_total;
+	size_t expected_done;
 } progress_private_t;
 
 static progress_private_t progress = {
-	.callback = NULL, .start = 0.
+	.callback = NULL, .start = 0., .expected_total = 0
 };
 
 /* Exposed functions to manipulate private variables */
@@ -80,7 +82,18 @@ void set_progress_callback(progress_cb_t callback)
 
 void progress_start(void)
 {
-	progress.start = gettime(); /* reset start time */
+	/* zero "expected_done" value, reset start time */
+	progress.expected_done = 0;
+	progress.start = gettime();
+}
+
+/*
+ * Instruct the progress update logic to expect multiple transfers,
+ * which should sum up to the given overall number of bytes.
+ */
+void progress_expect(size_t total_bytes)
+{
+	progress.expected_total = total_bytes;
 }
 
 /*
@@ -92,8 +105,25 @@ void progress_start(void)
  */
 void progress_update(size_t total, size_t done, bool quick)
 {
-	if (progress.callback)
-		progress.callback(total, done, quick);
+	if (progress.expected_total) {
+		/*
+		 * Override current (partial) stats, passing totals instead.
+		 * Note: We also set "quick" to 'false' to enforce display.
+		 */
+		if (progress.callback)
+			progress.callback(progress.expected_total,
+					  done + progress.expected_done, false);
+
+		if (done >= total) /* current transfer has completed */
+			progress.expected_done += total;
+	} else {
+		/*
+		 * progress.expected_total == 0, i.e. unset
+		 * Just pass values through to the callback directly.
+		 */
+		if (progress.callback)
+			progress.callback(total, done, quick);
+	}
 }
 
 /* Return relative / "elapsed" time, since progress_start() */

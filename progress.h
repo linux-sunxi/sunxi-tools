@@ -33,6 +33,7 @@ double estimate(size_t remaining, double rate);
 
 void set_progress_callback(progress_cb_t callback);
 void progress_start(void);
+void progress_expect(size_t total_bytes);
 void progress_update(size_t total, size_t done, bool quick);
 
 /* progress callback implementations for various display styles */
