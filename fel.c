@@ -1130,6 +1130,8 @@ int main(int argc, char **argv)
 		printf("Usage: %s [options] command arguments... [command...]\n"
 			"	-v, --verbose			Verbose logging\n"
 			"	-p, --progress			Show progress bar on larger transfers\n"
+			"	-g, --gauge			Output progress for \"dialog --gauge\"\n"
+			"	-gg, --xgauge			Extended gauge output (updates prompt)\n"
 			"	-np, --noprogress		No (more) progress display after this\n"
 			"\n"
 			"	spl file			Load and execute U-Boot SPL\n"
@@ -1190,6 +1192,12 @@ int main(int argc, char **argv)
 		} else if (strcmp(argv[1], "--progress") == 0 ||
 			   strcmp(argv[1], "-p") == 0) {
 			set_progress_callback(progress_bar);
+		} else if (strcmp(argv[1], "--gauge") == 0 ||
+			   strcmp(argv[1], "-g") == 0) {
+			set_progress_callback(progress_gauge);
+		} else if (strcmp(argv[1], "--xgauge") == 0 ||
+			   strcmp(argv[1], "-gg") == 0) {
+			set_progress_callback(progress_gauge_xxx);
 		} else if (strcmp(argv[1], "--noprogress") == 0 ||
 			   strcmp(argv[1], "-np") == 0) {
 			set_progress_callback(NULL);

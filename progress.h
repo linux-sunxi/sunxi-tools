@@ -37,5 +37,7 @@ void progress_update(size_t total, size_t done, bool quick);
 
 /* progress callback implementations for various display styles */
 void progress_bar(size_t total, size_t done, bool quick);
+void progress_gauge(size_t total, size_t done, bool quick);
+void progress_gauge_xxx(size_t total, size_t done, bool quick);
 
 #endif /* _SUNXI_TOOLS_PROGRESS_H */
