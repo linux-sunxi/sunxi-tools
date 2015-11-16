@@ -532,6 +532,50 @@ static uint32_t fel_to_spl_thunk[] = {
 #define	DRAM_BASE		0x40000000
 #define	DRAM_SIZE		0x80000000
 
+uint32_t aw_read_arm_cp_reg(libusb_device_handle *usb, soc_sram_info *sram_info,
+			    uint32_t coproc, uint32_t opc1, uint32_t crn,
+			    uint32_t crm, uint32_t opc2)
+{
+	uint32_t val = 0;
+	uint32_t opcode = 0xEE000000 | (1 << 20) | (1 << 4) |
+			  ((opc1 & 7) << 21)    |
+			  ((crn & 15) << 16)    |
+			  ((coproc & 15) << 8)  |
+			  ((opc2 & 7) << 5)     |
+			  (crm & 15);
+	uint32_t arm_code[] = {
+		htole32(opcode),     /* mrc  coproc, opc1, r0, crn, crm, opc2 */
+		htole32(0xe58f0000), /* str  r0, [pc]                         */
+		htole32(0xe12fff1e), /* bx   lr                               */
+	};
+	aw_fel_write(usb, arm_code, sram_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(usb, sram_info->scratch_addr);
+	aw_fel_read(usb, sram_info->scratch_addr + 12, &val, sizeof(val));
+	return le32toh(val);
+}
+
+void aw_write_arm_cp_reg(libusb_device_handle *usb, soc_sram_info *sram_info,
+			 uint32_t coproc, uint32_t opc1, uint32_t crn,
+			 uint32_t crm, uint32_t opc2, uint32_t val)
+{
+	uint32_t opcode = 0xEE000000 | (0 << 20) | (1 << 4) |
+			  ((opc1 & 7) << 21)                |
+			  ((crn & 15) << 16)                |
+			  ((coproc & 15) << 8)              |
+			  ((opc2 & 7) << 5)                 |
+			  (crm & 15);
+	uint32_t arm_code[] = {
+		htole32(0xe59f000c), /* ldr  r0, [pc, #12]                    */
+		htole32(opcode),     /* mcr  coproc, opc1, r0, crn, crm, opc2 */
+		htole32(0xf57ff04f), /* dsb  sy                               */
+		htole32(0xf57ff06f), /* isb  sy                               */
+		htole32(0xe12fff1e), /* bx   lr                               */
+		htole32(val)
+	};
+	aw_fel_write(usb, arm_code, sram_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(usb, sram_info->scratch_addr);
+}
+
 void aw_enable_l2_cache(libusb_device_handle *usb, soc_sram_info *sram_info)
 {
 	uint32_t arm_code[] = {
@@ -585,34 +629,12 @@ void aw_get_stackinfo(libusb_device_handle *usb, soc_sram_info *sram_info,
 
 uint32_t aw_get_ttbr0(libusb_device_handle *usb, soc_sram_info *sram_info)
 {
-	uint32_t ttbr0 = 0;
-	uint32_t arm_code[] = {
-		htole32(0xee122f10), /* mrc        15, 0, r2, cr2, cr0, {0}  */
-		htole32(0xe58f2008), /* str        r2, [pc, #8]              */
-		htole32(0xe12fff1e), /* bx         lr                        */
-	};
-
-	aw_fel_write(usb, arm_code, sram_info->scratch_addr, sizeof(arm_code));
-	aw_fel_execute(usb, sram_info->scratch_addr);
-	aw_fel_read(usb, sram_info->scratch_addr + 0x14, &ttbr0, sizeof(ttbr0));
-	ttbr0 = le32toh(ttbr0);
-	return ttbr0;
+	return aw_read_arm_cp_reg(usb, sram_info, 15, 0, 2, 0, 0);
 }
 
 uint32_t aw_get_sctlr(libusb_device_handle *usb, soc_sram_info *sram_info)
 {
-	uint32_t sctlr = 0;
-	uint32_t arm_code[] = {
-		htole32(0xee112f10), /* mrc        15, 0, r2, cr1, cr0, {0}  */
-		htole32(0xe58f2008), /* str        r2, [pc, #8]              */
-		htole32(0xe12fff1e), /* bx         lr                        */
-	};
-
-	aw_fel_write(usb, arm_code, sram_info->scratch_addr, sizeof(arm_code));
-	aw_fel_execute(usb, sram_info->scratch_addr);
-	aw_fel_read(usb, sram_info->scratch_addr + 0x14, &sctlr, sizeof(sctlr));
-	sctlr = le32toh(sctlr);
-	return sctlr;
+	return aw_read_arm_cp_reg(usb, sram_info, 15, 0, 1, 0, 0);
 }
 
 uint32_t *aw_backup_and_disable_mmu(libusb_device_handle *usb,
