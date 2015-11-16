@@ -79,12 +79,18 @@ static void pr_info(const char *fmt, ...)
 	}
 }
 
-static const int AW_USB_MAX_BULK_SEND = 4 * 1024 * 1024; // 4 MiB per bulk request
+static const size_t AW_USB_MAX_BULK_SEND = 4 * 1024 * 1024; // 4 MiB per bulk request
+static size_t get_chunk_size(libusb_device_handle *usb); /* forward declaration */
 
 void usb_bulk_send(libusb_device_handle *usb, int ep, const void *data,
 		   size_t length, bool progress)
 {
-	size_t max_chunk = AW_USB_MAX_BULK_SEND; /* maximum chunk size */
+	/*
+	 * With no progress notifications, we'll use the maximum chunk size.
+	 * Otherwise, it's useful to lower the value (= have smaller chunks)
+	 * to get more frequent status updates.
+	 */
+	size_t max_chunk = progress ? get_chunk_size(usb) : AW_USB_MAX_BULK_SEND;
 
 	size_t chunk, total = length;
 	int rc, sent;
@@ -295,6 +301,14 @@ double aw_write_buffer(libusb_device_handle *usb, void *buf, uint32_t offset,
 			uboot_entry, uboot_entry + uboot_size);
 		exit(1);
 	}
+
+	/*
+	 * Calculating chunk size may enforce an AW_FEL_VERSION request. If needed,
+	 * let's get that out of the way - so it doesn't interfere later.
+	 */
+	if (progress)
+		get_chunk_size(usb); /* possibly calls aw_fel_get_sram_info() */
+
 	double start = gettime();
 	aw_send_fel_request(usb, AW_FEL_1_WRITE, offset, len);
 	aw_usb_write(usb, buf, len, progress);
@@ -424,6 +438,7 @@ typedef struct {
 	uint32_t           thunk_addr;   /* Address of the thunk code */
 	uint32_t           thunk_size;   /* Maximal size of the thunk code */
 	uint32_t           needs_l2en;   /* Set the L2EN bit */
+	uint32_t           write_speed;  /* approx. FEL write speed, in KiB/s */
 	sram_swap_buffers *swap_buffers;
 } soc_sram_info;
 
@@ -461,6 +476,7 @@ soc_sram_info soc_sram_info_table[] = {
 		.thunk_addr   = 0xAE00, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.needs_l2en   = 1,
+		.write_speed  = 512,
 	},
 	{
 		.soc_id       = 0x1625, /* Allwinner A13 */
@@ -468,12 +484,14 @@ soc_sram_info soc_sram_info_table[] = {
 		.thunk_addr   = 0xAE00, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.needs_l2en   = 1,
+		.write_speed  = 512,
 	},
 	{
 		.soc_id       = 0x1651, /* Allwinner A20 */
 		.scratch_addr = 0x2000,
 		.thunk_addr   = 0xAE00, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
+		.write_speed  = 512,
 	},
 	{
 		.soc_id       = 0x1650, /* Allwinner A23 */
@@ -486,6 +504,7 @@ soc_sram_info soc_sram_info_table[] = {
 		.scratch_addr = 0x2000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = a31_sram_swap_buffers,
+		.write_speed  = 512,
 	},
 	{
 		.soc_id       = 0x1667, /* Allwinner A33 */
@@ -550,6 +569,32 @@ soc_sram_info *aw_fel_get_sram_info(libusb_device_handle *usb)
 			       buf.soc_id);
 			result = &generic_sram_info;
 		}
+	}
+	return result;
+}
+
+/*
+ * This function serves to determine a useful "progress chunk" size, based on
+ * the assumption that we aim for at least one update per second approximately.
+ *
+ * As of now, unfortunately this isn't a single, uniform value. Many SoCs have
+ * decent FEL write speeds - but a few experience shortcomings and poor
+ * performance, see https://linux-sunxi.org/FEL/USBBoot#SoC_support_status
+ *
+ * We therefore try to reasonably match the SoC's transfer rate, or fall back
+ * to a (relatively small) 'safe' chunk size. Currently the default assumes
+ * that slow FEL transfers are ~128 KiB/s.
+ */
+static size_t get_chunk_size(libusb_device_handle *usb)
+{
+	static size_t result = 0; /* determine value once, and cache it */
+
+	if (!result) {
+		soc_sram_info *sram_info = aw_fel_get_sram_info(usb);
+		if (sram_info->write_speed > 0)
+			result = sram_info->write_speed * 1024; /* expected amount per second */
+		else /* slow or unknown SoC */
+			result = 128 * 1024; /* 128 KiB per request */
 	}
 	return result;
 }
