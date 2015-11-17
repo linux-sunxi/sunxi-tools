@@ -387,6 +387,18 @@ typedef struct {
  * Note: the entries in the 'swap_buffers' tables need to be sorted by 'buf1'
  * addresses. And the 'buf1' addresses are the BROM data buffers, while 'buf2'
  * addresses are the intended backup locations.
+ *
+ * Also for performance reasons, we optionally want to have MMU enabled with
+ * optimal section attributes configured (the code from the BROM should use
+ * I-cache, writing data to the DRAM area should use write combining). The
+ * reason is that the BROM FEL protocol implementation moves data using the
+ * CPU somewhere on the performance critical path when transferring data over
+ * USB. The older SoC variants (A10/A13/A20/A31/A23) already have MMU enabled
+ * and we only need to adjust section attributes. The BROM in newer SoC variants
+ * (A33/A83T/H3) doesn't enable MMU anymore, so we need to find some 16K of
+ * spare space in SRAM to place the translation table there and specify it as
+ * the 'mmu_tt_addr' field in the 'soc_sram_info' structure. The 'mmu_tt_addr'
+ * address must be 16K aligned.
  */
 typedef struct {
 	uint32_t           soc_id;       /* ID of the SoC */
@@ -395,6 +407,7 @@ typedef struct {
 	uint32_t           thunk_addr;   /* Address of the thunk code */
 	uint32_t           thunk_size;   /* Maximal size of the thunk code */
 	uint32_t           needs_l2en;   /* Set the L2EN bit */
+	uint32_t           mmu_tt_addr;  /* MMU translation table address */
 	sram_swap_buffers *swap_buffers;
 } soc_sram_info;
 
@@ -632,9 +645,70 @@ uint32_t aw_get_ttbr0(libusb_device_handle *usb, soc_sram_info *sram_info)
 	return aw_read_arm_cp_reg(usb, sram_info, 15, 0, 2, 0, 0);
 }
 
+uint32_t aw_get_ttbcr(libusb_device_handle *usb, soc_sram_info *sram_info)
+{
+	return aw_read_arm_cp_reg(usb, sram_info, 15, 0, 2, 0, 2);
+}
+
+uint32_t aw_get_dacr(libusb_device_handle *usb, soc_sram_info *sram_info)
+{
+	return aw_read_arm_cp_reg(usb, sram_info, 15, 0, 3, 0, 0);
+}
+
 uint32_t aw_get_sctlr(libusb_device_handle *usb, soc_sram_info *sram_info)
 {
 	return aw_read_arm_cp_reg(usb, sram_info, 15, 0, 1, 0, 0);
+}
+
+void aw_set_ttbr0(libusb_device_handle *usb, soc_sram_info *sram_info,
+		  uint32_t ttbr0)
+{
+	return aw_write_arm_cp_reg(usb, sram_info, 15, 0, 2, 0, 0, ttbr0);
+}
+
+void aw_set_ttbcr(libusb_device_handle *usb, soc_sram_info *sram_info,
+		  uint32_t ttbcr)
+{
+	return aw_write_arm_cp_reg(usb, sram_info, 15, 0, 2, 0, 2, ttbcr);
+}
+
+void aw_set_dacr(libusb_device_handle *usb, soc_sram_info *sram_info,
+		 uint32_t dacr)
+{
+	aw_write_arm_cp_reg(usb, sram_info, 15, 0, 3, 0, 0, dacr);
+}
+
+void aw_set_sctlr(libusb_device_handle *usb, soc_sram_info *sram_info,
+		  uint32_t sctlr)
+{
+	aw_write_arm_cp_reg(usb, sram_info, 15, 0, 1, 0, 0, sctlr);
+}
+
+/*
+ * Reconstruct the same MMU translation table as used by the A20 BROM.
+ * We are basically reverting the changes, introduced in newer SoC
+ * variants. This works fine for the SoC variants with the memory
+ * layout similar to A20 (the SRAM is in the first megabyte of the
+ * address space and the BROM is in the last megabyte of the address
+ * space).
+ */
+uint32_t *aw_generate_mmu_translation_table(void)
+{
+	uint32_t *tt = malloc(4096 * sizeof(uint32_t));
+	uint32_t i;
+
+	/*
+	 * Direct mapping using 1MB sections with TEXCB=00000 (Strongly
+	 * ordered) for all memory except the first and the last sections,
+	 * which have TEXCB=00100 (Normal). Domain bits are set to 1111
+	 * and AP bits are set to 11, but this is mostly irrelevant.
+	 */
+	for (i = 0; i < 4096; i++)
+		tt[i] = 0x00000DE2 | (i << 20);
+	tt[0x000] |= 0x1000;
+	tt[0xFFF] |= 0x1000;
+
+	return tt;
 }
 
 uint32_t *aw_backup_and_disable_mmu(libusb_device_handle *usb,
@@ -643,6 +717,8 @@ uint32_t *aw_backup_and_disable_mmu(libusb_device_handle *usb,
 	uint32_t *tt = NULL;
 	uint32_t ttbr0 = aw_get_ttbr0(usb, sram_info);
 	uint32_t sctlr = aw_get_sctlr(usb, sram_info);
+	uint32_t ttbcr = aw_get_ttbcr(usb, sram_info);
+	uint32_t dacr  = aw_get_dacr(usb, sram_info);
 	uint32_t i;
 
 	uint32_t arm_code[] = {
@@ -656,13 +732,35 @@ uint32_t *aw_backup_and_disable_mmu(libusb_device_handle *usb,
 		htole32(0xe12fff1e), /* bx         lr                        */
 	};
 
+	/*
+	 * Below are some checks for the register values, which are known
+	 * to be initialized in this particular way by the existing BROM
+	 * implementations. We don't strictly need them to exactly match,
+	 * but still have these safety guards in place in order to detect
+	 * and review any potential configuration changes in future SoC
+	 * variants (if one of these checks fails, then it is not a serious
+	 * problem but more likely just an indication that one of these
+	 * checks needs to be relaxed).
+	 */
+
+	/* Basically, ignore M/Z/I bits and expect no TEX remap */
+	if ((sctlr & ~((1 << 12) | (1 << 11) | 1)) != 0x00C52078) {
+		fprintf(stderr, "Unexpected SCTLR (%08X)\n", sctlr);
+		exit(1);
+	}
+
 	if (!(sctlr & 1)) {
 		pr_info("MMU is not enabled by BROM\n");
 		return NULL;
 	}
 
-	if ((sctlr >> 28) & 1) {
-		fprintf(stderr, "TEX remap is enabled!\n");
+	if (dacr != 0x55555555) {
+		fprintf(stderr, "Unexpected DACR (%08X)\n", dacr);
+		exit(1);
+	}
+
+	if (ttbcr != 0x00000000) {
+		fprintf(stderr, "Unexpected TTBCR (%08X)\n", ttbcr);
 		exit(1);
 	}
 
@@ -807,6 +905,28 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 	pr_info("Stack pointers: sp_irq=0x%08X, sp=0x%08X\n", sp_irq, sp);
 
 	tt = aw_backup_and_disable_mmu(usb, sram_info);
+	if (!tt && sram_info->mmu_tt_addr) {
+		if (sram_info->mmu_tt_addr & 0x3FFF) {
+			fprintf(stderr, "SPL: 'mmu_tt_addr' must be 16K aligned\n");
+			exit(1);
+		}
+		pr_info("Generating the new MMU translation table at 0x%08X\n",
+		        sram_info->mmu_tt_addr);
+		/*
+		 * These settings are used by the BROM in A10/A13/A20 and
+		 * we replicate them here when enabling the MMU. The DACR
+		 * value 0x55555555 means that accesses are checked against
+		 * the permission bits in the translation tables for all
+		 * domains. The TTBCR value 0x00000000 means that the short
+		 * descriptor translation table format is used, TTBR0 is used
+		 * for all the possible virtual addresses (N=0) and that the
+		 * translation table must be aligned at a 16K boundary.
+		 */
+		aw_set_dacr(usb, sram_info, 0x55555555);
+		aw_set_ttbcr(usb, sram_info, 0x00000000);
+		aw_set_ttbr0(usb, sram_info, sram_info->mmu_tt_addr);
+		tt = aw_generate_mmu_translation_table();
+	}
 
 	swap_buffers = sram_info->swap_buffers;
 	for (i = 0; swap_buffers[i].size; i++) {
