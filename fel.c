@@ -23,6 +23,7 @@
 
 #include <libusb.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
@@ -61,7 +62,7 @@ static const int AW_USB_WRITE = 0x12;
 static int AW_USB_FEL_BULK_EP_OUT;
 static int AW_USB_FEL_BULK_EP_IN;
 static int timeout = 60000;
-static int verbose = 0; /* Makes the 'fel' tool more talkative if non-zero */
+static bool verbose = false; /* If set, makes the 'fel' tool more talkative */
 static uint32_t uboot_entry = 0; /* entry point (address) of U-Boot */
 static uint32_t uboot_size  = 0; /* size of U-Boot binary */
 
@@ -957,7 +958,7 @@ void aw_fel_process_spl_and_uboot(libusb_device_handle *usb,
 #define SPL_SIGNATURE			"SPL" /* marks "sunxi" header */
 #define SPL_MIN_VERSION			1 /* minimum required version */
 #define SPL_MAX_VERSION			1 /* maximum supported version */
-int have_sunxi_spl(libusb_device_handle *usb, uint32_t spl_addr)
+bool have_sunxi_spl(libusb_device_handle *usb, uint32_t spl_addr)
 {
 	uint8_t spl_signature[4];
 
@@ -965,23 +966,23 @@ int have_sunxi_spl(libusb_device_handle *usb, uint32_t spl_addr)
 		&spl_signature, sizeof(spl_signature));
 
 	if (memcmp(spl_signature, SPL_SIGNATURE, 3) != 0)
-		return 0; /* signature mismatch, no "sunxi" SPL */
+		return false; /* signature mismatch, no "sunxi" SPL */
 
 	if (spl_signature[3] < SPL_MIN_VERSION) {
 		fprintf(stderr, "sunxi SPL version mismatch: "
 			"found 0x%02X < required minimum 0x%02X\n",
 			spl_signature[3], SPL_MIN_VERSION);
 		fprintf(stderr, "You need to update your U-Boot (mksunxiboot) to a more recent version.\n");
-		return 0;
+		return false;
 	}
 	if (spl_signature[3] > SPL_MAX_VERSION) {
 		fprintf(stderr, "sunxi SPL version mismatch: "
 			"found 0x%02X > maximum supported 0x%02X\n",
 			spl_signature[3], SPL_MAX_VERSION);
 		fprintf(stderr, "You need a more recent version of this (sunxi-tools) fel utility.\n");
-		return 0;
+		return false;
 	}
-	return 1; /* sunxi SPL and suitable version */
+	return true; /* sunxi SPL and suitable version */
 }
 
 /*
@@ -1113,7 +1114,7 @@ int main(int argc, char **argv)
 
 	if (argc > 1 && (strcmp(argv[1], "--verbose") == 0 ||
 			 strcmp(argv[1], "-v") == 0)) {
-		verbose = 1;
+		verbose = true;
 		argc -= 1;
 		argv += 1;
 	}
