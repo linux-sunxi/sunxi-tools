@@ -28,8 +28,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <stdarg.h>
 #include <errno.h>
 #include <unistd.h>
@@ -988,8 +986,8 @@ int have_sunxi_spl(libusb_device_handle *usb, uint32_t spl_addr)
 
 /*
  * Pass information to U-Boot via specialized fields in the SPL header
- * (see "boot_file_head" in ${U-BOOT}/tools/mksunxiboot.c), providing
- * information about the boot script address (DRAM location of boot.scr).
+ * (see "boot_file_head" in ${U-BOOT}/arch/arm/include/asm/arch-sunxi/spl.h),
+ * providing the boot script address (DRAM location of boot.scr).
  */
 void pass_fel_information(libusb_device_handle *usb, uint32_t script_address)
 {
@@ -1054,7 +1052,6 @@ static double gettime(void)
 
 int main(int argc, char **argv)
 {
-	int uboot_autostart = 0; /* flag for "uboot" command = U-Boot autostart */
 	int rc;
 	libusb_device_handle *handle = NULL;
 	int iface_detached = -1;
@@ -1175,8 +1172,7 @@ int main(int argc, char **argv)
 			skip=2;
 		} else if (strcmp(argv[1], "uboot") == 0 && argc > 2) {
 			aw_fel_process_spl_and_uboot(handle, argv[2]);
-			uboot_autostart = (uboot_entry > 0 && uboot_size > 0);
-			if (!uboot_autostart)
+			if (!uboot_entry)
 				printf("Warning: \"uboot\" command failed to detect image! Can't execute U-Boot.\n");
 			skip=2;
 		} else {
@@ -1188,7 +1184,7 @@ int main(int argc, char **argv)
 	}
 
 	// auto-start U-Boot if requested (by the "uboot" command)
-	if (uboot_autostart) {
+	if (uboot_entry > 0 && uboot_size > 0) {
 		pr_info("Starting U-Boot (0x%08X).\n", uboot_entry);
 		aw_fel_execute(handle, uboot_entry);
 	}
