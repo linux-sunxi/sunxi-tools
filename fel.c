@@ -32,6 +32,7 @@
 #include <stdarg.h>
 #include <errno.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 #include "endian_compat.h"
 #include "progress.h"
@@ -331,6 +332,21 @@ void hexdump(void *data, uint32_t offset, size_t size)
 		}
 		printf("\n");
 	}
+}
+
+unsigned int file_size(const char *filename)
+{
+	struct stat st;
+	if (stat(filename, &st) != 0) {
+		fprintf(stderr, "stat() error on file \"%s\": %s\n", filename,
+			strerror(errno));
+		exit(1);
+	}
+	if (!S_ISREG(st.st_mode)) {
+		fprintf(stderr, "error: \"%s\" is not a regular file\n", filename);
+		exit(1);
+	}
+	return st.st_size;
 }
 
 int save_file(const char *name, void *data, size_t size)
@@ -1218,6 +1234,41 @@ static int aw_fel_get_endpoint(libusb_device_handle *usb)
 	return 0;
 }
 
+/* private helper function, gets used for "write*" and "multi*" transfers */
+static unsigned int file_upload(libusb_device_handle *handle, size_t count,
+				size_t argc, char **argv, progress_cb_t progress)
+{
+	if (argc < count * 2) {
+		fprintf(stderr, "error: too few arguments for uploading %zu files\n",
+			count);
+		exit(1);
+	}
+
+	/* get all file sizes, keeping track of total bytes */
+	size_t size = 0;
+	unsigned int i;
+	for (i = 0; i < count; i++)
+		size += file_size(argv[i * 2 + 1]);
+
+	progress_start(progress, size); // set total size and progress callback
+
+	/* now transfer each file in turn */
+	for (i = 0; i < count; i++) {
+		void *buf = load_file(argv[i * 2 + 1], &size);
+		if (size > 0) {
+			uint32_t offset = strtoul(argv[i * 2], NULL, 0);
+			aw_write_buffer(handle, buf, offset, size, true);
+
+			// If we transferred a script, try to inform U-Boot about its address.
+			if (get_image_type(buf, size) == IH_TYPE_SCRIPT)
+				pass_fel_information(handle, offset);
+		}
+		free(buf);
+	}
+
+	return i; // return number of files that were processed
+}
+
 int main(int argc, char **argv)
 {
 	bool pflag_active = false; /* -p switch, causing "write" to output progress */
@@ -1308,23 +1359,8 @@ int main(int argc, char **argv)
 			aw_fel_print_version(handle);
 			skip=1;
 		} else if (strcmp(argv[1], "write") == 0 && argc > 3) {
-			size_t size;
-			void *buf = load_file(argv[3], &size);
-			uint32_t offset = strtoul(argv[2], NULL, 0);
-			progress_start(pflag_active ? progress_bar : NULL, size);
-			double elapsed = aw_write_buffer(handle, buf, offset, size, true);
-			if (elapsed > 0)
-				pr_info("%.1f kB written in %.1f sec (speed: %.1f kB/s)\n",
-					kilo(size), elapsed, kilo(size) / elapsed);
-			/*
-			 * If we have transferred a script, try to inform U-Boot
-			 * about its address.
-			 */
-			if (get_image_type(buf, size) == IH_TYPE_SCRIPT)
-				pass_fel_information(handle, offset);
-
-			free(buf);
-			skip=3;
+			skip += 2 * file_upload(handle, 1, argc - 2, argv + 2,
+					pflag_active ? progress_bar : NULL);
 		} else if (strcmp(argv[1], "read") == 0 && argc > 4) {
 			size_t size = strtoul(argv[3], NULL, 0);
 			void *buf = malloc(size);
