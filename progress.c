@@ -119,3 +119,47 @@ void progress_bar(size_t total, size_t done)
 
 	fflush(stdout);
 }
+
+/*
+ * Progress callback that emits percentage numbers, each on a separate line.
+ * The output is suitable for piping it into "dialog --gauge".
+ *
+ * sunxi-fel multiwrite-with-gauge <...> \
+ *	| dialog --title "FEL upload progress" \
+ *		 --gauge "" 5 70
+ */
+void progress_gauge(size_t total, size_t done)
+{
+	if (total > 0) {
+		printf("%.0f\n", (float)done / total * 100);
+		fflush(stdout);
+	}
+}
+
+/*
+ * A more sophisticated version of progress_gauge() that also updates the
+ * prompt (caption) with additional information. This uses a feature of
+ * the dialog utility that parses "XXX" delimiters - see 'man dialog'.
+ *
+ * sunxi-fel multiwrite-with-xgauge <...> \
+ *	| dialog --title "FEL upload progress" \
+ *		 --backtitle "Please wait..." \
+ *		 --gauge "" 6 70
+ */
+void progress_gauge_xxx(size_t total, size_t done)
+{
+	if (total > 0) {
+		double speed = rate(done, progress_elapsed());
+		double eta = estimate(total - done, speed);
+		printf("XXX\n");
+		printf("%.0f\n", (float)done / total * 100);
+		if (done < total)
+			printf("%zu of %zu, %.1f kB/s, ETA %s\n",
+				done, total, kilo(speed), format_ETA(eta));
+		else
+			printf("Done: %.1f kB, at %.1f kB/s\n",
+				kilo(done), kilo(speed));
+		printf("XXX\n");
+		fflush(stdout);
+	}
+}

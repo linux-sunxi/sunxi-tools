@@ -1299,8 +1299,13 @@ int main(int argc, char **argv)
 			"	read address length file	Write memory contents into file\n"
 			"	write address file		Store file contents into memory\n"
 			"	write-with-progress addr file	\"write\" with progress bar\n"
+			"	write-with-gauge addr file	Output progress for \"dialog --gauge\"\n"
+			"	write-with-xgauge addr file	Extended gauge output (updates prompt)\n"
 			"	multi[write] # addr file ...	\"write-with-progress\" multiple files,\n"
 			"					sharing a common progress status\n"
+			"	multi[write]-with-gauge ...	like their \"write-with-*\" counterpart,\n"
+			"	multi[write]-with-xgauge ...	  but following the 'multi' syntax:\n"
+			"					  <#> addr file [addr file [...]]\n"
 			"	ver[sion]			Show BROM version\n"
 			"	clear address length		Clear memory\n"
 			"	fill address length value	Fill memory\n"
@@ -1367,11 +1372,27 @@ int main(int argc, char **argv)
 		} else if (strcmp(argv[1], "write-with-progress") == 0 && argc > 3) {
 			skip += 2 * file_upload(handle, 1, argc - 2, argv + 2,
 						progress_bar);
+		} else if (strcmp(argv[1], "write-with-gauge") == 0 && argc > 3) {
+			skip += 2 * file_upload(handle, 1, argc - 2, argv + 2,
+						progress_gauge);
+		} else if (strcmp(argv[1], "write-with-xgauge") == 0 && argc > 3) {
+			skip += 2 * file_upload(handle, 1, argc - 2, argv + 2,
+						progress_gauge_xxx);
 		} else if ((strcmp(argv[1], "multiwrite") == 0 ||
 			    strcmp(argv[1], "multi") == 0) && argc > 4) {
 			size_t count = strtoul(argv[2], NULL, 0); /* file count */
 			skip = 2 + 2 * file_upload(handle, count, argc - 3,
 						   argv + 3, progress_bar);
+		} else if ((strcmp(argv[1], "multiwrite-with-gauge") == 0 ||
+			    strcmp(argv[1], "multi-with-gauge") == 0) && argc > 4) {
+			size_t count = strtoul(argv[2], NULL, 0); /* file count */
+			skip = 2 + 2 * file_upload(handle, count, argc - 3,
+						   argv + 3, progress_gauge);
+		} else if ((strcmp(argv[1], "multiwrite-with-xgauge") == 0 ||
+			    strcmp(argv[1], "multi-with-xgauge") == 0) && argc > 4) {
+			size_t count = strtoul(argv[2], NULL, 0); /* file count */
+			skip = 2 + 2 * file_upload(handle, count, argc - 3,
+						   argv + 3, progress_gauge_xxx);
 		} else if (strcmp(argv[1], "read") == 0 && argc > 4) {
 			size_t size = strtoul(argv[3], NULL, 0);
 			void *buf = malloc(size);
