@@ -1306,6 +1306,7 @@ int main(int argc, char **argv)
 			"	multi[write]-with-gauge ...	like their \"write-with-*\" counterpart,\n"
 			"	multi[write]-with-xgauge ...	  but following the 'multi' syntax:\n"
 			"					  <#> addr file [addr file [...]]\n"
+			"	echo-gauge \"some text\"		Update prompt/caption for gauge output\n"
 			"	ver[sion]			Show BROM version\n"
 			"	clear address length		Clear memory\n"
 			"	fill address length value	Fill memory\n"
@@ -1393,6 +1394,10 @@ int main(int argc, char **argv)
 			size_t count = strtoul(argv[2], NULL, 0); /* file count */
 			skip = 2 + 2 * file_upload(handle, count, argc - 3,
 						   argv + 3, progress_gauge_xxx);
+		} else if ((strcmp(argv[1], "echo-gauge") == 0) && argc > 2) {
+			skip = 2;
+			printf("XXX\n0\n%s\nXXX\n", argv[2]);
+			fflush(stdout);
 		} else if (strcmp(argv[1], "read") == 0 && argc > 4) {
 			size_t size = strtoul(argv[3], NULL, 0);
 			void *buf = malloc(size);
