@@ -145,6 +145,9 @@ sunxi-bootinfo: bootinfo.c
 sunxi-meminfo: meminfo.c
 	$(CROSS_COMPILE)gcc -g -O0 -Wall -static -o $@ $^
 
+sunxi-script_extractor: script_extractor.c
+	$(CROSS_COMPILE)gcc -g -O0 -Wall -static -o $@ $^
+
 .gitignore: Makefile
 	@for x in $(TOOLS) $(FEXC_LINKS) $(TARGET_TOOLS) '*.o' '*.swp'; do \
 		echo "$$x"; \
