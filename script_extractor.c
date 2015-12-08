@@ -21,26 +21,21 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #define SCRIPT_START	0x43000000
 #define SCRIPT_SIZE	0x20000
 
-int main(int argc, char *argv[]) {
+int main(void) {
 	char *addr;
 	int fd;
 	int i;
-	int size;
 
 	fd = open("/dev/mem", O_RDONLY);
-
-	size = SCRIPT_SIZE;
-	if (argc)
-		size = atoi(argv[1]);
-
-	addr = (char *)mmap(NULL, size, PROT_READ, MAP_SHARED, fd, SCRIPT_START);
+	addr = (char *)mmap(NULL, SCRIPT_SIZE, PROT_READ, MAP_SHARED, fd, SCRIPT_START);
 	for (i = 0; i < SCRIPT_SIZE; i++)
 		putchar(addr[i]);
-	munmap(NULL, SCRIPT_SIZE);
+	munmap(addr, SCRIPT_SIZE);
 	close(fd);
 
 	return 0;
