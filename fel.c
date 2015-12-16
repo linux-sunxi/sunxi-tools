@@ -1137,6 +1137,7 @@ void aw_fel_process_spl_and_uboot(libusb_device_handle *usb,
 	/* check for optional main U-Boot binary (and transfer it, if applicable) */
 	if (size > SPL_LEN_LIMIT)
 		aw_fel_write_uboot_image(usb, buf + SPL_LEN_LIMIT, size - SPL_LEN_LIMIT);
+	free(buf);
 }
 
 /*
@@ -1440,6 +1441,8 @@ int main(int argc, char **argv)
 	if (iface_detached >= 0)
 		libusb_attach_kernel_driver(handle, iface_detached);
 #endif
+	libusb_close(handle);
+	libusb_exit(NULL);
 
 	return 0;
 }
