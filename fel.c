@@ -1271,6 +1271,7 @@ static unsigned int file_upload(libusb_device_handle *handle, size_t count,
 
 int main(int argc, char **argv)
 {
+	bool uboot_autostart = false; /* flag for "uboot" command = U-Boot autostart */
 	bool pflag_active = false; /* -p switch, causing "write" to output progress */
 	int rc;
 	libusb_device_handle *handle = NULL;
@@ -1416,7 +1417,8 @@ int main(int argc, char **argv)
 			skip=2;
 		} else if (strcmp(argv[1], "uboot") == 0 && argc > 2) {
 			aw_fel_process_spl_and_uboot(handle, argv[2]);
-			if (!uboot_entry)
+			uboot_autostart = (uboot_entry > 0 && uboot_size > 0);
+			if (!uboot_autostart)
 				printf("Warning: \"uboot\" command failed to detect image! Can't execute U-Boot.\n");
 			skip=2;
 		} else {
@@ -1428,7 +1430,7 @@ int main(int argc, char **argv)
 	}
 
 	// auto-start U-Boot if requested (by the "uboot" command)
-	if (uboot_entry > 0 && uboot_size > 0) {
+	if (uboot_autostart) {
 		pr_info("Starting U-Boot (0x%08X).\n", uboot_entry);
 		aw_fel_execute(handle, uboot_entry);
 	}
