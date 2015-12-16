@@ -1342,9 +1342,14 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	if (argc > 1 && (strcmp(argv[1], "--verbose") == 0 ||
-			 strcmp(argv[1], "-v") == 0)) {
-		verbose = true;
+	/* process all "prefix"-type arguments first */
+	while (argc > 1) {
+		if (strcmp(argv[1], "--verbose") == 0 || strcmp(argv[1], "-v") == 0)
+			verbose = true;
+		else if (strcmp(argv[1], "--progress") == 0 || strcmp(argv[1], "-p") == 0)
+			pflag_active = true;
+		else
+			break; /* no valid (prefix) option detected, exit loop */
 		argc -= 1;
 		argv += 1;
 	}
@@ -1352,17 +1357,13 @@ int main(int argc, char **argv)
 	while (argc > 1 ) {
 		int skip = 1;
 
-		if (strcmp(argv[1], "--progress") == 0 ||
-		    strcmp(argv[1], "-p") == 0) {
-			pflag_active = true;
-		} else if (strncmp(argv[1], "hex", 3) == 0 && argc > 3) {
+		if (strncmp(argv[1], "hex", 3) == 0 && argc > 3) {
 			aw_fel_hexdump(handle, strtoul(argv[2], NULL, 0), strtoul(argv[3], NULL, 0));
 			skip = 3;
 		} else if (strncmp(argv[1], "dump", 4) == 0 && argc > 3) {
 			aw_fel_dump(handle, strtoul(argv[2], NULL, 0), strtoul(argv[3], NULL, 0));
 			skip = 3;
-		} else if ((strncmp(argv[1], "exe", 3) == 0 && argc > 2)
-			) {
+		} else if (strncmp(argv[1], "exe", 3) == 0 && argc > 2) {
 			aw_fel_execute(handle, strtoul(argv[2], NULL, 0));
 			skip=3;
 		} else if (strncmp(argv[1], "ver", 3) == 0 && argc > 1) {
