@@ -472,13 +472,17 @@ typedef struct {
  * at 0x2000 (and growing down) for the IRQ handler. And another one at 0x7000
  * (and also growing down) for the regular code. In order to use the whole
  * 32 KiB in the A1/A2 sections of SRAM, we need to temporarily move these
- * stacks elsewhere. And the addresses above 0x7000 are also a bit suspicious,
- * so it might be safer to backup the 0x7000-0x8000 area too. On A10/A13/A20
- * we can use the SRAM section A3 (0x8000) for this purpose.
+ * stacks elsewhere. And the addresses 0x7D00-0x7FFF contain something
+ * importantant too (overwriting them kills FEL). On A10/A13/A20 we can use
+ * the SRAM sections A3/A4 (0x8000-0xBFFF) for this purpose.
  */
 sram_swap_buffers a10_a13_a20_sram_swap_buffers[] = {
-	{ .buf1 = 0x01800, .buf2 = 0x8000, .size = 0x800 },
-	{ .buf1 = 0x05C00, .buf2 = 0x8800, .size = 0x8000 - 0x5C00 },
+	/* 0x1C00-0x1FFF (IRQ stack) */
+	{ .buf1 = 0x01C00, .buf2 = 0xA400, .size = 0x0400 },
+	/* 0x5C00-0x6FFF (Stack) */
+	{ .buf1 = 0x05C00, .buf2 = 0xA800, .size = 0x1400 },
+	/* 0x7C00-0x7FFF (Something important) */
+	{ .buf1 = 0x07C00, .buf2 = 0xBC00, .size = 0x0400 },
 	{ .size = 0 }  /* End of the table */
 };
 
@@ -508,7 +512,7 @@ soc_sram_info soc_sram_info_table[] = {
 	{
 		.soc_id       = 0x1623, /* Allwinner A10 */
 		.scratch_addr = 0x1000,
-		.thunk_addr   = 0xAE00, .thunk_size = 0x200,
+		.thunk_addr   = 0xA200, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.needs_l2en   = true,
 		.sid_addr     = 0x01C23800,
@@ -516,7 +520,7 @@ soc_sram_info soc_sram_info_table[] = {
 	{
 		.soc_id       = 0x1625, /* Allwinner A13 */
 		.scratch_addr = 0x1000,
-		.thunk_addr   = 0xAE00, .thunk_size = 0x200,
+		.thunk_addr   = 0xA200, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.needs_l2en   = true,
 		.sid_addr     = 0x01C23800,
@@ -524,7 +528,7 @@ soc_sram_info soc_sram_info_table[] = {
 	{
 		.soc_id       = 0x1651, /* Allwinner A20 */
 		.scratch_addr = 0x1000,
-		.thunk_addr   = 0xAE00, .thunk_size = 0x200,
+		.thunk_addr   = 0xA200, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.sid_addr     = 0x01C23800,
 	},
