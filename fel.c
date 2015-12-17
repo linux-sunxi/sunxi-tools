@@ -487,12 +487,11 @@ sram_swap_buffers a10_a13_a20_sram_swap_buffers[] = {
 };
 
 /*
- * A31 is very similar to A10/A13/A20, except that it has no SRAM at 0x8000.
- * So we use the SRAM section at 0x44000 instead. This is the memory, which
- * is normally shared with the OpenRISC core (should we do an extra check to
- * ensure that this core is powered off and can't interfere?).
+ * Use the SRAM section at 0x44000 as the backup storage. This is the memory,
+ * which is normally shared with the OpenRISC core (should we do an extra check
+ * to ensure that this core is powered off and can't interfere?).
  */
-sram_swap_buffers a31_sram_swap_buffers[] = {
+sram_swap_buffers ar100_abusing_sram_swap_buffers[] = {
 	{ .buf1 = 0x01800, .buf2 = 0x44000, .size = 0x800 },
 	{ .buf1 = 0x05C00, .buf2 = 0x44800, .size = 0x8000 - 0x5C00 },
 	{ .size = 0 }  /* End of the table */
@@ -536,27 +535,27 @@ soc_sram_info soc_sram_info_table[] = {
 		.soc_id       = 0x1650, /* Allwinner A23 */
 		.scratch_addr = 0x1000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
-		.swap_buffers = a31_sram_swap_buffers,
+		.swap_buffers = ar100_abusing_sram_swap_buffers,
 		.sid_addr     = 0x01C23800,
 	},
 	{
 		.soc_id       = 0x1633, /* Allwinner A31 */
 		.scratch_addr = 0x1000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
-		.swap_buffers = a31_sram_swap_buffers,
+		.swap_buffers = ar100_abusing_sram_swap_buffers,
 	},
 	{
 		.soc_id       = 0x1667, /* Allwinner A33 */
 		.scratch_addr = 0x1000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
-		.swap_buffers = a31_sram_swap_buffers,
+		.swap_buffers = ar100_abusing_sram_swap_buffers,
 		.sid_addr     = 0x01C23800,
 	},
 	{
 		.soc_id       = 0x1673, /* Allwinner A83T */
 		.scratch_addr = 0x1000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
-		.swap_buffers = a31_sram_swap_buffers,
+		.swap_buffers = ar100_abusing_sram_swap_buffers,
 		.sid_addr     = 0x01C14200,
 	},
 	{
@@ -564,7 +563,7 @@ soc_sram_info soc_sram_info_table[] = {
 		.scratch_addr = 0x1000,
 		.mmu_tt_addr  = 0x44000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
-		.swap_buffers = a31_sram_swap_buffers,
+		.swap_buffers = ar100_abusing_sram_swap_buffers,
 		.sid_addr     = 0x01C14200,
 	},
 	{
