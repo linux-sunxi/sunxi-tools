@@ -506,51 +506,51 @@ sram_swap_buffers a80_sram_swap_buffers[] = {
 soc_sram_info soc_sram_info_table[] = {
 	{
 		.soc_id       = 0x1623, /* Allwinner A10 */
-		.scratch_addr = 0x2000,
+		.scratch_addr = 0x1000,
 		.thunk_addr   = 0xAE00, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.needs_l2en   = true,
 	},
 	{
 		.soc_id       = 0x1625, /* Allwinner A13 */
-		.scratch_addr = 0x2000,
+		.scratch_addr = 0x1000,
 		.thunk_addr   = 0xAE00, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.needs_l2en   = true,
 	},
 	{
 		.soc_id       = 0x1651, /* Allwinner A20 */
-		.scratch_addr = 0x2000,
+		.scratch_addr = 0x1000,
 		.thunk_addr   = 0xAE00, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 	},
 	{
 		.soc_id       = 0x1650, /* Allwinner A23 */
-		.scratch_addr = 0x2000,
+		.scratch_addr = 0x1000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = a31_sram_swap_buffers,
 	},
 	{
 		.soc_id       = 0x1633, /* Allwinner A31 */
-		.scratch_addr = 0x2000,
+		.scratch_addr = 0x1000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = a31_sram_swap_buffers,
 	},
 	{
 		.soc_id       = 0x1667, /* Allwinner A33 */
-		.scratch_addr = 0x2000,
+		.scratch_addr = 0x1000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = a31_sram_swap_buffers,
 	},
 	{
 		.soc_id       = 0x1673, /* Allwinner A83T */
-		.scratch_addr = 0x2000,
+		.scratch_addr = 0x1000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = a31_sram_swap_buffers,
 	},
 	{
 		.soc_id       = 0x1680, /* Allwinner H3 */
-		.scratch_addr = 0x2000,
+		.scratch_addr = 0x1000,
 		.mmu_tt_addr  = 0x44000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = a31_sram_swap_buffers,
@@ -558,7 +558,7 @@ soc_sram_info soc_sram_info_table[] = {
 	{
 		.soc_id       = 0x1639, /* Allwinner A80 */
 		.spl_addr     = 0x10000,
-		.scratch_addr = 0x12000,
+		.scratch_addr = 0x11000,
 		.thunk_addr   = 0x23400, .thunk_size = 0x200,
 		.swap_buffers = a80_sram_swap_buffers,
 	},
@@ -581,7 +581,7 @@ sram_swap_buffers generic_sram_swap_buffers[] = {
 };
 
 soc_sram_info generic_sram_info = {
-	.scratch_addr = 0x2000,
+	.scratch_addr = 0x1000,
 	.thunk_addr   = 0x5680, .thunk_size = 0x180,
 	.swap_buffers = generic_sram_swap_buffers,
 };
