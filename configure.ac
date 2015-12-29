@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([sunxi-tools], [V1.0], [https://github.com/linux-sunxi/sunxi-tools])
+AC_INIT([sunxi-tools], [V1.4], [https://github.com/linux-sunxi/sunxi-tools])
 AC_CONFIG_SRCDIR([sunxi-nand.c])
 AC_CONFIG_HEADERS([config.h])
 
