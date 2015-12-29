@@ -12,12 +12,12 @@ sunxi-fexc:
 	infmt:  fex, bin  (default:fex)
 	outfmt: fex, bin  (default:bin)
 
-bin2fex:
+sunxi-bin2fex:
 	compatibility shortcut to call `fexc` to decompile an script.bin
 	blob back into `.fex` format used by allwinner's SDK to configure
 	the boards.
 
-fex2bin:
+sunxi-fex2bin:
 	compatiblity shortcut to call `fexc` to compile a `.fex` file into
 	the binary form used by the sun4i kernel.
 
@@ -27,32 +27,32 @@ sunxi-fel:
 	button at poweron. See http://linux-sunxi.org/FEL/USBBoot for
 	a detailed usage guide.
 
-fel-gpio:
+sunxi-fel-gpio:
 	Simple wrapper around fel-pio and fel to allos GPIO manipulations
 	via FEL
 	
-fel-sdboot:
+sunxi-fel-sdboot:
 	ARM native sdcard bootloader forcing the device into FEL mode
 
-fel-pio:
+sunxi-fel-pio:
 	ARM native helper for fel-gpio
 
-sunxi-pio:
+sunxi-sunxi-pio:
 	Manipulate PIO register dumps
 
 sunxi-nand-part:
 	Tool for manipulating Allwinner NAND partition tables
 
-jtag-loop.sunxi:
+sunxi-jtag-loop.sunxi:
 	ARM native boot helper to force the SD port into JTAG
 	and then stop, to ease debugging of bootloaders.
 
-sunxi-bootinfo:
+sunxi-sunxi-bootinfo:
 	Dump information from Allwinner boot files (boot0/boot1)
 	--type=sd	include SD boot info
 	--type=nand	include NAND boot info (not implemented)
 
-phoenix_info:
+sunxi-phoenix_info:
 	gives information about a phoenix image created by the
 	phoenixcard utility and optionally extracts the embedded boot
 	code & firmware file from their hidden partitions.
