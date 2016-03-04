@@ -21,29 +21,60 @@ CFLAGS = -g -O0 -Wall -Wextra
 CFLAGS += -std=c99 -D_POSIX_C_SOURCE=200112L
 CFLAGS += -Iinclude/
 
-TOOLS = fexc bin2fex fex2bin bootinfo fel pio
-TOOLS += nand-part
+# Tools useful on host and target
+TOOLS = sunxi-fexc sunxi-bootinfo sunxi-fel sunxi-nand-part
+
+# Symlinks to sunxi-fexc
+FEXC_LINKS = bin2fex fex2bin
+
+# Tools which are only useful on the target
+TARGET_TOOLS = sunxi-pio
 
 MISC_TOOLS = phoenix_info
 
 CROSS_COMPILE ?= arm-none-eabi-
 
-.PHONY: all clean
+DESTDIR ?=
+PREFIX  ?= /usr/local
+BINDIR  ?= $(PREFIX)/bin
 
-all: $(TOOLS)
+.PHONY: all clean tools target-tools install install-tools install-target-tools
+
+all: tools target-tools
+
+tools: $(TOOLS) $(FEXC_LINKS)
+target-tools: $(TARGET_TOOLS)
 
 misc: $(MISC_TOOLS)
 
+install: install-tools install-target-tools
+
+install-tools: $(TOOLS)
+	install -d $(DESTDIR)$(BINDIR)
+	@set -ex ; for t in $^ ; do \
+		install -m0755 $$t $(DESTDIR)$(BINDIR)/$$t ; \
+	done
+	@set -ex ; for l in $(FEXC_LINKS) ; do \
+		ln -nfs sunxi-fexc $(DESTDIR)$(BINDIR)/$$l ; \
+	done
+
+install-target-tools: $(TARGET_TOOLS)
+	install -d $(DESTDIR)$(BINDIR)
+	@set -ex ; for t in $^ ; do \
+		install -m0755 $$t $(DESTDIR)$(BINDIR)/$$t ; \
+	done
+
+
 clean:
-	@rm -vf $(TOOLS) $(MISC_TOOLS) *.o *.elf *.sunxi *.bin *.nm *.orig
+	@rm -vf $(TOOLS) $(FEXC_LINKS) $(TARGET_TOOLS) $(MISC_TOOLS)
+	@rm -vf *.o *.elf *.sunxi *.bin *.nm *.orig
 
+$(TOOLS) $(TARGET_TOOLS): Makefile common.h
 
-$(TOOLS): Makefile common.h
+fex2bin bin2fex: sunxi-fexc
+	ln -nsf $< $@
 
-fex2bin bin2fex: fexc
-	ln -s $< $@
-
-fexc: fexc.h script.h script.c \
+sunxi-fexc: fexc.h script.h script.c \
 	script_uboot.h script_uboot.c \
 	script_bin.h script_bin.c \
 	script_fex.h script_fex.c
@@ -52,16 +83,16 @@ LIBUSB = libusb-1.0
 LIBUSB_CFLAGS = `pkg-config --cflags $(LIBUSB)`
 LIBUSB_LIBS = `pkg-config --libs $(LIBUSB)`
 
-fel: fel.c
+sunxi-fel: fel.c fel-to-spl-thunk.h progress.c progress.h
 	$(CC) $(CFLAGS) $(LIBUSB_CFLAGS) $(LDFLAGS) -o $@ $(filter %.c,$^) $(LIBS) $(LIBUSB_LIBS)
 
-nand-part: nand-part-main.c nand-part.c nand-part-a10.h nand-part-a20.h
+sunxi-nand-part: nand-part-main.c nand-part.c nand-part-a10.h nand-part-a20.h
 	$(CC) $(CFLAGS) -c -o nand-part-main.o nand-part-main.c
 	$(CC) $(CFLAGS) -c -o nand-part-a10.o nand-part.c -D A10
 	$(CC) $(CFLAGS) -c -o nand-part-a20.o nand-part.c -D A20
 	$(CC) $(LDFLAGS) -o $@ nand-part-main.o nand-part-a10.o nand-part-a20.o $(LIBS)
 
-%: %.c
+sunxi-%: %.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(filter %.c,$^) $(LIBS)
 
 fel-pio.bin: fel-pio.elf fel-pio.nm
@@ -109,12 +140,15 @@ boot_head_sun5i.elf: boot_head.S boot_head.lds
 boot_head_sun5i.bin: boot_head_sun5i.elf
 	$(CROSS_COMPILE)objcopy -O binary boot_head_sun5i.elf boot_head_sun5i.bin
 
-bootinfo: bootinfo.c
+sunxi-bootinfo: bootinfo.c
 
-meminfo: meminfo.c
+sunxi-meminfo: meminfo.c
+	$(CROSS_COMPILE)gcc -g -O0 -Wall -static -o $@ $^
+
+sunxi-script_extractor: script_extractor.c
 	$(CROSS_COMPILE)gcc -g -O0 -Wall -static -o $@ $^
 
 .gitignore: Makefile
-	@for x in $(TOOLS) '*.o' '*.swp'; do \
+	@for x in $(TOOLS) $(FEXC_LINKS) $(TARGET_TOOLS) '*.o' '*.swp'; do \
 		echo "$$x"; \
 	done > $@

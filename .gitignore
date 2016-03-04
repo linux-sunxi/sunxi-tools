@@ -1,10 +1,9 @@
-fexc
+sunxi-fexc
 bin2fex
 fex2bin
-bootinfo
-fel
-pio
-nand-part
-meminfo
+sunxi-bootinfo
+sunxi-fel
+sunxi-pio
+sunxi-nand-part
 *.o
 *.swp
