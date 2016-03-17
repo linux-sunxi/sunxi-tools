@@ -37,6 +37,9 @@
 #include "endian_compat.h"
 #include "progress.h"
 
+static const uint16_t AW_USB_VENDOR_ID  = 0x1F3A;
+static const uint16_t AW_USB_PRODUCT_ID = 0xEFE8;
+
 struct  aw_usb_request {
 	char signature[8];
 	uint32_t length;
@@ -1270,20 +1273,92 @@ static unsigned int file_upload(libusb_device_handle *handle, size_t count,
 	return i; // return number of files that were processed
 }
 
+/* open libusb handle to desired FEL device */
+static libusb_device_handle *open_fel_device(int busnum, int devnum,
+		uint16_t vendor_id, uint16_t product_id)
+{
+	libusb_device_handle *result = NULL;
+
+	if (busnum < 0 || devnum < 0) {
+		/* With the default values (busnum -1, devnum -1) we don't care
+		 * for a specific USB device; so let libusb open the first
+		 * device that matches VID/PID.
+		 */
+		result = libusb_open_device_with_vid_pid(NULL, vendor_id, product_id);
+		if (!result) {
+			switch (errno) {
+			case EACCES:
+				fprintf(stderr, "ERROR: You don't have permission to access Allwinner USB FEL device\n");
+				break;
+			default:
+				fprintf(stderr, "ERROR: Allwinner USB FEL device not found!\n");
+				break;
+			}
+			exit(1);
+		}
+		return result;
+	}
+
+	/* look for specific bus and device number */
+	pr_info("Selecting USB Bus %03d Device %03d\n", busnum, devnum);
+	bool found = false;
+	ssize_t rc, i;
+	libusb_device **list;
+
+	rc = libusb_get_device_list(NULL, &list);
+	if (rc < 0) {
+		fprintf(stderr, "libusb_get_device_list() ERROR: %s\n",
+			libusb_strerror(rc));
+		exit(1);
+	}
+	for (i = 0; i < rc; i++) {
+		if (libusb_get_bus_number(list[i]) == busnum
+		    && libusb_get_device_address(list[i]) == devnum) {
+			found = true; /* bus:devnum matched */
+			struct libusb_device_descriptor desc;
+			libusb_get_device_descriptor(list[i], &desc);
+			if (desc.idVendor != vendor_id
+			    || desc.idProduct != product_id) {
+				fprintf(stderr, "ERROR: Bus %03d Device %03d not a FEL device "
+					"(expected %04x:%04x, got %04x:%04x)\n", busnum, devnum,
+					vendor_id, product_id, desc.idVendor, desc.idProduct);
+				exit(1);
+			}
+			/* open handle to this specific device (incrementing its refcount) */
+			rc = libusb_open(list[i], &result);
+			if (rc != 0) {
+				fprintf(stderr, "libusb_open() ERROR: %s\n",
+					libusb_strerror(rc));
+				exit(1);
+			}
+			break;
+		}
+	}
+	libusb_free_device_list(list, true);
+
+	if (!found) {
+		fprintf(stderr, "ERROR: Bus %03d Device %03d not found in libusb device list\n",
+			busnum, devnum);
+		exit(1);
+	}
+	return result;
+}
+
 int main(int argc, char **argv)
 {
 	bool uboot_autostart = false; /* flag for "uboot" command = U-Boot autostart */
 	bool pflag_active = false; /* -p switch, causing "write" to output progress */
-	int rc;
-	libusb_device_handle *handle = NULL;
+	libusb_device_handle *handle;
+	int busnum = -1, devnum = -1;
 	int iface_detached = -1;
-	rc = libusb_init(NULL);
+	int rc = libusb_init(NULL);
 	assert(rc == 0);
 
 	if (argc <= 1) {
 		printf("Usage: %s [options] command arguments... [command...]\n"
 			"	-v, --verbose			Verbose logging\n"
 			"	-p, --progress			\"write\" transfers show a progress bar\n"
+			"	-d, --dev bus:devnum		Use specific USB bus and device number\n"
 			"\n"
 			"	spl file			Load and execute U-Boot SPL\n"
 			"		If file additionally contains a main U-Boot binary\n"
@@ -1316,18 +1391,33 @@ int main(int argc, char **argv)
 		);
 	}
 
-	handle = libusb_open_device_with_vid_pid(NULL, 0x1f3a, 0xefe8);
-	if (!handle) {
-		switch (errno) {
-		case EACCES:
-			fprintf(stderr, "ERROR: You don't have permission to access Allwinner USB FEL device\n");
-			break;
-		default:
-			fprintf(stderr, "ERROR: Allwinner USB FEL device not found!\n");
-			break;
-		}
-		exit(1);
+	/* process all "prefix"-type arguments first */
+	while (argc > 1) {
+		if (strcmp(argv[1], "--verbose") == 0 || strcmp(argv[1], "-v") == 0)
+			verbose = true;
+		else if (strcmp(argv[1], "--progress") == 0 || strcmp(argv[1], "-p") == 0)
+			pflag_active = true;
+		else if (strncmp(argv[1], "--dev", 5) == 0 || strncmp(argv[1], "-d", 2) == 0) {
+			char *dev_arg = argv[1];
+			dev_arg += strspn(dev_arg, "-dev="); /* skip option chars, ignore '=' */
+			if (*dev_arg == 0 && argc > 2) { /* at end of argument, use the next one instead */
+				dev_arg = argv[2];
+				argc -= 1;
+				argv += 1;
+			}
+			if (sscanf(dev_arg, "%d:%d", &busnum, &devnum) != 2
+			    || busnum <= 0 || devnum <= 0) {
+				fprintf(stderr, "ERROR: Expected 'bus:devnum', got '%s'.\n", dev_arg);
+				exit(1);
+			}
+		} else
+			break; /* no valid (prefix) option detected, exit loop */
+		argc -= 1;
+		argv += 1;
 	}
+
+	handle = open_fel_device(busnum, devnum, AW_USB_VENDOR_ID, AW_USB_PRODUCT_ID);
+	assert(handle != NULL);
 	rc = libusb_claim_interface(handle, 0);
 #if defined(__linux__)
 	if (rc != LIBUSB_SUCCESS) {
@@ -1341,18 +1431,6 @@ int main(int argc, char **argv)
 	if (aw_fel_get_endpoint(handle)) {
 		fprintf(stderr, "ERROR: Failed to get FEL mode endpoint addresses!\n");
 		exit(1);
-	}
-
-	/* process all "prefix"-type arguments first */
-	while (argc > 1) {
-		if (strcmp(argv[1], "--verbose") == 0 || strcmp(argv[1], "-v") == 0)
-			verbose = true;
-		else if (strcmp(argv[1], "--progress") == 0 || strcmp(argv[1], "-p") == 0)
-			pflag_active = true;
-		else
-			break; /* no valid (prefix) option detected, exit loop */
-		argc -= 1;
-		argv += 1;
 	}
 
 	while (argc > 1 ) {
