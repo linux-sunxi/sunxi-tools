@@ -317,23 +317,19 @@ void hexdump(void *data, uint32_t offset, size_t size)
 		size_t i;
 		printf("%08lx: ",(long int)offset + j);
 		for (i = 0; i < 16; i++) {
-			if ((j+i) < size) {
+			if (j + i < size)
 				printf("%02x ", buf[j+i]);
-			} else {
+			else
 				printf("__ ");
-			}
 		}
-		printf(" ");
+		putchar(' ');
 		for (i = 0; i < 16; i++) {
-			if (j+i >= size) {
-				printf(".");
-			} else if (isprint(buf[j+i])) {
-				printf("%c", buf[j+i]);
-			} else {
-				printf(".");
-			}
+			if (j + i >= size)
+				putchar('.');
+			else
+				putchar(isprint(buf[j+i]) ? buf[j+i] : '.');
 		}
-		printf("\n");
+		putchar('\n');
 	}
 }
 
