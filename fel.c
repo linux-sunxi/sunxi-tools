@@ -767,10 +767,7 @@ uint32_t *aw_backup_and_disable_mmu(libusb_device_handle *usb,
                                     soc_sram_info *sram_info)
 {
 	uint32_t *tt = NULL;
-	uint32_t ttbr0 = aw_get_ttbr0(usb, sram_info);
-	uint32_t sctlr = aw_get_sctlr(usb, sram_info);
-	uint32_t ttbcr = aw_get_ttbcr(usb, sram_info);
-	uint32_t dacr  = aw_get_dacr(usb, sram_info);
+	uint32_t sctlr, ttbr0, ttbcr, dacr;
 	uint32_t i;
 
 	uint32_t arm_code[] = {
@@ -796,6 +793,7 @@ uint32_t *aw_backup_and_disable_mmu(libusb_device_handle *usb,
 	 */
 
 	/* Basically, ignore M/Z/I bits and expect no TEX remap */
+	sctlr = aw_get_sctlr(usb, sram_info);
 	if ((sctlr & ~((1 << 12) | (1 << 11) | 1)) != 0x00C52078) {
 		fprintf(stderr, "Unexpected SCTLR (%08X)\n", sctlr);
 		exit(1);
@@ -806,16 +804,19 @@ uint32_t *aw_backup_and_disable_mmu(libusb_device_handle *usb,
 		return NULL;
 	}
 
+	dacr = aw_get_dacr(usb, sram_info);
 	if (dacr != 0x55555555) {
 		fprintf(stderr, "Unexpected DACR (%08X)\n", dacr);
 		exit(1);
 	}
 
+	ttbcr = aw_get_ttbcr(usb, sram_info);
 	if (ttbcr != 0x00000000) {
 		fprintf(stderr, "Unexpected TTBCR (%08X)\n", ttbcr);
 		exit(1);
 	}
 
+	ttbr0 = aw_get_ttbr0(usb, sram_info);
 	if (ttbr0 & 0x3FFF) {
 		fprintf(stderr, "Unexpected TTBR0 (%08X)\n", ttbr0);
 		exit(1);
