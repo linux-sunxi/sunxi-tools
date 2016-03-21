@@ -489,6 +489,16 @@ sram_swap_buffers a31_sram_swap_buffers[] = {
 	{ 0 }  /* End of the table */
 };
 
+/*
+ * A80 has 40KiB SRAM A1 at 0x10000 where the SPL has to be loaded to. The
+ * secure SRAM B at 0x20000 is used as backup area for FEL stacks and data.
+ */
+sram_swap_buffers a80_sram_swap_buffers[] = {
+	{ .buf1 = 0x11800, .buf2 = 0x20000, .size = 0x800 },
+	{ .buf1 = 0x15400, .buf2 = 0x20800, .size = 0x18000 - 0x15400 },
+	{ 0 }  /* End of the table */
+};
+
 soc_sram_info soc_sram_info_table[] = {
 	{
 		.soc_id       = 0x1623, /* Allwinner A10 */
@@ -540,6 +550,13 @@ soc_sram_info soc_sram_info_table[] = {
 		.mmu_tt_addr  = 0x44000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = a31_sram_swap_buffers,
+	},
+	{
+		.soc_id       = 0x1639, /* Allwinner A80 */
+		.spl_addr     = 0x10000,
+		.scratch_addr = 0x12000,
+		.thunk_addr   = 0x23400, .thunk_size = 0x200,
+		.swap_buffers = a80_sram_swap_buffers,
 	},
 	{ 0 } /* End of the table */
 };
@@ -792,9 +809,9 @@ uint32_t *aw_backup_and_disable_mmu(libusb_device_handle *usb,
 	 * checks needs to be relaxed).
 	 */
 
-	/* Basically, ignore M/Z/I bits and expect no TEX remap */
+	/* Basically, ignore M/Z/I/V bits and expect no TEX remap */
 	sctlr = aw_get_sctlr(usb, sram_info);
-	if ((sctlr & ~((1 << 12) | (1 << 11) | 1)) != 0x00C52078) {
+	if ((sctlr & ~((0x7 << 11) | 1)) != 0x00C50078) {
 		fprintf(stderr, "Unexpected SCTLR (%08X)\n", sctlr);
 		exit(1);
 	}
