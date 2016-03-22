@@ -165,12 +165,13 @@ int get_image_type(const uint8_t *buf, size_t len)
 
 void aw_send_usb_request(libusb_device_handle *usb, int type, int length)
 {
-	struct aw_usb_request req;
-	memset(&req, 0, sizeof(req));
-	strcpy(req.signature, "AWUC");
-	req.length = req.length2 = htole32(length);
-	req.request = htole16(type);
-	req.unknown1 = htole32(0x0c000000);
+	struct aw_usb_request req = {
+		.signature = "AWUC",
+		.request = htole16(type),
+		.length = htole32(length),
+		.unknown1 = htole32(0x0c000000)
+	};
+	req.length2 = req.length;
 	usb_bulk_send(usb, AW_USB_FEL_BULK_EP_OUT, &req, sizeof(req), false);
 }
 
@@ -210,11 +211,11 @@ static const int AW_FEL_1_READ  = 0x103;
 
 void aw_send_fel_request(libusb_device_handle *usb, int type, uint32_t addr, uint32_t length)
 {
-	struct aw_fel_request req;
-	memset(&req, 0, sizeof(req));
-	req.request = htole32(type);
-	req.address = htole32(addr);
-	req.length = htole32(length);
+	struct aw_fel_request req = {
+		.request = htole32(type),
+		.address = htole32(addr),
+		.length = htole32(length)
+	};
 	aw_usb_write(usb, &req, sizeof(req), false);
 }
 
