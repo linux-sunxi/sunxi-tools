@@ -463,6 +463,7 @@ typedef struct {
 	uint32_t           thunk_size;   /* Maximal size of the thunk code */
 	bool               needs_l2en;   /* Set the L2EN bit */
 	uint32_t           mmu_tt_addr;  /* MMU translation table address */
+	uint32_t           sid_addr;     /* base address for SID_KEY[0-3] registers */
 	sram_swap_buffers *swap_buffers;
 } soc_sram_info;
 
@@ -510,6 +511,7 @@ soc_sram_info soc_sram_info_table[] = {
 		.thunk_addr   = 0xAE00, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.needs_l2en   = true,
+		.sid_addr     = 0x01C23800,
 	},
 	{
 		.soc_id       = 0x1625, /* Allwinner A13 */
@@ -517,18 +519,21 @@ soc_sram_info soc_sram_info_table[] = {
 		.thunk_addr   = 0xAE00, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.needs_l2en   = true,
+		.sid_addr     = 0x01C23800,
 	},
 	{
 		.soc_id       = 0x1651, /* Allwinner A20 */
 		.scratch_addr = 0x1000,
 		.thunk_addr   = 0xAE00, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
+		.sid_addr     = 0x01C23800,
 	},
 	{
 		.soc_id       = 0x1650, /* Allwinner A23 */
 		.scratch_addr = 0x1000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = a31_sram_swap_buffers,
+		.sid_addr     = 0x01C23800,
 	},
 	{
 		.soc_id       = 0x1633, /* Allwinner A31 */
@@ -541,12 +546,14 @@ soc_sram_info soc_sram_info_table[] = {
 		.scratch_addr = 0x1000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = a31_sram_swap_buffers,
+		.sid_addr     = 0x01C23800,
 	},
 	{
 		.soc_id       = 0x1673, /* Allwinner A83T */
 		.scratch_addr = 0x1000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = a31_sram_swap_buffers,
+		.sid_addr     = 0x01C14200,
 	},
 	{
 		.soc_id       = 0x1680, /* Allwinner H3 */
@@ -554,6 +561,7 @@ soc_sram_info soc_sram_info_table[] = {
 		.mmu_tt_addr  = 0x44000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = a31_sram_swap_buffers,
+		.sid_addr     = 0x01C14200,
 	},
 	{
 		.soc_id       = 0x1639, /* Allwinner A80 */
@@ -734,6 +742,25 @@ void aw_fel_writel_n(libusb_device_handle *usb, uint32_t addr,
 void aw_fel_writel(libusb_device_handle *usb, uint32_t addr, uint32_t val)
 {
 	aw_fel_writel_n(usb, addr, &val, 1);
+}
+
+void aw_fel_print_sid(libusb_device_handle *usb)
+{
+	soc_sram_info *soc_info = aw_fel_get_sram_info(usb);
+	if (soc_info->sid_addr) {
+		pr_info("SID key (e-fuses) at 0x%08X\n", soc_info->sid_addr);
+
+		uint32_t key[4];
+		aw_fel_readl_n(usb, soc_info->sid_addr, key, 4);
+
+		unsigned int i;
+		/* output SID in a format similar to U-Boot's "md.l <sid_addr> 4" */
+		for (i = 0; i <= 3; i++)
+			printf("%08x%c", key[i], i < 3 ? ' ' : '\n');
+	} else {
+		printf("SID registers for your SoC (id=%04X) are unknown or inaccessible.\n",
+			soc_info->soc_id);
+	}
 }
 
 void aw_enable_l2_cache(libusb_device_handle *usb, soc_sram_info *sram_info)
@@ -1477,6 +1504,7 @@ int main(int argc, char **argv)
 			"					  <#> addr file [addr file [...]]\n"
 			"	echo-gauge \"some text\"		Update prompt/caption for gauge output\n"
 			"	ver[sion]			Show BROM version\n"
+			"	sid				Retrieve and output 128-bit SID key\n"
 			"	clear address length		Clear memory\n"
 			"	fill address length value	Fill memory\n"
 			, argv[0]
@@ -1546,9 +1574,10 @@ int main(int argc, char **argv)
 		} else if (strncmp(argv[1], "exe", 3) == 0 && argc > 2) {
 			aw_fel_execute(handle, strtoul(argv[2], NULL, 0));
 			skip=3;
-		} else if (strncmp(argv[1], "ver", 3) == 0 && argc > 1) {
+		} else if (strncmp(argv[1], "ver", 3) == 0) {
 			aw_fel_print_version(handle);
-			skip=1;
+		} else if (strcmp(argv[1], "sid") == 0) {
+			aw_fel_print_sid(handle);
 		} else if (strcmp(argv[1], "write") == 0 && argc > 3) {
 			skip += 2 * file_upload(handle, 1, argc - 2, argv + 2,
 					pflag_active ? progress_bar : NULL);
