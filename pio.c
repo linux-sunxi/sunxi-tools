@@ -34,7 +34,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include "endian_compat.h"
+#include "portable_endian.h"
 
 #define PIO_REG_SIZE 0x228 /*0x300*/
 #define PIO_PORT_SIZE 0x24

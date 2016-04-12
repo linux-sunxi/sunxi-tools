@@ -34,7 +34,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
-#include "endian_compat.h"
+#include "portable_endian.h"
 #include "progress.h"
 
 static const uint16_t AW_USB_VENDOR_ID  = 0x1F3A;
