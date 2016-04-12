@@ -40,6 +40,23 @@
 static const uint16_t AW_USB_VENDOR_ID  = 0x1F3A;
 static const uint16_t AW_USB_PRODUCT_ID = 0xEFE8;
 
+/* a helper function to report libusb errors */
+void usb_error(int rc, const char *caption, int exitcode)
+{
+	if (caption)
+		fprintf(stderr, "%s ", caption);
+
+#if defined(LIBUSBX_API_VERSION) && (LIBUSBX_API_VERSION >= 0x01000102)
+	fprintf(stderr, "ERROR %d: %s\n", rc, libusb_strerror(rc));
+#else
+	/* assume that libusb_strerror() is missing in the libusb API */
+	fprintf(stderr, "ERROR %d\n", rc);
+#endif
+
+	if (exitcode != 0)
+		exit(exitcode);
+}
+
 struct  aw_usb_request {
 	char signature[8];
 	uint32_t length;
@@ -97,10 +114,8 @@ void usb_bulk_send(libusb_device_handle *usb, int ep, const void *data,
 	while (length > 0) {
 		chunk = length < max_chunk ? length : max_chunk;
 		rc = libusb_bulk_transfer(usb, ep, (void *)data, chunk, &sent, timeout);
-		if (rc != 0) {
-			fprintf(stderr, "libusb usb_bulk_send error %d\n", rc);
-			exit(2);
-		}
+		if (rc != 0)
+			usb_error(rc, "usb_bulk_send()", 2);
 		length -= sent;
 		data += sent;
 
@@ -114,10 +129,8 @@ void usb_bulk_recv(libusb_device_handle *usb, int ep, void *data, int length)
 	int rc, recv;
 	while (length > 0) {
 		rc = libusb_bulk_transfer(usb, ep, data, length, &recv, timeout);
-		if (rc != 0) {
-			fprintf(stderr, "usb_bulk_recv error %d\n", rc);
-			exit(2);
-		}
+		if (rc != 0)
+			usb_error(rc, "usb_bulk_recv()", 2);
 		length -= recv;
 		data += recv;
 	}
@@ -1321,11 +1334,8 @@ static libusb_device_handle *open_fel_device(int busnum, int devnum,
 	libusb_device **list;
 
 	rc = libusb_get_device_list(NULL, &list);
-	if (rc < 0) {
-		fprintf(stderr, "libusb_get_device_list() ERROR: %s\n",
-			libusb_strerror(rc));
-		exit(1);
-	}
+	if (rc < 0)
+		usb_error(rc, "libusb_get_device_list()", 1);
 	for (i = 0; i < rc; i++) {
 		if (libusb_get_bus_number(list[i]) == busnum
 		    && libusb_get_device_address(list[i]) == devnum) {
@@ -1341,11 +1351,8 @@ static libusb_device_handle *open_fel_device(int busnum, int devnum,
 			}
 			/* open handle to this specific device (incrementing its refcount) */
 			rc = libusb_open(list[i], &result);
-			if (rc != 0) {
-				fprintf(stderr, "libusb_open() ERROR: %s\n",
-					libusb_strerror(rc));
-				exit(1);
-			}
+			if (rc != 0)
+				usb_error(rc, "libusb_open()", 1);
 			break;
 		}
 	}
