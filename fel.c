@@ -15,12 +15,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/* Needs _BSD_SOURCE for htole and letoh  */
-/* glibc 2.20+ also requires _DEFAULT_SOURCE */
-#define _DEFAULT_SOURCE
-#define _BSD_SOURCE
-#define _NETBSD_SOURCE
-
 #include <libusb.h>
 #include <stdint.h>
 #include <stdbool.h>

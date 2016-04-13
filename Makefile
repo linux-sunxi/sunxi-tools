@@ -18,8 +18,15 @@
 
 CC = gcc
 CFLAGS = -g -O0 -Wall -Wextra
-CFLAGS += -std=c99 -D_POSIX_C_SOURCE=200112L
+CFLAGS += -std=c99 $(DEFINES)
 CFLAGS += -Iinclude/
+
+DEFINES = -D_POSIX_C_SOURCE=200112L
+# Define _BSD_SOURCE, necessary to expose all endian conversions properly.
+# See http://linux.die.net/man/3/endian
+DEFINES += -D_BSD_SOURCE
+# glibc 2.20+ also requires _DEFAULT_SOURCE
+DEFINES += -D_DEFAULT_SOURCE
 
 # Tools useful on host and target
 TOOLS = sunxi-fexc sunxi-bootinfo sunxi-fel sunxi-nand-part
