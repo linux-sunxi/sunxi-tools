@@ -478,7 +478,7 @@ typedef struct {
 sram_swap_buffers a10_a13_a20_sram_swap_buffers[] = {
 	{ .buf1 = 0x01800, .buf2 = 0x8000, .size = 0x800 },
 	{ .buf1 = 0x05C00, .buf2 = 0x8800, .size = 0x8000 - 0x5C00 },
-	{ 0 }  /* End of the table */
+	{ .size = 0 }  /* End of the table */
 };
 
 /*
@@ -490,7 +490,7 @@ sram_swap_buffers a10_a13_a20_sram_swap_buffers[] = {
 sram_swap_buffers a31_sram_swap_buffers[] = {
 	{ .buf1 = 0x01800, .buf2 = 0x44000, .size = 0x800 },
 	{ .buf1 = 0x05C00, .buf2 = 0x44800, .size = 0x8000 - 0x5C00 },
-	{ 0 }  /* End of the table */
+	{ .size = 0 }  /* End of the table */
 };
 
 /*
@@ -500,7 +500,7 @@ sram_swap_buffers a31_sram_swap_buffers[] = {
 sram_swap_buffers a80_sram_swap_buffers[] = {
 	{ .buf1 = 0x11800, .buf2 = 0x20000, .size = 0x800 },
 	{ .buf1 = 0x15400, .buf2 = 0x20800, .size = 0x18000 - 0x15400 },
-	{ 0 }  /* End of the table */
+	{ .size = 0 }  /* End of the table */
 };
 
 soc_sram_info soc_sram_info_table[] = {
@@ -562,7 +562,7 @@ soc_sram_info soc_sram_info_table[] = {
 		.thunk_addr   = 0x23400, .thunk_size = 0x200,
 		.swap_buffers = a80_sram_swap_buffers,
 	},
-	{ 0 } /* End of the table */
+	{ .swap_buffers = NULL } /* End of the table */
 };
 
 /*
@@ -577,7 +577,7 @@ soc_sram_info soc_sram_info_table[] = {
  */
 sram_swap_buffers generic_sram_swap_buffers[] = {
 	{ .buf1 = 0x01C00, .buf2 = 0x5800, .size = 0x400 },
-	{ 0 }  /* End of the table */
+	{ .size = 0 }  /* End of the table */
 };
 
 soc_sram_info generic_sram_info = {
