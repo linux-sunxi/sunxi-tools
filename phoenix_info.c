@@ -40,7 +40,7 @@ static int save_part(struct phoenix_ptable *ptable, int part, const char *dest, 
 {
 	int l = strlen(dest) + 16;
 	char outname[l];
-	FILE *out;
+	FILE *out = stdout;
 	char *buf = NULL;
 	int ret = 0;
 	snprintf(outname, l, dest, part);
@@ -53,8 +53,6 @@ static int save_part(struct phoenix_ptable *ptable, int part, const char *dest, 
 		goto err;
 	if (strcmp(outname, "-") != 0)
 		out = fopen(outname, "wb");
-	else
-		out = stdout;
 	if (!out)
 		goto err;
 	if (fseek(in, ptable->part[part].start * 0x200, SEEK_SET) == -1)
