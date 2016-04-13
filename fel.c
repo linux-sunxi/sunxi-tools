@@ -1369,8 +1369,6 @@ int main(int argc, char **argv)
 	libusb_device_handle *handle;
 	int busnum = -1, devnum = -1;
 	int iface_detached = -1;
-	int rc = libusb_init(NULL);
-	assert(rc == 0);
 
 	if (argc <= 1) {
 		printf("Usage: %s [options] command arguments... [command...]\n"
@@ -1407,6 +1405,7 @@ int main(int argc, char **argv)
 			"	fill address length value	Fill memory\n"
 			, argv[0]
 		);
+		exit(0);
 	}
 
 	/* process all "prefix"-type arguments first */
@@ -1434,6 +1433,8 @@ int main(int argc, char **argv)
 		argv += 1;
 	}
 
+	int rc = libusb_init(NULL);
+	assert(rc == 0);
 	handle = open_fel_device(busnum, devnum, AW_USB_VENDOR_ID, AW_USB_PRODUCT_ID);
 	assert(handle != NULL);
 	rc = libusb_claim_interface(handle, 0);
