@@ -17,6 +17,8 @@
 #ifndef _SUNXI_TOOLS_SCRIPT_H
 #define _SUNXI_TOOLS_SCRIPT_H
 
+#include "list.h"
+
 #define GPIO_BANK_MAX	13 /* N */
 
 /** head of the data tree */
