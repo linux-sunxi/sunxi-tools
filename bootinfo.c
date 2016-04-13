@@ -25,6 +25,7 @@
 #include <string.h>
 #include <stdarg.h>
 
+#include "common.h"
 #include "types.h"
 
 /* boot_file_head copied from mksunxiboot */
@@ -271,7 +272,7 @@ void print_boot0_private_head(boot0_private_head_t *hdr, loader_type type)
 	printf("\n");
 }
 
-void print_script(void *script)
+void print_script(void *UNUSED(script))
 {
 }
 

@@ -29,6 +29,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#include "common.h"
 #include "portable_endian.h"
 
 #define PIO_REG_SIZE 0x228 /*0x300*/
@@ -310,7 +311,7 @@ static void cmd_clean(char *buf)
 	}
 }
 
-static int do_command(char *buf, const char **args, int argc)
+static int do_command(char *buf, const char **args, int UNUSED(argc))
 {
 	const char *command = args[0];
 	if (*command == 'P') {
