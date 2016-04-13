@@ -30,10 +30,10 @@ before_install:
       brew install libusb;
     fi
 
-# build by simply using the Makefile
+# build using the Makefile, treat all warnings as errors
 script:
-  - make
-  - make misc
+  - make EXTRA_CFLAGS=-Werror
+  - make misc EXTRA_CFLAGS=-Werror
 
 # turn off email notifications
 notifications:

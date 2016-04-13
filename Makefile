@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 CC ?= gcc
-CFLAGS = -g -O0 -Wall -Wextra
+CFLAGS = -g -O0 -Wall -Wextra $(EXTRA_CFLAGS)
 CFLAGS += -std=c99 $(DEFINES)
 CFLAGS += -Iinclude/
 
