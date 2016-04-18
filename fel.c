@@ -1366,7 +1366,9 @@ int main(int argc, char **argv)
 	bool pflag_active = false; /* -p switch, causing "write" to output progress */
 	libusb_device_handle *handle;
 	int busnum = -1, devnum = -1;
+#if defined(__linux__)
 	int iface_detached = -1;
+#endif
 
 	if (argc <= 1) {
 		printf("Usage: %s [options] command arguments... [command...]\n"
