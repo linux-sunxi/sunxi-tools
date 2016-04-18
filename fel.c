@@ -662,6 +662,80 @@ void aw_write_arm_cp_reg(libusb_device_handle *usb, soc_sram_info *sram_info,
 	aw_fel_execute(usb, sram_info->scratch_addr);
 }
 
+/* multiple "readl" from sequential addresses to a destination buffer */
+void aw_fel_readl_n(libusb_device_handle *usb, uint32_t addr,
+		    uint32_t *dst, size_t count)
+{
+	soc_sram_info *sram_info = aw_fel_get_sram_info(usb);
+	uint32_t val;
+	uint32_t arm_code[] = {
+		htole32(0xe59f0010), /* ldr        r0, [pc, #16]            */
+		htole32(0xe5901000), /* ldr        r1, [r0]                 */
+		htole32(0xe58f100c), /* str        r1, [pc, #12]            */
+		htole32(0xe2800004), /* add        r0, r0, #4               */
+		htole32(0xe58f0000), /* str        r0, [pc]                 */
+		htole32(0xe12fff1e), /* bx         lr                       */
+		htole32(addr),
+		/* value goes here */
+	};
+	/* scratch buffer setup: transfers ARM code and also sets the addr */
+	aw_fel_write(usb, arm_code, sram_info->scratch_addr, sizeof(arm_code));
+	while (count-- > 0) {
+		/*
+		 * Since the scratch code auto-increments addr, we can simply
+		 * execute it repeatedly for sequential "readl"s; retrieving
+		 * one uint32_t each time.
+		 */
+		aw_fel_execute(usb, sram_info->scratch_addr);
+		aw_fel_read(usb, sram_info->scratch_addr + 28, &val, sizeof(val));
+		*dst++ = le32toh(val);
+	}
+}
+
+/* "readl" of a single value */
+uint32_t aw_fel_readl(libusb_device_handle *usb, uint32_t addr)
+{
+	uint32_t val;
+	aw_fel_readl_n(usb, addr, &val, 1);
+	return val;
+}
+
+/* multiple "writel" from a source buffer to sequential addresses */
+void aw_fel_writel_n(libusb_device_handle *usb, uint32_t addr,
+		     uint32_t *src, size_t count)
+{
+	if (count == 0) return; /* on zero count, do not access *src at all */
+
+	soc_sram_info *sram_info = aw_fel_get_sram_info(usb);
+	uint32_t arm_code[] = {
+		htole32(0xe59f0010), /* ldr        r0, [pc, #16]            */
+		htole32(0xe59f1010), /* ldr        r1, [pc, #16]            */
+		htole32(0xe5801000), /* str        r1, [r0]                 */
+		htole32(0xe2800004), /* add        r0, r0, #4               */
+		htole32(0xe58f0000), /* str        r0, [pc]                 */
+		htole32(0xe12fff1e), /* bx         lr                       */
+		htole32(addr),
+		htole32(*src++)
+	};
+	/* scratch buffer setup: transfers ARM code, addr and first value */
+	aw_fel_write(usb, arm_code, sram_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(usb, sram_info->scratch_addr); /* stores first value */
+	while (--count > 0) {
+		/*
+		 * Subsequent transfers only need to set up the next value
+		 * to store (since the scratch code auto-increments addr).
+		 */
+		aw_fel_write(usb, src++, sram_info->scratch_addr + 28, sizeof(uint32_t));
+		aw_fel_execute(usb, sram_info->scratch_addr);
+	}
+}
+
+/* "writel" of a single value */
+void aw_fel_writel(libusb_device_handle *usb, uint32_t addr, uint32_t val)
+{
+	aw_fel_writel_n(usb, addr, &val, 1);
+}
+
 void aw_enable_l2_cache(libusb_device_handle *usb, soc_sram_info *sram_info)
 {
 	uint32_t arm_code[] = {
@@ -1389,6 +1463,8 @@ int main(int argc, char **argv)
 			"	hex[dump] address length	Dumps memory region in hex\n"
 			"	dump address length		Binary memory dump\n"
 			"	exe[cute] address		Call function address\n"
+			"	readl address			Read 32-bit value from device memory\n"
+			"	writel address value		Write 32-bit value to device memory\n"
 			"	read address length file	Write memory contents into file\n"
 			"	write address file		Store file contents into memory\n"
 			"	write-with-progress addr file	\"write\" with progress bar\n"
@@ -1460,6 +1536,12 @@ int main(int argc, char **argv)
 			skip = 3;
 		} else if (strncmp(argv[1], "dump", 4) == 0 && argc > 3) {
 			aw_fel_dump(handle, strtoul(argv[2], NULL, 0), strtoul(argv[3], NULL, 0));
+			skip = 3;
+		} else if (strcmp(argv[1], "readl") == 0 && argc > 2) {
+			printf("0x%08x\n", aw_fel_readl(handle, strtoul(argv[2], NULL, 0)));
+			skip = 2;
+		} else if (strcmp(argv[1], "writel") == 0 && argc > 3) {
+			aw_fel_writel(handle, strtoul(argv[2], NULL, 0), strtoul(argv[3], NULL, 0));
 			skip = 3;
 		} else if (strncmp(argv[1], "exe", 3) == 0 && argc > 2) {
 			aw_fel_execute(handle, strtoul(argv[2], NULL, 0));
