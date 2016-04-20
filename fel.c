@@ -299,7 +299,7 @@ double aw_write_buffer(libusb_device_handle *usb, void *buf, uint32_t offset,
 	{
 		fprintf(stderr, "ERROR: Attempt to overwrite U-Boot! "
 			"Request 0x%08X-0x%08X overlaps 0x%08X-0x%08X.\n",
-			offset, offset + len,
+			offset, (uint32_t)(offset + len),
 			uboot_entry, uboot_entry + uboot_size);
 		exit(1);
 	}
