@@ -454,7 +454,7 @@ typedef struct {
 	uint32_t           scratch_addr; /* A safe place to upload & run code */
 	uint32_t           thunk_addr;   /* Address of the thunk code */
 	uint32_t           thunk_size;   /* Maximal size of the thunk code */
-	uint32_t           needs_l2en;   /* Set the L2EN bit */
+	bool               needs_l2en;   /* Set the L2EN bit */
 	uint32_t           mmu_tt_addr;  /* MMU translation table address */
 	sram_swap_buffers *swap_buffers;
 } soc_sram_info;
@@ -502,14 +502,14 @@ soc_sram_info soc_sram_info_table[] = {
 		.scratch_addr = 0x2000,
 		.thunk_addr   = 0xAE00, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
-		.needs_l2en   = 1,
+		.needs_l2en   = true,
 	},
 	{
 		.soc_id       = 0x1625, /* Allwinner A13 */
 		.scratch_addr = 0x2000,
 		.thunk_addr   = 0xAE00, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
-		.needs_l2en   = 1,
+		.needs_l2en   = true,
 	},
 	{
 		.soc_id       = 0x1651, /* Allwinner A20 */
