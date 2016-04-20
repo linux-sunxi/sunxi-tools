@@ -354,7 +354,7 @@ int save_file(const char *name, void *data, size_t size)
 	FILE *out = fopen(name, "wb");
 	int rc;
 	if (!out) {
-		perror("Failed to open output file: ");
+		perror("Failed to open output file");
 		exit(1);
 	}
 	rc = fwrite(data, size, 1, out);
@@ -373,7 +373,7 @@ void *load_file(const char *name, size_t *size)
 	else
 		in = fopen(name, "rb");
 	if (!in) {
-		perror("Failed to open input file: ");
+		perror("Failed to open input file");
 		exit(1);
 	}
 	
