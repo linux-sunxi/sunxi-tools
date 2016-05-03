@@ -17,11 +17,6 @@
  * MA 02111-1307 USA
  */
 
-/* needs _BSD_SOURCE for htole and letoh  */
-/* glibc 2.20+ also requires _DEFAULT_SOURCE */
-#define _DEFAULT_SOURCE
-#define _BSD_SOURCE
-
 #include <errno.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -34,7 +29,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include "endian_compat.h"
+#include "portable_endian.h"
 
 #define PIO_REG_SIZE 0x228 /*0x300*/
 #define PIO_PORT_SIZE 0x24

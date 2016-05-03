@@ -1,0 +1,26 @@
+# use container-based infrastructure
+sudo: false
+
+language: c
+
+os:
+  - linux
+  - osx
+
+# take care of the libusb dependency for Linux
+addons:
+  apt:
+    packages:
+    - libusb-1.0-0-dev
+
+# take care of the libusb dependency for Mac OS X
+before_install:
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+      brew update;
+      brew install libusb;
+    fi
+
+# build by simply using the Makefile
+script:
+  - make
+  - make misc
