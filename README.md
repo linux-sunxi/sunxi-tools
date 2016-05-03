@@ -1,25 +1,29 @@
-sunxi-tools
+# sunxi-tools
+[![License](http://img.shields.io/badge/License-GPL-green.svg)][COPYING]
+[![Build Status](https://travis-ci.org/linux-sunxi/sunxi-tools.svg?branch=master)](https://travis-ci.org/linux-sunxi/sunxi-tools)
+
 Copyright (C) 2012  Alejandro Mery <amery@geeks.cl>
 
 Tools to help hacking Allwinner A10 (aka sun4i) based devices and possibly
 it's successors, that's why the 'x' in the package name.
 
+<pre>
 sunxi-fexc:
 	`.fex` file (de)compiler
 
-	Usage: ./sunxi-fexc [-vq] [-I <infmt>] [-O <outfmt>] [<input> [<output>]]
+	Usage: ./sunxi-fexc [-vq] [-I &lt;infmt>] [-O &lt;outfmt>] [&lt;input> [&lt;output>]]
 
 	infmt:  fex, bin  (default:fex)
 	outfmt: fex, bin  (default:bin)
 
 bin2fex:
-	compatibility shortcut to call `fexc` to decompile an script.bin
+	compatibility shortcut to call `sunxi-fexc` to decompile a script.bin
 	blob back into `.fex` format used by allwinner's SDK to configure
 	the boards.
 
 fex2bin:
-	compatiblity shortcut to call `fexc` to compile a `.fex` file into
-	the binary form used by the sun4i kernel.
+	compatiblity shortcut to call `sunxi-fexc` to compile a `.fex` file
+	into the binary form used by the sun4i kernel.
 
 sunxi-fel:
 	script interface for talking to the FEL USB handler built in to
@@ -68,6 +72,9 @@ sunxi-script_extractor:
 	to dump the script.bin blob from RAM via reading /dev/mem.
 	To build this, get a toolchain, and run:
 		make CROSS_COMPILE=arm-linux-gnueabihf- sunxi-script_extractor
+</pre>
 
 This software is licensed under the terms of GPLv2+ as defined by the
-Free Software Foundation, details can be read in the COPYING file.
+Free Software Foundation, details can be read in the [COPYING][] file.
+
+[copying]: COPYING
