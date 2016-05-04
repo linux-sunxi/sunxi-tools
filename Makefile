@@ -27,6 +27,10 @@ DEFINES = -D_POSIX_C_SOURCE=200112L
 DEFINES += -D_BSD_SOURCE
 # glibc 2.20+ also requires _DEFAULT_SOURCE
 DEFINES += -D_DEFAULT_SOURCE
+ifeq (NetBSD,$(OS))
+# add explicit _NETBSD_SOURCE, see https://github.com/linux-sunxi/sunxi-tools/pull/22
+DEFINES += -D_NETBSD_SOURCE
+endif
 
 # Tools useful on host and target
 TOOLS = sunxi-fexc sunxi-bootinfo sunxi-fel sunxi-nand-part
