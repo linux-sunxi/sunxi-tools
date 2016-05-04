@@ -6,6 +6,16 @@ language: c
 os:
   - linux
   - osx
+compiler:
+  - gcc
+  - clang
+
+# OSX uses Apple's flavor of clang anyway, so there's no point in using "gcc".
+# This excludes the "gcc" compiler from the build matrix for OSX:
+matrix:
+  exclude:
+    - os: osx
+      compiler: gcc
 
 # take care of the libusb dependency for Linux
 addons:
@@ -24,3 +34,7 @@ before_install:
 script:
   - make
   - make misc
+
+# turn off email notifications
+notifications:
+  - email: false
