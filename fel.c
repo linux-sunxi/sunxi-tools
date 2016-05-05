@@ -463,6 +463,7 @@ typedef struct {
 	uint32_t           thunk_size;   /* Maximal size of the thunk code */
 	bool               needs_l2en;   /* Set the L2EN bit */
 	uint32_t           mmu_tt_addr;  /* MMU translation table address */
+	uint32_t           sid_addr;     /* base address for SID_KEY[0-3] registers */
 	sram_swap_buffers *swap_buffers;
 } soc_sram_info;
 
@@ -506,59 +507,66 @@ sram_swap_buffers a80_sram_swap_buffers[] = {
 soc_sram_info soc_sram_info_table[] = {
 	{
 		.soc_id       = 0x1623, /* Allwinner A10 */
-		.scratch_addr = 0x2000,
+		.scratch_addr = 0x1000,
 		.thunk_addr   = 0xAE00, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.needs_l2en   = true,
+		.sid_addr     = 0x01C23800,
 	},
 	{
 		.soc_id       = 0x1625, /* Allwinner A13 */
-		.scratch_addr = 0x2000,
+		.scratch_addr = 0x1000,
 		.thunk_addr   = 0xAE00, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.needs_l2en   = true,
+		.sid_addr     = 0x01C23800,
 	},
 	{
 		.soc_id       = 0x1651, /* Allwinner A20 */
-		.scratch_addr = 0x2000,
+		.scratch_addr = 0x1000,
 		.thunk_addr   = 0xAE00, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
+		.sid_addr     = 0x01C23800,
 	},
 	{
 		.soc_id       = 0x1650, /* Allwinner A23 */
-		.scratch_addr = 0x2000,
+		.scratch_addr = 0x1000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = a31_sram_swap_buffers,
+		.sid_addr     = 0x01C23800,
 	},
 	{
 		.soc_id       = 0x1633, /* Allwinner A31 */
-		.scratch_addr = 0x2000,
+		.scratch_addr = 0x1000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = a31_sram_swap_buffers,
 	},
 	{
 		.soc_id       = 0x1667, /* Allwinner A33 */
-		.scratch_addr = 0x2000,
+		.scratch_addr = 0x1000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = a31_sram_swap_buffers,
+		.sid_addr     = 0x01C23800,
 	},
 	{
 		.soc_id       = 0x1673, /* Allwinner A83T */
-		.scratch_addr = 0x2000,
+		.scratch_addr = 0x1000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = a31_sram_swap_buffers,
+		.sid_addr     = 0x01C14200,
 	},
 	{
 		.soc_id       = 0x1680, /* Allwinner H3 */
-		.scratch_addr = 0x2000,
+		.scratch_addr = 0x1000,
 		.mmu_tt_addr  = 0x44000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = a31_sram_swap_buffers,
+		.sid_addr     = 0x01C14200,
 	},
 	{
 		.soc_id       = 0x1639, /* Allwinner A80 */
 		.spl_addr     = 0x10000,
-		.scratch_addr = 0x12000,
+		.scratch_addr = 0x11000,
 		.thunk_addr   = 0x23400, .thunk_size = 0x200,
 		.swap_buffers = a80_sram_swap_buffers,
 	},
@@ -581,7 +589,7 @@ sram_swap_buffers generic_sram_swap_buffers[] = {
 };
 
 soc_sram_info generic_sram_info = {
-	.scratch_addr = 0x2000,
+	.scratch_addr = 0x1000,
 	.thunk_addr   = 0x5680, .thunk_size = 0x180,
 	.swap_buffers = generic_sram_swap_buffers,
 };
@@ -660,6 +668,99 @@ void aw_write_arm_cp_reg(libusb_device_handle *usb, soc_sram_info *sram_info,
 	};
 	aw_fel_write(usb, arm_code, sram_info->scratch_addr, sizeof(arm_code));
 	aw_fel_execute(usb, sram_info->scratch_addr);
+}
+
+/* multiple "readl" from sequential addresses to a destination buffer */
+void aw_fel_readl_n(libusb_device_handle *usb, uint32_t addr,
+		    uint32_t *dst, size_t count)
+{
+	soc_sram_info *sram_info = aw_fel_get_sram_info(usb);
+	uint32_t val;
+	uint32_t arm_code[] = {
+		htole32(0xe59f0010), /* ldr        r0, [pc, #16]            */
+		htole32(0xe5901000), /* ldr        r1, [r0]                 */
+		htole32(0xe58f100c), /* str        r1, [pc, #12]            */
+		htole32(0xe2800004), /* add        r0, r0, #4               */
+		htole32(0xe58f0000), /* str        r0, [pc]                 */
+		htole32(0xe12fff1e), /* bx         lr                       */
+		htole32(addr),
+		/* value goes here */
+	};
+	/* scratch buffer setup: transfers ARM code and also sets the addr */
+	aw_fel_write(usb, arm_code, sram_info->scratch_addr, sizeof(arm_code));
+	while (count-- > 0) {
+		/*
+		 * Since the scratch code auto-increments addr, we can simply
+		 * execute it repeatedly for sequential "readl"s; retrieving
+		 * one uint32_t each time.
+		 */
+		aw_fel_execute(usb, sram_info->scratch_addr);
+		aw_fel_read(usb, sram_info->scratch_addr + 28, &val, sizeof(val));
+		*dst++ = le32toh(val);
+	}
+}
+
+/* "readl" of a single value */
+uint32_t aw_fel_readl(libusb_device_handle *usb, uint32_t addr)
+{
+	uint32_t val;
+	aw_fel_readl_n(usb, addr, &val, 1);
+	return val;
+}
+
+/* multiple "writel" from a source buffer to sequential addresses */
+void aw_fel_writel_n(libusb_device_handle *usb, uint32_t addr,
+		     uint32_t *src, size_t count)
+{
+	if (count == 0) return; /* on zero count, do not access *src at all */
+
+	soc_sram_info *sram_info = aw_fel_get_sram_info(usb);
+	uint32_t arm_code[] = {
+		htole32(0xe59f0010), /* ldr        r0, [pc, #16]            */
+		htole32(0xe59f1010), /* ldr        r1, [pc, #16]            */
+		htole32(0xe5801000), /* str        r1, [r0]                 */
+		htole32(0xe2800004), /* add        r0, r0, #4               */
+		htole32(0xe58f0000), /* str        r0, [pc]                 */
+		htole32(0xe12fff1e), /* bx         lr                       */
+		htole32(addr),
+		htole32(*src++)
+	};
+	/* scratch buffer setup: transfers ARM code, addr and first value */
+	aw_fel_write(usb, arm_code, sram_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(usb, sram_info->scratch_addr); /* stores first value */
+	while (--count > 0) {
+		/*
+		 * Subsequent transfers only need to set up the next value
+		 * to store (since the scratch code auto-increments addr).
+		 */
+		aw_fel_write(usb, src++, sram_info->scratch_addr + 28, sizeof(uint32_t));
+		aw_fel_execute(usb, sram_info->scratch_addr);
+	}
+}
+
+/* "writel" of a single value */
+void aw_fel_writel(libusb_device_handle *usb, uint32_t addr, uint32_t val)
+{
+	aw_fel_writel_n(usb, addr, &val, 1);
+}
+
+void aw_fel_print_sid(libusb_device_handle *usb)
+{
+	soc_sram_info *soc_info = aw_fel_get_sram_info(usb);
+	if (soc_info->sid_addr) {
+		pr_info("SID key (e-fuses) at 0x%08X\n", soc_info->sid_addr);
+
+		uint32_t key[4];
+		aw_fel_readl_n(usb, soc_info->sid_addr, key, 4);
+
+		unsigned int i;
+		/* output SID in a format similar to U-Boot's "md.l <sid_addr> 4" */
+		for (i = 0; i <= 3; i++)
+			printf("%08x%c", key[i], i < 3 ? ' ' : '\n');
+	} else {
+		printf("SID registers for your SoC (id=%04X) are unknown or inaccessible.\n",
+			soc_info->soc_id);
+	}
 }
 
 void aw_enable_l2_cache(libusb_device_handle *usb, soc_sram_info *sram_info)
@@ -1389,6 +1490,8 @@ int main(int argc, char **argv)
 			"	hex[dump] address length	Dumps memory region in hex\n"
 			"	dump address length		Binary memory dump\n"
 			"	exe[cute] address		Call function address\n"
+			"	readl address			Read 32-bit value from device memory\n"
+			"	writel address value		Write 32-bit value to device memory\n"
 			"	read address length file	Write memory contents into file\n"
 			"	write address file		Store file contents into memory\n"
 			"	write-with-progress addr file	\"write\" with progress bar\n"
@@ -1401,6 +1504,7 @@ int main(int argc, char **argv)
 			"					  <#> addr file [addr file [...]]\n"
 			"	echo-gauge \"some text\"		Update prompt/caption for gauge output\n"
 			"	ver[sion]			Show BROM version\n"
+			"	sid				Retrieve and output 128-bit SID key\n"
 			"	clear address length		Clear memory\n"
 			"	fill address length value	Fill memory\n"
 			, argv[0]
@@ -1461,12 +1565,19 @@ int main(int argc, char **argv)
 		} else if (strncmp(argv[1], "dump", 4) == 0 && argc > 3) {
 			aw_fel_dump(handle, strtoul(argv[2], NULL, 0), strtoul(argv[3], NULL, 0));
 			skip = 3;
+		} else if (strcmp(argv[1], "readl") == 0 && argc > 2) {
+			printf("0x%08x\n", aw_fel_readl(handle, strtoul(argv[2], NULL, 0)));
+			skip = 2;
+		} else if (strcmp(argv[1], "writel") == 0 && argc > 3) {
+			aw_fel_writel(handle, strtoul(argv[2], NULL, 0), strtoul(argv[3], NULL, 0));
+			skip = 3;
 		} else if (strncmp(argv[1], "exe", 3) == 0 && argc > 2) {
 			aw_fel_execute(handle, strtoul(argv[2], NULL, 0));
 			skip=3;
-		} else if (strncmp(argv[1], "ver", 3) == 0 && argc > 1) {
+		} else if (strncmp(argv[1], "ver", 3) == 0) {
 			aw_fel_print_version(handle);
-			skip=1;
+		} else if (strcmp(argv[1], "sid") == 0) {
+			aw_fel_print_sid(handle);
 		} else if (strcmp(argv[1], "write") == 0 && argc > 3) {
 			skip += 2 * file_upload(handle, 1, argc - 2, argv + 2,
 					pflag_active ? progress_bar : NULL);
