@@ -43,7 +43,12 @@ TARGET_TOOLS = sunxi-pio
 
 MISC_TOOLS = phoenix_info
 
+# ARM binaries and images
+# Note: To use this target, set/adjust CROSS_COMPILE and MKSUNXIBOOT if needed
+BINFILES = fel-pio.bin jtag-loop.sunxi fel-sdboot.sunxi
+
 CROSS_COMPILE ?= arm-none-eabi-
+MKSUNXIBOOT ?= mksunxiboot
 
 DESTDIR ?=
 PREFIX  ?= /usr/local
@@ -57,6 +62,8 @@ tools: $(TOOLS) $(FEXC_LINKS)
 target-tools: $(TARGET_TOOLS)
 
 misc: $(MISC_TOOLS)
+
+binfiles: $(BINFILES)
 
 install: install-tools install-target-tools
 
@@ -106,50 +113,39 @@ sunxi-nand-part: nand-part-main.c nand-part.c nand-part-a10.h nand-part-a20.h
 sunxi-%: %.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(filter %.c,$^) $(LIBS)
 
+%.bin: %.elf
+	$(CROSS_COMPILE)objcopy -O binary $< $@
+
+%.sunxi: %.bin
+	$(MKSUNXIBOOT) $< $@
+
 fel-pio.bin: fel-pio.elf fel-pio.nm
-	$(CROSS_COMPILE)objcopy -O binary fel-pio.elf fel-pio.bin
+
+ARM_ELF_FLAGS = -Os -fpic -Wall
+ARM_ELF_FLAGS += -fno-common -fno-builtin -ffreestanding -nostdinc
+ARM_ELF_FLAGS += -mno-thumb-interwork -fno-stack-protector -fno-toplevel-reorder
+ARM_ELF_FLAGS += -Wstrict-prototypes -Wno-format-nonliteral -Wno-format-security
 
 fel-pio.elf: fel-pio.c fel-pio.lds
-	$(CROSS_COMPILE)gcc  -g  -Os -fpic  -fno-common -fno-builtin -ffreestanding -nostdinc -mno-thumb-interwork -Wall -Wstrict-prototypes -fno-stack-protector -Wno-format-nonliteral -Wno-format-security -fno-toplevel-reorder  fel-pio.c -nostdlib -o fel-pio.elf -T fel-pio.lds
+	$(CROSS_COMPILE)gcc  -g  $(ARM_ELF_FLAGS)  $< -nostdlib -o $@ -T fel-pio.lds
 
 fel-pio.nm: fel-pio.elf
-	$(CROSS_COMPILE)nm fel-pio.elf | grep -v " _" >fel-pio.nm
+	$(CROSS_COMPILE)nm $< | grep -v " _" >$@
 
 jtag-loop.elf: jtag-loop.c jtag-loop.lds
-	$(CROSS_COMPILE)gcc  -g  -Os  -fpic -fno-common -fno-builtin -ffreestanding -nostdinc -mno-thumb-interwork -Wall -Wstrict-prototypes -fno-stack-protector -Wno-format-nonliteral -Wno-format-security -fno-toplevel-reorder  jtag-loop.c -nostdlib -o jtag-loop.elf -T jtag-loop.lds -Wl,-N
-
-jtag-loop.bin: jtag-loop.elf
-	$(CROSS_COMPILE)objcopy -O binary jtag-loop.elf jtag-loop.bin
-
-jtag-loop.sunxi: jtag-loop.bin
-	mksunxiboot jtag-loop.bin jtag-loop.sunxi
+	$(CROSS_COMPILE)gcc  -g  $(ARM_ELF_FLAGS)  $< -nostdlib -o $@ -T jtag-loop.lds -Wl,-N
 
 fel-sdboot.elf: fel-sdboot.c fel-sdboot.lds
-	$(CROSS_COMPILE)gcc  -g  -Os  -fpic -fno-common -fno-builtin -ffreestanding -nostdinc -mno-thumb-interwork -Wall -Wstrict-prototypes -fno-stack-protector -Wno-format-nonliteral -Wno-format-security -fno-toplevel-reorder  fel-sdboot.c -nostdlib -o fel-sdboot.elf -T fel-sdboot.lds -Wl,-N
+	$(CROSS_COMPILE)gcc  -g  $(ARM_ELF_FLAGS)  $< -nostdlib -o $@ -T fel-sdboot.lds -Wl,-N
 
-fel-sdboot.bin: fel-sdboot.elf
-	$(CROSS_COMPILE)objcopy -O binary fel-sdboot.elf fel-sdboot.bin
-
-fel-sdboot.sunxi: fel-sdboot.bin
-	mksunxiboot fel-sdboot.bin fel-sdboot.sunxi
-
-boot_head_sun3i.elf: boot_head_sun3i.S boot_head_sun3i.lds
-	$(CROSS_COMPILE)gcc  -g  -Os  -fpic -fno-common -fno-builtin -ffreestanding -nostdinc -mno-thumb-interwork -Wall -Wstrict-prototypes -fno-stack-protector -Wno-format-nonliteral -Wno-format-security -fno-toplevel-reorder  boot_head.S -nostdlib -o boot_head_sun3i.elf -T boot_head.lds -Wl,-N -DMACHID=0x1094
-
-boot_head_sun3i.bin: boot_head_sun3i.elf
-	$(CROSS_COMPILE)objcopy -O binary boot_head_sun3i.elf boot_head_sun3i.bin
+boot_head_sun3i.elf: boot_head.S boot_head.lds
+	$(CROSS_COMPILE)gcc  -g  $(ARM_ELF_FLAGS)  $< -nostdlib -o $@ -T boot_head.lds -Wl,-N -DMACHID=0x1094
 
 boot_head_sun4i.elf: boot_head.S boot_head.lds
-	$(CROSS_COMPILE)gcc  -g  -Os  -fpic -fno-common -fno-builtin -ffreestanding -nostdinc -mno-thumb-interwork -Wall -Wstrict-prototypes -fno-stack-protector -Wno-format-nonliteral -Wno-format-security -fno-toplevel-reorder  boot_head.S -nostdlib -o boot_head_sun4i.elf -T boot_head.lds -Wl,-N -DMACHID=0x1008
-
-boot_head_sun4i.bin: boot_head_sun4i.elf
-	$(CROSS_COMPILE)objcopy -O binary boot_head_sun4i.elf boot_head_sun4i.bin
+	$(CROSS_COMPILE)gcc  -g  $(ARM_ELF_FLAGS)  $< -nostdlib -o $@ -T boot_head.lds -Wl,-N -DMACHID=0x1008
 
 boot_head_sun5i.elf: boot_head.S boot_head.lds
-	$(CROSS_COMPILE)gcc  -g  -Os  -fpic -fno-common -fno-builtin -ffreestanding -nostdinc -mno-thumb-interwork -Wall -Wstrict-prototypes -fno-stack-protector -Wno-format-nonliteral -Wno-format-security -fno-toplevel-reorder  boot_head.S -nostdlib -o boot_head_sun5i.elf -T boot_head.lds -Wl,-N -DMACHID=0x102A
-
-boot_head_sun5i.bin: boot_head_sun5i.elf
-	$(CROSS_COMPILE)objcopy -O binary boot_head_sun5i.elf boot_head_sun5i.bin
+	$(CROSS_COMPILE)gcc  -g  $(ARM_ELF_FLAGS)  $< -nostdlib -o $@ -T boot_head.lds -Wl,-N -DMACHID=0x102A
 
 sunxi-bootinfo: bootinfo.c
 
