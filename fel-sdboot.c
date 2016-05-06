@@ -36,5 +36,24 @@ dd if=fel-boot.sunxi of=/dev/sdX bs=1024 seek=8
 
 void _start(void)
 {
-	((void (*)(void))0xffff0020)();
+	unsigned int sctlr;
+
+	/*
+	 * FEL mode fails to activate in an unpredictable way without
+	 * this NOP padding. Minor changes in the code, such as checking
+	 * the PC register (PC >= 0x10000) instead of SCTLR.V or doing
+	 * jump instead of call to the FEL handler in the BROM sometimes
+	 * break on A64 and sometimes break on A10/A13/A20. Trying to
+	 * add DSB & ISB instructions and/or invalidating caches and
+	 * BTB do not seem to make any difference. Only adding a bunch
+	 * of NOP instructions in the beginning helps.
+	 */
+	asm volatile(".rept 32 \n nop \n .endr");
+
+	asm volatile("mrc p15, 0, %0, c1, c0, 0" : "=r" (sctlr));
+
+	if (sctlr & (1 << 13)) /* SCTLR.V */
+		((void (*)(void))0xffff0020)();
+	else
+		((void (*)(void))0x00000020)();
 }
