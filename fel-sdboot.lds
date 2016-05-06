@@ -14,10 +14,15 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-     SECTIONS
-     {
-       . = 0x0030;
-       .text : { *(.text) }
-     }
 
-
+SECTIONS
+{
+	. = 0x0030;
+	.text : { *(.text) }
+	/DISCARD/ : { *(.dynstr*) }
+	/DISCARD/ : { *(.dynamic*) }
+	/DISCARD/ : { *(.plt*) }
+	/DISCARD/ : { *(.interp*) }
+	/DISCARD/ : { *(.gnu*) }
+	/DISCARD/ : { *(.note*) }
+}

@@ -121,7 +121,7 @@ sunxi-%: %.c
 
 fel-pio.bin: fel-pio.elf fel-pio.nm
 
-ARM_ELF_FLAGS = -Os -fpic -Wall
+ARM_ELF_FLAGS = -Os -marm -fpic -Wall
 ARM_ELF_FLAGS += -fno-common -fno-builtin -ffreestanding -nostdinc
 ARM_ELF_FLAGS += -mno-thumb-interwork -fno-stack-protector -fno-toplevel-reorder
 ARM_ELF_FLAGS += -Wstrict-prototypes -Wno-format-nonliteral -Wno-format-security
