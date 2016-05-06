@@ -91,7 +91,7 @@ static void pr_info(const char *fmt, ...)
 	}
 }
 
-static const int AW_USB_MAX_BULK_SEND = 4 * 1024 * 1024; // 4 MiB per bulk request
+static const int AW_USB_MAX_BULK_SEND = 4 * 1024 * 1024; /* 4 MiB per bulk request */
 
 void usb_bulk_send(libusb_device_handle *usb, int ep, const void *data,
 		   size_t length, bool progress)
@@ -114,7 +114,7 @@ void usb_bulk_send(libusb_device_handle *usb, int ep, const void *data,
 		data += sent;
 
 		if (progress)
-			progress_update(sent); // notification after each chunk
+			progress_update(sent); /* notification after each chunk */
 	}
 }
 
@@ -253,15 +253,15 @@ void aw_fel_print_version(libusb_device_handle *usb)
 
 	const char *soc_name="unknown";
 	switch (buf.soc_id) {
-	case 0x1623: soc_name="A10";break;
-	case 0x1625: soc_name="A13";break;
-	case 0x1633: soc_name="A31";break;
-	case 0x1651: soc_name="A20";break;
-	case 0x1650: soc_name="A23";break;
-	case 0x1639: soc_name="A80";break;
-	case 0x1667: soc_name="A33";break;
-	case 0x1673: soc_name="A83T";break;
-	case 0x1680: soc_name="H3";break;
+	case 0x1623: soc_name="A10"; break;
+	case 0x1625: soc_name="A13"; break;
+	case 0x1633: soc_name="A31"; break;
+	case 0x1651: soc_name="A20"; break;
+	case 0x1650: soc_name="A23"; break;
+	case 0x1639: soc_name="A80"; break;
+	case 0x1667: soc_name="A33"; break;
+	case 0x1673: soc_name="A83T"; break;
+	case 0x1680: soc_name="H3"; break;
 	}
 
 	printf("%.8s soc=%08x(%s) %08x ver=%04x %02x %02x scratchpad=%08x %08x %08x\n",
@@ -384,7 +384,7 @@ void *load_file(const char *name, size_t *size)
 		exit(1);
 	}
 	
-	while(1) {
+	while (true) {
 		ssize_t len = bufsize - offset;
 		ssize_t n = fread(buf+offset, 1, len, in);
 		offset += n;
@@ -754,9 +754,9 @@ void aw_fel_print_sid(libusb_device_handle *usb)
 		aw_fel_readl_n(usb, soc_info->sid_addr, key, 4);
 
 		unsigned int i;
-		/* output SID in a format similar to U-Boot's "md.l <sid_addr> 4" */
+		/* output SID in "xxxxxxxx:xxxxxxxx:xxxxxxxx:xxxxxxxx" format */
 		for (i = 0; i <= 3; i++)
-			printf("%08x%c", key[i], i < 3 ? ' ' : '\n');
+			printf("%08x%c", key[i], i < 3 ? ':' : '\n');
 	} else {
 		printf("SID registers for your SoC (id=%04X) are unknown or inaccessible.\n",
 			soc_info->soc_id);
@@ -1180,7 +1180,7 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 	}
 
 	/* re-enable the MMU if it was enabled by BROM */
-	if(tt != NULL)
+	if (tt != NULL)
 		aw_restore_and_enable_mmu(usb, sram_info, tt);
 }
 
@@ -1342,7 +1342,7 @@ static int aw_fel_get_endpoint(libusb_device_handle *usb)
 				const struct libusb_endpoint_descriptor *ep =
 					setting->endpoint + ep_idx;
 
-				// Test for bulk transfer endpoint
+				/* Test for bulk transfer endpoint */
 				if ((ep->bmAttributes & LIBUSB_TRANSFER_TYPE_MASK) !=
 						LIBUSB_TRANSFER_TYPE_BULK)
 					continue;
@@ -1377,7 +1377,7 @@ static unsigned int file_upload(libusb_device_handle *handle, size_t count,
 	for (i = 0; i < count; i++)
 		size += file_size(argv[i * 2 + 1]);
 
-	progress_start(progress, size); // set total size and progress callback
+	progress_start(progress, size); /* set total size and progress callback */
 
 	/* now transfer each file in turn */
 	for (i = 0; i < count; i++) {
@@ -1386,14 +1386,14 @@ static unsigned int file_upload(libusb_device_handle *handle, size_t count,
 			uint32_t offset = strtoul(argv[i * 2], NULL, 0);
 			aw_write_buffer(handle, buf, offset, size, true);
 
-			// If we transferred a script, try to inform U-Boot about its address.
+			/* If we transferred a script, try to inform U-Boot about its address. */
 			if (get_image_type(buf, size) == IH_TYPE_SCRIPT)
 				pass_fel_information(handle, offset);
 		}
 		free(buf);
 	}
 
-	return i; // return number of files that were processed
+	return i; /* return number of files that were processed */
 }
 
 /* open libusb handle to desired FEL device */
@@ -1639,7 +1639,7 @@ int main(int argc, char **argv)
 		argv+=skip;
 	}
 
-	// auto-start U-Boot if requested (by the "uboot" command)
+	/* auto-start U-Boot if requested (by the "uboot" command) */
 	if (uboot_autostart) {
 		pr_info("Starting U-Boot (0x%08X).\n", uboot_entry);
 		aw_fel_execute(handle, uboot_entry);
