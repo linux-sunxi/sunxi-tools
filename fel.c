@@ -258,6 +258,7 @@ void aw_fel_print_version(libusb_device_handle *usb)
 	case 0x1633: soc_name="A31"; break;
 	case 0x1651: soc_name="A20"; break;
 	case 0x1650: soc_name="A23"; break;
+	case 0x1689: soc_name="A64"; break;
 	case 0x1639: soc_name="A80"; break;
 	case 0x1667: soc_name="A33"; break;
 	case 0x1673: soc_name="A83T"; break;
@@ -500,6 +501,22 @@ sram_swap_buffers a31_sram_swap_buffers[] = {
 };
 
 /*
+ * A64 has 32KiB of SRAM A at 0x10000 and a large SRAM C at 0x18000. SRAM A
+ * and SRAM C reside in the address space back-to-back without any gaps, thus
+ * representing a singe large contiguous area. Everything is the same as on
+ * A10/A13/A20, but just shifted by 0x10000.
+ */
+sram_swap_buffers a64_sram_swap_buffers[] = {
+	/* 0x11C00-0x11FFF (IRQ stack) */
+	{ .buf1 = 0x11C00, .buf2 = 0x1A400, .size = 0x0400 },
+	/* 0x15C00-0x16FFF (Stack) */
+	{ .buf1 = 0x15C00, .buf2 = 0x1A800, .size = 0x1400 },
+	/* 0x17C00-0x17FFF (Something important) */
+	{ .buf1 = 0x17C00, .buf2 = 0x1BC00, .size = 0x0400 },
+	{ .size = 0 }  /* End of the table */
+};
+
+/*
  * Use the SRAM section at 0x44000 as the backup storage. This is the memory,
  * which is normally shared with the OpenRISC core (should we do an extra check
  * to ensure that this core is powered off and can't interfere?).
@@ -563,6 +580,14 @@ soc_sram_info soc_sram_info_table[] = {
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = ar100_abusing_sram_swap_buffers,
 		.sid_addr     = 0x01C23800,
+	},
+	{
+		.soc_id       = 0x1689, /* Allwinner A64 */
+		.spl_addr     = 0x10000,
+		.scratch_addr = 0x11000,
+		.thunk_addr   = 0x1A200, .thunk_size = 0x200,
+		.swap_buffers = a64_sram_swap_buffers,
+		.sid_addr     = 0x01C14200,
 	},
 	{
 		.soc_id       = 0x1673, /* Allwinner A83T */
@@ -930,9 +955,9 @@ uint32_t *aw_backup_and_disable_mmu(libusb_device_handle *usb,
 	 * checks needs to be relaxed).
 	 */
 
-	/* Basically, ignore M/Z/I/V bits and expect no TEX remap */
+	/* Basically, ignore M/Z/I/V/UNK bits and expect no TEX remap */
 	sctlr = aw_get_sctlr(usb, sram_info);
-	if ((sctlr & ~((0x7 << 11) | 1)) != 0x00C50078) {
+	if ((sctlr & ~((0x7 << 11) | (1 << 6) | 1)) != 0x00C50038) {
 		fprintf(stderr, "Unexpected SCTLR (%08X)\n", sctlr);
 		exit(1);
 	}
