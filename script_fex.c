@@ -344,6 +344,8 @@ int script_parse_fex(FILE *in, const char *filename, struct script *script)
 			} else {
 				goto invalid_char_at_p;
 			}
+			errf("E: %s:%zu: parse error at %zu.\n",
+			     filename, line, p-buffer+1);
 			goto parse_error;
 invalid_char_at_p:
 			errf("E: %s:%zu: invalid character at %zu.\n",
