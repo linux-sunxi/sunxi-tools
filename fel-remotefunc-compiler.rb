@@ -72,7 +72,7 @@ toolchain = toolchains.find { |toolchain| tool_exists("#{toolchain}gcc") }
 abort "Can't find any usable ARM crosscompiler.\n" unless toolchain
 
 # Compile the source file
-system("#{toolchain}gcc -c -Os -marm -march=armv7-a -mfloat-abi=soft -fstack-usage -fpic -o #{ARGV[0]}.o #{ARGV[0]}")
+system("#{toolchain}gcc -c -O3 -marm -march=armv7-a -mfloat-abi=soft -fstack-usage -fpic -o #{ARGV[0]}.o #{ARGV[0]}")
 exit($?.to_i) if $?.to_i != 0
 
 # Read the stack usage information
