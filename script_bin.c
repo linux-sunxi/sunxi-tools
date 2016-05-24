@@ -269,9 +269,12 @@ static int decompile_section(void *bin, size_t bin_size,
 			} else if (gpio->port == 0xffff) {
 				; /* port:power */
 			} else if (gpio->port < 1 || gpio->port > GPIO_BANK_MAX) {
-				pr_err("%s: %s.%s: unknown GPIO port bank %c (%u)\n",
-				       filename, section->name, entry->name,
-				       'A'+gpio->port, gpio->port);
+				pr_err("%s: %s.%s: unknown GPIO port bank ",
+				       filename, section->name, entry->name);
+				char c = 'A' + gpio->port - 1;
+				if (c >= 'A' && c <= 'Z')
+					pr_err("%c ", c);
+				pr_err("(%u)\n", gpio->port);
 				goto failure;
 			}
 			v[0] = gpio->mul_sel;
