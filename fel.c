@@ -18,6 +18,7 @@
 #include "common.h"
 #include "portable_endian.h"
 #include "fel_lib.h"
+#include "fel-spiflash.h"
 
 #include <assert.h>
 #include <ctype.h>
@@ -1151,6 +1152,8 @@ void usage(const char *cmd) {
 		"	clear address length		Clear memory\n"
 		"	fill address length value	Fill memory\n"
 		, cmd);
+	printf("\n");
+	aw_fel_spiflash_help();
 	exit(0);
 }
 
@@ -1321,6 +1324,23 @@ int main(int argc, char **argv)
 			if (!uboot_autostart)
 				printf("Warning: \"uboot\" command failed to detect image! Can't execute U-Boot.\n");
 			skip=2;
+		} else if (strcmp(argv[1], "spiflash-info") == 0) {
+			aw_fel_spiflash_info(handle);
+		} else if (strcmp(argv[1], "spiflash-read") == 0 && argc > 4) {
+			size_t size = strtoul(argv[3], NULL, 0);
+			void *buf = malloc(size);
+			aw_fel_spiflash_read(handle, strtoul(argv[2], NULL, 0), buf, size,
+					     pflag_active ? progress_bar : NULL);
+			save_file(argv[4], buf, size);
+			free(buf);
+			skip=4;
+		} else if (strcmp(argv[1], "spiflash-write") == 0 && argc > 3) {
+			size_t size;
+			void *buf = load_file(argv[3], &size);
+			aw_fel_spiflash_write(handle, strtoul(argv[2], NULL, 0), buf, size,
+					      pflag_active ? progress_bar : NULL);
+			free(buf);
+			skip=3;
 		} else {
 			pr_fatal("Invalid command %s\n", argv[1]);
 		}
