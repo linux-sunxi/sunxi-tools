@@ -318,7 +318,7 @@ int script_decompile_bin(void *bin, size_t bin_size,
 	unsigned int i;
 	struct script_bin_head *head = bin;
 
-	if ((head->version[0] > SCRIPT_BIN_VERSION_LIMIT) ||
+	if (((head->version[0] & 0x3FFF) > SCRIPT_BIN_VERSION_LIMIT) ||
 	    (head->version[1] > SCRIPT_BIN_VERSION_LIMIT) ||
 	    (head->version[2] > SCRIPT_BIN_VERSION_LIMIT)) {
 		pr_err("Malformed data: version %u.%u.%u.\n",
@@ -333,7 +333,7 @@ int script_decompile_bin(void *bin, size_t bin_size,
 	}
 
 	pr_info("%s: version: %u.%u.%u\n", filename,
-		head->version[0], head->version[1], head->version[2]);
+		head->version[0] & 0x3FFF, head->version[1], head->version[2]);
 	pr_info("%s: size: %zu (%u sections)\n", filename,
 		bin_size, head->sections);
 
