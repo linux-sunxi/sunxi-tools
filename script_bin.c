@@ -17,6 +17,7 @@
 
 #include "common.h"
 
+#include <ctype.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -239,6 +240,13 @@ static int decompile_section(void *bin, size_t bin_size,
 		unsigned type, words;
 		type	= (entry->pattern >> 16) & 0xffff;
 		words	= (entry->pattern >>  0) & 0xffff;
+
+		for (char *p = entry->name; *p; p++)
+			if (!(isalnum(*p) || *p == '_')) {
+				pr_info("Warning: Malformed entry key \"%s\"\n",
+					entry->name);
+				break;
+			}
 
 		switch(type) {
 		case SCRIPT_VALUE_TYPE_SINGLE_WORD: {
