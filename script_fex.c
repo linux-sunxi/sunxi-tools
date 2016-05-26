@@ -202,7 +202,13 @@ int script_parse_fex(FILE *in, const char *filename, struct script *script)
 
 		if (pe == s || *s == ';' || *s == '#')
 			continue; /* empty */
-		else if (*s == '[') {
+		if (*s == ':') {
+			/* see https://github.com/linux-sunxi/sunxi-boards/issues/50 */
+			errf("Warning: %s:%zu: invalid line, suspecting typo/malformed comment.\n",
+			     filename, line);
+			continue; /* ignore this line */
+		}
+		if (*s == '[') {
 			/* section */
 			char *p = ++s;
 			while (isalnum(*p) || *p == '_')
