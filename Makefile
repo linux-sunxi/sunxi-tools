@@ -135,7 +135,7 @@ fel-pio.nm: fel-pio.elf
 jtag-loop.elf: jtag-loop.c jtag-loop.lds
 	$(CROSS_COMPILE)gcc  -g  $(ARM_ELF_FLAGS)  $< -nostdlib -o $@ -T jtag-loop.lds -Wl,-N
 
-fel-sdboot.elf: fel-sdboot.c fel-sdboot.lds
+fel-sdboot.elf: fel-sdboot.S fel-sdboot.lds
 	$(CROSS_COMPILE)gcc  -g  $(ARM_ELF_FLAGS)  $< -nostdlib -o $@ -T fel-sdboot.lds -Wl,-N
 
 boot_head_sun3i.elf: boot_head.S boot_head.lds
