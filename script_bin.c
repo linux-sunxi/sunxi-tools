@@ -17,6 +17,7 @@
 
 #include "common.h"
 
+#include <ctype.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -240,6 +241,13 @@ static int decompile_section(void *bin, size_t bin_size,
 		type	= (entry->pattern >> 16) & 0xffff;
 		words	= (entry->pattern >>  0) & 0xffff;
 
+		for (char *p = entry->name; *p; p++)
+			if (!(isalnum(*p) || *p == '_')) {
+				pr_info("Warning: Malformed entry key \"%s\"\n",
+					entry->name);
+				break;
+			}
+
 		switch(type) {
 		case SCRIPT_VALUE_TYPE_SINGLE_WORD: {
 			uint32_t *v = data;
@@ -269,9 +277,12 @@ static int decompile_section(void *bin, size_t bin_size,
 			} else if (gpio->port == 0xffff) {
 				; /* port:power */
 			} else if (gpio->port < 1 || gpio->port > GPIO_BANK_MAX) {
-				pr_err("%s: %s.%s: unknown GPIO port bank %c (%u)\n",
-				       filename, section->name, entry->name,
-				       'A'+gpio->port, gpio->port);
+				pr_err("%s: %s.%s: unknown GPIO port bank ",
+				       filename, section->name, entry->name);
+				char c = 'A' + gpio->port - 1;
+				if (c >= 'A' && c <= 'Z')
+					pr_err("%c ", c);
+				pr_err("(%u)\n", gpio->port);
 				goto failure;
 			}
 			v[0] = gpio->mul_sel;
@@ -315,7 +326,7 @@ int script_decompile_bin(void *bin, size_t bin_size,
 	unsigned int i;
 	struct script_bin_head *head = bin;
 
-	if ((head->version[0] > SCRIPT_BIN_VERSION_LIMIT) ||
+	if (((head->version[0] & 0x3FFF) > SCRIPT_BIN_VERSION_LIMIT) ||
 	    (head->version[1] > SCRIPT_BIN_VERSION_LIMIT) ||
 	    (head->version[2] > SCRIPT_BIN_VERSION_LIMIT)) {
 		pr_err("Malformed data: version %u.%u.%u.\n",
@@ -330,7 +341,7 @@ int script_decompile_bin(void *bin, size_t bin_size,
 	}
 
 	pr_info("%s: version: %u.%u.%u\n", filename,
-		head->version[0], head->version[1], head->version[2]);
+		head->version[0] & 0x3FFF, head->version[1], head->version[2]);
 	pr_info("%s: size: %zu (%u sections)\n", filename,
 		bin_size, head->sections);
 
