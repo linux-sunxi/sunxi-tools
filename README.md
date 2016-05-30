@@ -46,6 +46,9 @@ Manipulate PIO register dumps
 ### sunxi-nand-part
 Tool for manipulating Allwinner NAND partition tables
 
+### sunxi-nand-image-builder
+Tool used to create raw NAND images (including boot0 images)
+
 ### jtag-loop.sunxi
 ARM native boot helper to force the SD port into JTAG and then stop,
 to ease debugging of bootloaders.

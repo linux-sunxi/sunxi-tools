@@ -41,7 +41,7 @@ FEXC_LINKS = bin2fex fex2bin
 # Tools which are only useful on the target
 TARGET_TOOLS = sunxi-pio
 
-MISC_TOOLS = phoenix_info
+MISC_TOOLS = phoenix_info sunxi-nand-image-builder
 
 # ARM binaries and images
 # Note: To use this target, set/adjust CROSS_COMPILE and MKSUNXIBOOT if needed
