@@ -465,6 +465,7 @@ typedef struct {
 	bool               needs_l2en;   /* Set the L2EN bit */
 	uint32_t           mmu_tt_addr;  /* MMU translation table address */
 	uint32_t           sid_addr;     /* base address for SID_KEY[0-3] registers */
+	uint32_t           rvbar_reg;    /* MMIO address of RVBARADDR0_L register */
 	sram_swap_buffers *swap_buffers;
 } soc_sram_info;
 
@@ -588,6 +589,7 @@ soc_sram_info soc_sram_info_table[] = {
 		.thunk_addr   = 0x1A200, .thunk_size = 0x200,
 		.swap_buffers = a64_sram_swap_buffers,
 		.sid_addr     = 0x01C14200,
+		.rvbar_reg    = 0x017000A0,
 	},
 	{
 		.soc_id       = 0x1673, /* Allwinner A83T */
@@ -1402,6 +1404,56 @@ static int aw_fel_get_endpoint(libusb_device_handle *usb)
 	return 0;
 }
 
+/*
+ * This function stores a given entry point to the RVBAR address for CPU0,
+ * and then writes the Reset Management Register to request a warm boot.
+ * It is useful with some AArch64 transitions, e.g. when passing control to
+ * ARM Trusted Firmware (ATF) during the boot process of Pine64.
+ *
+ * The code was inspired by
+ * https://github.com/apritzel/u-boot/commit/fda6bd1bf285c44f30ea15c7e6231bf53c31d4a8
+ */
+void aw_rmr_request(libusb_device_handle *usb, uint32_t entry_point, bool aarch64)
+{
+	soc_sram_info *soc_info = aw_fel_get_sram_info(usb);
+	if (!soc_info->rvbar_reg) {
+		fprintf(stderr, "ERROR: Can't issue RMR request!\n"
+			"RVBAR is not supported or unknown for your SoC (id=%04X).\n",
+			soc_info->soc_id);
+		return;
+	}
+
+	uint32_t rmr_mode = (1 << 1) | (aarch64 ? 1 : 0); /* RR, AA64 flag */
+	uint32_t arm_code[] = {
+		htole32(0xe59f0028), /* ldr        r0, [rvbar_reg]          */
+		htole32(0xe59f1028), /* ldr        r1, [entry_point]        */
+		htole32(0xe5801000), /* str        r1, [r0]                 */
+		htole32(0xf57ff04f), /* dsb        sy                       */
+		htole32(0xf57ff06f), /* isb        sy                       */
+
+		htole32(0xe59f101c), /* ldr        r1, [rmr_mode]           */
+		htole32(0xee1c0f50), /* mrc        15, 0, r0, cr12, cr0, {2}*/
+		htole32(0xe1800001), /* orr        r0, r0, r1               */
+		htole32(0xee0c0f50), /* mcr        15, 0, r0, cr12, cr0, {2}*/
+		htole32(0xf57ff06f), /* isb        sy                       */
+
+		htole32(0xe320f003), /* loop:      wfi                      */
+		htole32(0xeafffffd), /* b          <loop>                   */
+
+		htole32(soc_info->rvbar_reg),
+		htole32(entry_point),
+		htole32(rmr_mode)
+	};
+	/* scratch buffer setup: transfers ARM code and parameter values */
+	aw_fel_write(usb, arm_code, soc_info->scratch_addr, sizeof(arm_code));
+	/* execute the thunk code (triggering a warm reset on the SoC) */
+	pr_info("Store entry point 0x%08X to RVBAR 0x%08X, "
+		"and request warm reset with RMR mode %u...",
+		entry_point, soc_info->rvbar_reg, rmr_mode);
+	aw_fel_execute(usb, soc_info->scratch_addr);
+	pr_info(" done.\n");
+}
+
 /* private helper function, gets used for "write*" and "multi*" transfers */
 static unsigned int file_upload(libusb_device_handle *handle, size_t count,
 				size_t argc, char **argv, progress_cb_t progress)
@@ -1531,6 +1583,7 @@ int main(int argc, char **argv)
 			"	hex[dump] address length	Dumps memory region in hex\n"
 			"	dump address length		Binary memory dump\n"
 			"	exe[cute] address		Call function address\n"
+			"	reset64 address			RMR request for AArch64 warm boot\n"
 			"	readl address			Read 32-bit value from device memory\n"
 			"	writel address value		Write 32-bit value to device memory\n"
 			"	read address length file	Write memory contents into file\n"
@@ -1615,6 +1668,11 @@ int main(int argc, char **argv)
 		} else if (strncmp(argv[1], "exe", 3) == 0 && argc > 2) {
 			aw_fel_execute(handle, strtoul(argv[2], NULL, 0));
 			skip=3;
+		} else if (strcmp(argv[1], "reset64") == 0 && argc > 2) {
+			aw_rmr_request(handle, strtoul(argv[2], NULL, 0), true);
+			/* Cancel U-Boot autostart, and stop processing args */
+			uboot_autostart = false;
+			break;
 		} else if (strncmp(argv[1], "ver", 3) == 0) {
 			aw_fel_print_version(handle);
 		} else if (strcmp(argv[1], "sid") == 0) {
