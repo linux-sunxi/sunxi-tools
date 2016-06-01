@@ -941,20 +941,37 @@ static int check_image_info(struct image_info *info)
 	int eccbytes, eccsteps;
 	unsigned i;
 
-	if (!info->page_size || !info->oob_size || !info->eraseblock_size ||
-	    !info->usable_page_size)
+	if (!info->page_size) {
+		fprintf(stderr, "--page-size is missing\n");
 		return -EINVAL;
+	}
 
-	if (info->ecc_step_size != 512 && info->ecc_step_size != 1024)
+	if (!info->page_size) {
+		fprintf(stderr, "--oob-size is missing\n");
 		return -EINVAL;
+	}
+
+	if (!info->eraseblock_size) {
+		fprintf(stderr, "--eraseblock-size is missing\n");
+		return -EINVAL;
+	}
+
+	if (info->ecc_step_size != 512 && info->ecc_step_size != 1024) {
+		fprintf(stderr, "Invalid ECC step argument: %d\n",
+			info->ecc_step_size);
+		return -EINVAL;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(valid_ecc_strengths); i++) {
 		if (valid_ecc_strengths[i] == info->ecc_strength)
 			break;
 	}
 
-	if (i == ARRAY_SIZE(valid_ecc_strengths))
+	if (i == ARRAY_SIZE(valid_ecc_strengths)) {
+		fprintf(stderr, "Invalid ECC strength argument: %d\n",
+			info->ecc_strength);
 		return -EINVAL;
+	}
 
 	eccbytes = DIV_ROUND_UP(info->ecc_strength * 14, 8);
 	if (eccbytes % 2)
@@ -964,8 +981,11 @@ static int check_image_info(struct image_info *info)
 	eccsteps = info->usable_page_size / info->ecc_step_size;
 
 	if (info->page_size + info->oob_size <
-	    info->usable_page_size + (eccsteps * (eccbytes)))
+	    info->usable_page_size + (eccsteps * eccbytes)) {
+		fprintf(stderr,
+			"ECC bytes do not fit in the NAND page, choose a weaker ECC\n");
 		return -EINVAL;
+	}
 
 	return 0;
 }
