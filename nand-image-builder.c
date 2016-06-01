@@ -14,55 +14,19 @@
  * this program; if not, write to the Free Software Foundation, Inc., 51
  * Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
+ * For the BCH implementation:
+ *
  * Copyright © 2011 Parrot S.A.
  *
  * Author: Ivan Djelic <ivan.djelic@parrot.com>
  *
- * Description:
+ * For the randomizer and image builder implementation:
  *
- * This library provides runtime configurable encoding/decoding of binary
- * Bose-Chaudhuri-Hocquenghem (BCH) codes.
+ * Copyright © 2016 NextThing Co.
+ * Copyright © 2016 Free Electrons
  *
- * Call init_bch to get a pointer to a newly allocated bch_control structure for
- * the given m (Galois field order), t (error correction capability) and
- * (optional) primitive polynomial parameters.
+ * Author: Boris Brezillon <boris.brezillon@free-electrons.com>
  *
- * Call encode_bch to compute and store ecc parity bytes to a given buffer.
- * Call decode_bch to detect and locate errors in received data.
- *
- * On systems supporting hw BCH features, intermediate results may be provided
- * to decode_bch in order to skip certain steps. See decode_bch() documentation
- * for details.
- *
- * Option CONFIG_BCH_CONST_PARAMS can be used to force fixed values of
- * parameters m and t; thus allowing extra compiler optimizations and providing
- * better (up to 2x) encoding performance. Using this option makes sense when
- * (m,t) are fixed and known in advance, e.g. when using BCH error correction
- * on a particular NAND flash device.
- *
- * Algorithmic details:
- *
- * Encoding is performed by processing 32 input bits in parallel, using 4
- * remainder lookup tables.
- *
- * The final stage of decoding involves the following internal steps:
- * a. Syndrome computation
- * b. Error locator polynomial computation using Berlekamp-Massey algorithm
- * c. Error locator root finding (by far the most expensive step)
- *
- * In this implementation, step c is not performed using the usual Chien search.
- * Instead, an alternative approach described in [1] is used. It consists in
- * factoring the error locator polynomial using the Berlekamp Trace algorithm
- * (BTA) down to a certain degree (4), after which ad hoc low-degree polynomial
- * solving techniques [2] are used. The resulting algorithm, called BTZ, yields
- * much better performance than Chien search for usual (m,t) values (typically
- * m >= 13, t < 32, see [1]).
- *
- * [1] B. Biswas, V. Herbert. Efficient root finding of polynomials over fields
- * of characteristic 2, in: Western European Workshop on Research in Cryptology
- * - WEWoRC 2009, Graz, Austria, LNCS, Springer, July 2009, to appear.
- * [2] [Zin96] V.A. Zinoviev. On the solution of equations of degree 10 over
- * finite fields GF(2^q). In Rapport de recherche INRIA no 2829, 1996.
  */
 
 #include <stdint.h>
