@@ -927,8 +927,21 @@ static void display_help(int status)
 		"-b			--boot0				Build a boot0 image.\n"
 		"-s			--scramble			Scramble data\n"
 		"-a <offset>		--address			Where the image will be programmed.\n"
-		"							This option is only required for non boot0 images that are meant to be programmed at a non eraseblock aligned offset.\n"
-		"\n");
+		"							This option is only required for non-boot0 images that are meant to be programmed at a non eraseblock aligned offset.\n"
+		"\n"
+		"Notes:\n"
+		"All the informations you need to pass to this tool should be part of the NAND datasheet.\n"
+		"If you are building a boot0 image, you'll have specify extra options, and these options should be chosen based on the layouts described here http://linux-sunxi.org/NAND#More_information_on_BROM_NAND\n"
+		"	--usable-page-size should be assigned the 'Hardware page' value\n"
+		"	--ecc should be assigned the 'ECC capacity'/'ECC page' values\n"
+		"	--usable-page-size should be smaller than --page-size\n"
+		"\n"
+		"Examples:\n"
+		"Building a boot0 image for the H27UCG8T2BTR-BC NAND which exposes 16k pages, 1280 OOB bytes per page, 4M eraseblocks, requires data scrambling and expect a minimum ECC of 40bits/1024bytes\n"
+		"	sunxi-nand-image-builder --boot0 --page-size 16384 --oob-size 1280 --eraseblock-size 0x400000 --scramble --boot0 --usable-page-size 4096 --ecc 64/1024\n"
+		"Building a normal image for the same NAND\n"
+		"	sunxi-nand-image-builder --boot0 --page-size 16384 --oob-size 1280 --eraseblock-size 0x400000 --scramble --ecc 40/1024\n"
+		);
 	exit(status);
 }
 
