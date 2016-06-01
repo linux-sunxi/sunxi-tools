@@ -14,55 +14,19 @@
  * this program; if not, write to the Free Software Foundation, Inc., 51
  * Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
+ * For the BCH implementation:
+ *
  * Copyright © 2011 Parrot S.A.
  *
  * Author: Ivan Djelic <ivan.djelic@parrot.com>
  *
- * Description:
+ * For the randomizer and image builder implementation:
  *
- * This library provides runtime configurable encoding/decoding of binary
- * Bose-Chaudhuri-Hocquenghem (BCH) codes.
+ * Copyright © 2016 NextThing Co.
+ * Copyright © 2016 Free Electrons
  *
- * Call init_bch to get a pointer to a newly allocated bch_control structure for
- * the given m (Galois field order), t (error correction capability) and
- * (optional) primitive polynomial parameters.
+ * Author: Boris Brezillon <boris.brezillon@free-electrons.com>
  *
- * Call encode_bch to compute and store ecc parity bytes to a given buffer.
- * Call decode_bch to detect and locate errors in received data.
- *
- * On systems supporting hw BCH features, intermediate results may be provided
- * to decode_bch in order to skip certain steps. See decode_bch() documentation
- * for details.
- *
- * Option CONFIG_BCH_CONST_PARAMS can be used to force fixed values of
- * parameters m and t; thus allowing extra compiler optimizations and providing
- * better (up to 2x) encoding performance. Using this option makes sense when
- * (m,t) are fixed and known in advance, e.g. when using BCH error correction
- * on a particular NAND flash device.
- *
- * Algorithmic details:
- *
- * Encoding is performed by processing 32 input bits in parallel, using 4
- * remainder lookup tables.
- *
- * The final stage of decoding involves the following internal steps:
- * a. Syndrome computation
- * b. Error locator polynomial computation using Berlekamp-Massey algorithm
- * c. Error locator root finding (by far the most expensive step)
- *
- * In this implementation, step c is not performed using the usual Chien search.
- * Instead, an alternative approach described in [1] is used. It consists in
- * factoring the error locator polynomial using the Berlekamp Trace algorithm
- * (BTA) down to a certain degree (4), after which ad hoc low-degree polynomial
- * solving techniques [2] are used. The resulting algorithm, called BTZ, yields
- * much better performance than Chien search for usual (m,t) values (typically
- * m >= 13, t < 32, see [1]).
- *
- * [1] B. Biswas, V. Herbert. Efficient root finding of polynomials over fields
- * of characteristic 2, in: Western European Workshop on Research in Cryptology
- * - WEWoRC 2009, Graz, Austria, LNCS, Springer, July 2009, to appear.
- * [2] [Zin96] V.A. Zinoviev. On the solution of equations of degree 10 over
- * finite fields GF(2^q). In Rapport de recherche INRIA no 2829, 1996.
  */
 
 #include <stdint.h>
@@ -963,8 +927,21 @@ static void display_help(int status)
 		"-b			--boot0				Build a boot0 image.\n"
 		"-s			--scramble			Scramble data\n"
 		"-a <offset>		--address			Where the image will be programmed.\n"
-		"							This option is only required for non boot0 images that are meant to be programmed at a non eraseblock aligned offset.\n"
-		"\n");
+		"							This option is only required for non-boot0 images that are meant to be programmed at a non eraseblock aligned offset.\n"
+		"\n"
+		"Notes:\n"
+		"All the informations you need to pass to this tool should be part of the NAND datasheet.\n"
+		"If you are building a boot0 image, you'll have specify extra options, and these options should be chosen based on the layouts described here http://linux-sunxi.org/NAND#More_information_on_BROM_NAND\n"
+		"	--usable-page-size should be assigned the 'Hardware page' value\n"
+		"	--ecc should be assigned the 'ECC capacity'/'ECC page' values\n"
+		"	--usable-page-size should be smaller than --page-size\n"
+		"\n"
+		"Examples:\n"
+		"Building a boot0 image for the H27UCG8T2BTR-BC NAND which exposes 16k pages, 1280 OOB bytes per page, 4M eraseblocks, requires data scrambling and expect a minimum ECC of 40bits/1024bytes\n"
+		"	sunxi-nand-image-builder --boot0 --page-size 16384 --oob-size 1280 --eraseblock-size 0x400000 --scramble --boot0 --usable-page-size 4096 --ecc 64/1024\n"
+		"Building a normal image for the same NAND\n"
+		"	sunxi-nand-image-builder --boot0 --page-size 16384 --oob-size 1280 --eraseblock-size 0x400000 --scramble --ecc 40/1024\n"
+		);
 	exit(status);
 }
 
@@ -974,20 +951,37 @@ static int check_image_info(struct image_info *info)
 	int eccbytes, eccsteps;
 	unsigned i;
 
-	if (!info->page_size || !info->oob_size || !info->eraseblock_size ||
-	    !info->usable_page_size)
+	if (!info->page_size) {
+		fprintf(stderr, "--page-size is missing\n");
 		return -EINVAL;
+	}
 
-	if (info->ecc_step_size != 512 && info->ecc_step_size != 1024)
+	if (!info->page_size) {
+		fprintf(stderr, "--oob-size is missing\n");
 		return -EINVAL;
+	}
+
+	if (!info->eraseblock_size) {
+		fprintf(stderr, "--eraseblock-size is missing\n");
+		return -EINVAL;
+	}
+
+	if (info->ecc_step_size != 512 && info->ecc_step_size != 1024) {
+		fprintf(stderr, "Invalid ECC step argument: %d\n",
+			info->ecc_step_size);
+		return -EINVAL;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(valid_ecc_strengths); i++) {
 		if (valid_ecc_strengths[i] == info->ecc_strength)
 			break;
 	}
 
-	if (i == ARRAY_SIZE(valid_ecc_strengths))
+	if (i == ARRAY_SIZE(valid_ecc_strengths)) {
+		fprintf(stderr, "Invalid ECC strength argument: %d\n",
+			info->ecc_strength);
 		return -EINVAL;
+	}
 
 	eccbytes = DIV_ROUND_UP(info->ecc_strength * 14, 8);
 	if (eccbytes % 2)
@@ -997,8 +991,11 @@ static int check_image_info(struct image_info *info)
 	eccsteps = info->usable_page_size / info->ecc_step_size;
 
 	if (info->page_size + info->oob_size <
-	    info->usable_page_size + (eccsteps * (eccbytes)))
+	    info->usable_page_size + (eccsteps * (eccbytes))) {
+		fprintf(stderr,
+			"ECC bytes do not fit in the NAND page, choose a weaker ECC\n");
 		return -EINVAL;
+	}
 
 	return 0;
 }
