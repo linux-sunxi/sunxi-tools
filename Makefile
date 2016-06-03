@@ -45,7 +45,7 @@ MISC_TOOLS = phoenix_info sunxi-nand-image-builder
 
 # ARM binaries and images
 # Note: To use this target, set/adjust CROSS_COMPILE and MKSUNXIBOOT if needed
-BINFILES = fel-pio.bin jtag-loop.sunxi fel-sdboot.sunxi
+BINFILES = fel-pio.bin jtag-loop.sunxi fel-sdboot.sunxi uart0-helloworld-sdboot.sunxi
 
 CROSS_COMPILE ?= arm-none-eabi-
 MKSUNXIBOOT ?= mksunxiboot
@@ -122,7 +122,7 @@ sunxi-%: %.c
 fel-pio.bin: fel-pio.elf fel-pio.nm
 
 ARM_ELF_FLAGS = -Os -marm -fpic -Wall
-ARM_ELF_FLAGS += -fno-common -fno-builtin -ffreestanding -nostdinc
+ARM_ELF_FLAGS += -fno-common -fno-builtin -ffreestanding -nostdinc -fno-strict-aliasing
 ARM_ELF_FLAGS += -mno-thumb-interwork -fno-stack-protector -fno-toplevel-reorder
 ARM_ELF_FLAGS += -Wstrict-prototypes -Wno-format-nonliteral -Wno-format-security
 
@@ -137,6 +137,9 @@ jtag-loop.elf: jtag-loop.c jtag-loop.lds
 
 fel-sdboot.elf: fel-sdboot.S fel-sdboot.lds
 	$(CROSS_COMPILE)gcc  -g  $(ARM_ELF_FLAGS)  $< -nostdlib -o $@ -T fel-sdboot.lds -Wl,-N
+
+uart0-helloworld-sdboot.elf: uart0-helloworld-sdboot.c uart0-helloworld-sdboot.lds
+	$(CROSS_COMPILE)gcc  -g  $(ARM_ELF_FLAGS)  $< -nostdlib -o $@ -T uart0-helloworld-sdboot.lds -Wl,-N
 
 boot_head_sun3i.elf: boot_head.S boot_head.lds
 	$(CROSS_COMPILE)gcc  -g  $(ARM_ELF_FLAGS)  $< -nostdlib -o $@ -T boot_head.lds -Wl,-N -DMACHID=0x1094

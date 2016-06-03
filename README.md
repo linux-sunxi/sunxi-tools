@@ -37,6 +37,14 @@ to allow GPIO manipulations via FEL
 ### fel-sdboot
 ARM native sdcard bootloader forcing the device into FEL mode
 
+### uart0-helloworld-sdboot
+ARM native sdcard bootloader, which is only printing a short "hello"
+message to the UART0 serial console. Because it relies on runtime
+SoC type detection, this single image is bootable on a wide range of
+Allwinner devices and can be used for testing. Additionally, it may
+serve as a template/example for developing simple bare metal code
+(LED blinking and other similar GPIO related things).
+
 ### fel-pio
 ARM native helper (binary) for `fel-gpio`
 
