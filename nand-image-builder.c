@@ -1032,7 +1032,7 @@ int main(int argc, char **argv)
 		int option_index = 0;
 		char *endptr = NULL;
 		static const struct option long_options[] = {
-			{"help", no_argument, 0, 0},
+			{"help", no_argument, 0, 'h'},
 			{"ecc", required_argument, 0, 'c'},
 			{"page", required_argument, 0, 'p'},
 			{"oob", required_argument, 0, 'o'},
@@ -1044,7 +1044,7 @@ int main(int argc, char **argv)
 			{0, 0, 0, 0},
 		};
 
-		int c = getopt_long(argc, argv, "c:p:o:u:e:ba:s",
+		int c = getopt_long(argc, argv, "c:p:o:u:e:ba:sh",
 				long_options, &option_index);
 		if (c == EOF)
 			break;
