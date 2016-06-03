@@ -7,7 +7,7 @@ BOARDS_DIR := sunxi-boards
 
 check: check_all_fex
 
-check_all_fex: $(BOARDS_DIR)/README
+check_all_fex: $(BOARDS_DIR)/README unify-fex
 	./test_all_fex.sh $(BOARDS_DIR)
 
 # Retrieve and extract sunxi-boards archive (containing all .fex)
@@ -20,5 +20,8 @@ $(BOARDS_DIR)/README: $(BOARDS_DIR).zip
 	touch -r $(BOARDS_DIR) $<
 	cat patches/*.patch | patch -p1
 
+unify-fex: unify-fex.c
+	$(CC) -Wall -Werror -o $@ $<
+
 clean:
-	rm -rf $(BOARDS_DIR).zip $(BOARDS_DIR)
+	rm -rf $(BOARDS_DIR).zip $(BOARDS_DIR) unify-fex
