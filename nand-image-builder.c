@@ -917,21 +917,51 @@ static void display_help(int status)
 {
 	fprintf(status == EXIT_SUCCESS ? stdout : stderr,
 	        "Usage: sunxi-nand-image-builder [OPTIONS] source-image output-image\n"
+		"\n"
 		"Creates a raw NAND image that can be read by the sunxi NAND controller.\n"
 		"\n"
-		"-h			--help				Display this help and exit\n"
-		"-c <strength>/<step>	--ecc=<strength>/<step>		ECC config\n"
-		"							Valid strengths: 16, 24, 28, 32, 40, 48, 56, 60 and 64\n"
-		"							Valid steps: 512 and 1024\n"
-		"-p <size>		--page-size=<size>		Page size\n"
-		"-o <size>		--oob-size=<size>		OOB size\n"
-		"-u <size>		--usable-page-size=<size>	Usable page size. Only needed for boot0 mode\n"
-		"-e <size>		--eraseblock-size=<size>	Erase block size\n"
-		"-b			--boot0				Build a boot0 image.\n"
-		"-s			--scramble			Scramble data\n"
-		"-a <offset>		--address			Where the image will be programmed.\n"
-		"							This option is only required for non boot0 images that are meant to be programmed at a non eraseblock aligned offset.\n"
-		"\n");
+		"-h               --help               Display this help and exit\n"
+		"-c <str>/<step>  --ecc=<str>/<step>   ECC config (strength/step-size)\n"
+		"-p <size>        --page=<size>        Page size\n"
+		"-o <size>        --oob=<size>         OOB size\n"
+		"-u <size>        --usable=<size>      Usable page size\n"
+		"-e <size>        --eraseblock=<size>  Erase block size\n"
+		"-b               --boot0              Build a boot0 image.\n"
+		"-s               --scramble           Scramble data\n"
+		"-a <offset>      --address=<offset>   Where the image will be programmed.\n"
+		"\n"
+		"Notes:\n"
+		"All the information you need to pass to this tool should be part of\n"
+		"the NAND datasheet.\n"
+		"\n"
+		"The NAND controller only supports the following ECC configs\n"
+		"  Valid ECC strengths: 16, 24, 28, 32, 40, 48, 56, 60 and 64\n"
+		"  Valid ECC step size: 512 and 1024\n"
+		"\n"
+		"If you are building a boot0 image, you'll have specify extra options.\n"
+		"These options should be chosen based on the layouts described here:\n"
+		"  http://linux-sunxi.org/NAND#More_information_on_BROM_NAND\n"
+		"\n"
+		"  --usable should be assigned the 'Hardware page' value\n"
+		"  --ecc should be assigned the 'ECC capacity'/'ECC page' values\n"
+		"  --usable should be smaller than --page\n"
+		"\n"
+		"The --address option is only required for non-boot0 images that are \n"
+		"meant to be programmed at a non eraseblock aligned offset.\n"
+		"\n"
+		"Examples:\n"
+		"  The H27UCG8T2BTR-BC NAND exposes\n"
+		"  * 16k pages\n"
+		"  * 1280 OOB bytes per page\n"
+		"  * 4M eraseblocks\n"
+		"  * requires data scrambling\n"
+		"  * expects a minimum ECC of 40bits/1024bytes\n"
+		"\n"
+		"  A normal image can be generated with\n"
+		"    sunxi-nand-image-builder -p 16384 -o 1280 -e 0x400000 -s -c 40/1024\n"
+		"  A boot0 image can be generated with\n"
+		"    sunxi-nand-image-builder -p 16384 -o 1280 -e 0x400000 -s -b -u 4096 -c 64/1024\n"
+		);
 	exit(status);
 }
 
@@ -942,17 +972,17 @@ static int check_image_info(struct image_info *info)
 	unsigned i;
 
 	if (!info->page_size) {
-		fprintf(stderr, "--page-size is missing\n");
+		fprintf(stderr, "--page is missing\n");
 		return -EINVAL;
 	}
 
 	if (!info->page_size) {
-		fprintf(stderr, "--oob-size is missing\n");
+		fprintf(stderr, "--oob is missing\n");
 		return -EINVAL;
 	}
 
 	if (!info->eraseblock_size) {
-		fprintf(stderr, "--eraseblock-size is missing\n");
+		fprintf(stderr, "--eraseblock is missing\n");
 		return -EINVAL;
 	}
 
@@ -1004,10 +1034,10 @@ int main(int argc, char **argv)
 		static const struct option long_options[] = {
 			{"help", no_argument, 0, 0},
 			{"ecc", required_argument, 0, 'c'},
-			{"page-size", required_argument, 0, 'p'},
-			{"oob-size", required_argument, 0, 'o'},
-			{"usable-page-size", required_argument, 0, 'u'},
-			{"eraseblock-size", required_argument, 0, 'e'},
+			{"page", required_argument, 0, 'p'},
+			{"oob", required_argument, 0, 'o'},
+			{"usable", required_argument, 0, 'u'},
+			{"eraseblock", required_argument, 0, 'e'},
 			{"boot0", no_argument, 0, 'b'},
 			{"scramble", no_argument, 0, 's'},
 			{"address", required_argument, 0, 'a'},
