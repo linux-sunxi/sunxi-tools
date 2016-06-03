@@ -1,0 +1,55 @@
+See https://github.com/linux-sunxi/sunxi-boards/issues/51
+
+--- orig/sunxi-boards/sys_config/a33/a-star_kv49l.fex
++++ new/sunxi-boards/sys_config/a33/a-star_kv49l.fex
+@@ -830,25 +830,25 @@
+ 
+ [Vdevice]
+ Vdevice_used = 0
+-Vdevice_0 = port:P@00<0><0><0><0>
+-Vdevice_1 = port:P@00<0><0><0><0>
++;Vdevice_0 = port:P@00<0><0><0><0>
++;Vdevice_1 = port:P@00<0><0><0><0>
+ 
+ [s_uart0]
+ s_uart_used = 0
+-s_uart_tx = port:P@00<0><0><0><0>
+-s_uart_rx = port:P@00<0><0><0><0>
++;s_uart_tx = port:P@00<0><0><0><0>
++;s_uart_rx = port:P@00<0><0><0><0>
+ 
+ [s_rsb0]
+ s_rsb_used = 0
+-s_rsb_sck = port:P@00<0><0><0><0>
+-s_rsb_sda = port:P@00<0><0><0><0>
++;s_rsb_sck = port:P@00<0><0><0><0>
++;s_rsb_sda = port:P@00<0><0><0><0>
+ 
+ [s_jtag0]
+ s_jtag_used = 0
+-s_jtag_tms = port:P@00<0><0><0><0>
+-s_jtag_tck = port:P@00<0><0><0><0>
+-s_jtag_tdo = port:P@00<0><0><0><0>
+-s_jtag_tdi = port:P@00<0><0><0><0>
++;s_jtag_tms = port:P@00<0><0><0><0>
++;s_jtag_tck = port:P@00<0><0><0><0>
++;s_jtag_tdo = port:P@00<0><0><0><0>
++;s_jtag_tdi = port:P@00<0><0><0><0>
+ 
+ [s_powchk]
+ s_powchk_used = 0
+@@ -875,9 +875,9 @@
+ 
+ [leds_para]
+ leds_used = 0
+-；red_led = port:P@00<0><0><0><0>
+-；red_led_active_low = 0
+-；green_led_active_low = 0
+-；blue_led =
+-；blue_led_active_low = 0
++;red_led = port:P@00<0><0><0><0>
++;red_led_active_low = 0
++;green_led_active_low = 0
++;blue_led =
++;blue_led_active_low = 0
+ 
