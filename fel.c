@@ -1361,7 +1361,10 @@ void pass_fel_information(libusb_device_handle *usb,
 		pr_info("Passing boot info via sunxi SPL: "
 			"script address = 0x%08X, uEnv length = %u\n",
 			script_address, uEnv_length);
-		uint32_t transfer[] = {script_address, uEnv_length};
+		uint32_t transfer[] = {
+			htole32(script_address),
+			htole32(uEnv_length)
+		};
 		aw_fel_write(usb, transfer,
 			sram_info->spl_addr + 0x18, sizeof(transfer));
 	}
