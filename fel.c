@@ -776,7 +776,8 @@ void aw_fel_writel_n(libusb_device_handle *usb, uint32_t addr,
 		 * Subsequent transfers only need to set up the next value
 		 * to store (since the scratch code auto-increments addr).
 		 */
-		aw_fel_write(usb, src++, sram_info->scratch_addr + 28, sizeof(uint32_t));
+		uint32_t val = htole32(*src++);
+		aw_fel_write(usb, &val, sram_info->scratch_addr + 28, sizeof(val));
 		aw_fel_execute(usb, sram_info->scratch_addr);
 	}
 }
