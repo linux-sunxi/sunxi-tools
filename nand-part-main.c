@@ -24,9 +24,11 @@
 #include <strings.h>
 #include <fcntl.h>
 #include "nand-common.h"
+#include "common.h"
 
 void usage(const char *cmd)
 {
+	puts("sunxi-nand-part " VERSION "\n");
 	printf("usage: %s [-f a10|a20] nand-device\n", cmd);
 	printf("       %s nand-device 'name2 len2 [usertype2]' ['name3 len3 [usertype3]'] ...\n", cmd);
 	printf("       %s [-f a10|a20] nand-device start1 'name1 len1 [usertype1]' ['name2 len2 [usertype2]'] ...\n", cmd);

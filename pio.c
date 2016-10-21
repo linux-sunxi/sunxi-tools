@@ -165,7 +165,7 @@ static const char *argv0;
 
 static void usage(int rc )
 {
-
+	fputs("sunxi-pio " VERSION "\n\n", stderr);
 	fprintf(stderr, "usage: %s -m|-i input [-o output] pin..\n", argv0);
 	fprintf(stderr," -m				mmap - read pin state from system\n");
 	fprintf(stderr," -i				read pin state from file\n");
