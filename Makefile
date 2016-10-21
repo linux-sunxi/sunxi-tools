@@ -61,7 +61,7 @@ all: tools target-tools
 tools: $(TOOLS) $(FEXC_LINKS)
 target-tools: $(TARGET_TOOLS)
 
-misc: $(MISC_TOOLS)
+misc: version.h $(MISC_TOOLS)
 
 binfiles: $(BINFILES)
 
@@ -85,9 +85,9 @@ install-target-tools: $(TARGET_TOOLS)
 
 clean:
 	@rm -vf $(TOOLS) $(FEXC_LINKS) $(TARGET_TOOLS) $(MISC_TOOLS)
-	@rm -vf *.o *.elf *.sunxi *.bin *.nm *.orig
+	@rm -vf version.h *.o *.elf *.sunxi *.bin *.nm *.orig
 
-$(TOOLS) $(TARGET_TOOLS): Makefile common.h
+$(TOOLS) $(TARGET_TOOLS): Makefile common.h version.h
 
 fex2bin bin2fex: sunxi-fexc
 	ln -nsf $< $@
@@ -158,7 +158,10 @@ sunxi-meminfo: meminfo.c
 sunxi-script_extractor: script_extractor.c
 	$(CROSS_COMPILE)gcc -g -O0 -Wall -static -o $@ $^
 
+version.h:
+	@./autoversion.sh > $@
+
 .gitignore: Makefile
-	@for x in $(TOOLS) $(FEXC_LINKS) $(TARGET_TOOLS) '*.o' '*.swp'; do \
+	@for x in $(TOOLS) $(FEXC_LINKS) $(TARGET_TOOLS) version.h '*.o' '*.swp'; do \
 		echo "$$x"; \
-	done > $@
+	done | sort -V > $@
