@@ -1,5 +1,5 @@
 # sunxi-tools
-[![License](http://img.shields.io/badge/License-GPL-green.svg)][COPYING]
+[![License](http://img.shields.io/badge/License-GPL-green.svg)](LICENSE.md)
 [![Build Status](https://travis-ci.org/linux-sunxi/sunxi-tools.svg?branch=master)](https://travis-ci.org/linux-sunxi/sunxi-tools)
 
 Copyright (C) 2012  Alejandro Mery <amery@geeks.cl>
@@ -89,7 +89,7 @@ To build this, get a toolchain and run:
 
 ## License
 This software is licensed under the terms of GPLv2+ as defined by the
-Free Software Foundation, details can be read in the [COPYING][] file.
+Free Software Foundation, details can be read in the [LICENSE.md](LICENSE.md)
+file.
 
-[copying]: COPYING
 [fel mode]: http://linux-sunxi.org/FEL
