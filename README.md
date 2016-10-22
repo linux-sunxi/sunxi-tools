@@ -1,6 +1,7 @@
 # sunxi-tools
 [![License](http://img.shields.io/badge/License-GPL-green.svg)][COPYING]
 [![Build Status](https://travis-ci.org/linux-sunxi/sunxi-tools.svg?branch=master)](https://travis-ci.org/linux-sunxi/sunxi-tools)
+[![Releases](https://img.shields.io/github/release/linux-sunxi/sunxi-tools.svg)](https://github.com/linux-sunxi/sunxi-tools/releases)
 
 Copyright (C) 2012  Alejandro Mery <amery@geeks.cl>
 
