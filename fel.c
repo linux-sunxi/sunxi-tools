@@ -1352,16 +1352,22 @@ bool have_sunxi_spl(libusb_device_handle *usb, uint32_t spl_addr)
  * (see "boot_file_head" in ${U-BOOT}/arch/arm/include/asm/arch-sunxi/spl.h),
  * providing the boot script address (DRAM location of boot.scr).
  */
-void pass_fel_information(libusb_device_handle *usb, uint32_t script_address)
+void pass_fel_information(libusb_device_handle *usb,
+			  uint32_t script_address, uint32_t uEnv_length)
 {
 	soc_sram_info *sram_info = aw_fel_get_sram_info(usb);
 
 	/* write something _only_ if we have a suitable SPL header */
 	if (have_sunxi_spl(usb, sram_info->spl_addr)) {
-		pr_info("Passing boot info via sunxi SPL: script address = 0x%08X\n",
-			script_address);
-		aw_fel_write(usb, &script_address,
-			sram_info->spl_addr + 0x18, sizeof(script_address));
+		pr_info("Passing boot info via sunxi SPL: "
+			"script address = 0x%08X, uEnv length = %u\n",
+			script_address, uEnv_length);
+		uint32_t transfer[] = {
+			htole32(script_address),
+			htole32(uEnv_length)
+		};
+		aw_fel_write(usb, transfer,
+			sram_info->spl_addr + 0x18, sizeof(transfer));
 	}
 }
 
@@ -1455,6 +1461,14 @@ void aw_rmr_request(libusb_device_handle *usb, uint32_t entry_point, bool aarch6
 	pr_info(" done.\n");
 }
 
+/* check buffer for magic "#=uEnv", indicating uEnv.txt compatible format */
+static bool is_uEnv(void *buffer, size_t size)
+{
+	if (size <= 6)
+		return false; /* insufficient size */
+	return memcmp(buffer, "#=uEnv", 6) == 0;
+}
+
 /* private helper function, gets used for "write*" and "multi*" transfers */
 static unsigned int file_upload(libusb_device_handle *handle, size_t count,
 				size_t argc, char **argv, progress_cb_t progress)
@@ -1482,7 +1496,9 @@ static unsigned int file_upload(libusb_device_handle *handle, size_t count,
 
 			/* If we transferred a script, try to inform U-Boot about its address. */
 			if (get_image_type(buf, size) == IH_TYPE_SCRIPT)
-				pass_fel_information(handle, offset);
+				pass_fel_information(handle, offset, 0);
+			if (is_uEnv(buf, size)) /* uEnv-style data */
+				pass_fel_information(handle, offset, size);
 		}
 		free(buf);
 	}
