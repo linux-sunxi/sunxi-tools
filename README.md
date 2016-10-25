@@ -1,11 +1,14 @@
 # sunxi-tools
-[![License](http://img.shields.io/badge/License-GPL-green.svg)][COPYING]
+[![License](http://img.shields.io/badge/License-GPL-green.svg)](LICENSE.md)
 [![Build Status](https://travis-ci.org/linux-sunxi/sunxi-tools.svg?branch=master)](https://travis-ci.org/linux-sunxi/sunxi-tools)
 
 Copyright (C) 2012  Alejandro Mery <amery@geeks.cl>
+<br>For a full list of contributors, see
+[this link](https://github.com/linux-sunxi/sunxi-tools/contributors)
+or use the command `git shortlog -se --no-merges`.
 
-Tools to help hacking Allwinner A10 (aka sun4i) based devices and possibly
-it's successors, that's why the 'x' in the package name.
+Tools to help hacking Allwinner A10 (aka sun4i) based devices and
+its successors ([sunxi][]), that's why the 'x' in the package name.
 
 ### sunxi-fexc
 `.fex` file (de)compiler
@@ -89,7 +92,8 @@ To build this, get a toolchain and run:
 
 ## License
 This software is licensed under the terms of GPLv2+ as defined by the
-Free Software Foundation, details can be read in the [COPYING][] file.
+Free Software Foundation, details can be read in the [LICENSE.md](LICENSE.md)
+file.
 
-[copying]: COPYING
+[sunxi]: http://linux-sunxi.org
 [fel mode]: http://linux-sunxi.org/FEL
