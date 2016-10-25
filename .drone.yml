@@ -1,0 +1,17 @@
+# Build configuration for Tea CI, https://www.tea-ci.org
+
+matrix:
+  BITS:
+    - 32
+    - 64
+
+build:
+  image: teaci/msys$$BITS
+  shell: mingw$$BITS
+  environment:
+    - CFLAGS=-g -O2
+  commands:
+    - if [ $$BITS = 32 ]; then TARGET=i686; fi
+    - if [ $$BITS = 64 ]; then TARGET=x86_64; fi
+    - pacman -S --needed --noconfirm --noprogressbar mingw-w64-${TARGET}-libusb
+    - make && make misc
