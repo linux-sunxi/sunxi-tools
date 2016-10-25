@@ -1471,7 +1471,7 @@ static bool is_uEnv(void *buffer, size_t size)
 
 /* private helper function, gets used for "write*" and "multi*" transfers */
 static unsigned int file_upload(libusb_device_handle *handle, size_t count,
-				size_t argc, char **argv, progress_cb_t progress)
+				size_t argc, char **argv, progress_cb_t callback)
 {
 	if (argc < count * 2) {
 		fprintf(stderr, "error: too few arguments for uploading %zu files\n",
@@ -1485,14 +1485,14 @@ static unsigned int file_upload(libusb_device_handle *handle, size_t count,
 	for (i = 0; i < count; i++)
 		size += file_size(argv[i * 2 + 1]);
 
-	progress_start(progress, size); /* set total size and progress callback */
+	progress_start(callback, size); /* set total size and progress callback */
 
 	/* now transfer each file in turn */
 	for (i = 0; i < count; i++) {
 		void *buf = load_file(argv[i * 2 + 1], &size);
 		if (size > 0) {
 			uint32_t offset = strtoul(argv[i * 2], NULL, 0);
-			aw_write_buffer(handle, buf, offset, size, true);
+			aw_write_buffer(handle, buf, offset, size, callback != NULL);
 
 			/* If we transferred a script, try to inform U-Boot about its address. */
 			if (get_image_type(buf, size) == IH_TYPE_SCRIPT)
