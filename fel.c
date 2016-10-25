@@ -1492,8 +1492,7 @@ static unsigned int file_upload(libusb_device_handle *handle, size_t count,
 		void *buf = load_file(argv[i * 2 + 1], &size);
 		if (size > 0) {
 			uint32_t offset = strtoul(argv[i * 2], NULL, 0);
-			aw_write_buffer(handle, buf, offset, size, true);
-
+			aw_write_buffer(handle, buf, offset, size, (progress != NULL));
 			/* If we transferred a script, try to inform U-Boot about its address. */
 			if (get_image_type(buf, size) == IH_TYPE_SCRIPT)
 				pass_fel_information(handle, offset, 0);
