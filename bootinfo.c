@@ -198,7 +198,7 @@ void print_boot_file_head(boot_file_head_t *hdr)
 
 void print_boot_dram_para(boot_dram_para_t *dram)
 {
-	pprintf(&dram->dram_baseaddr,	"DRAM base : %p\n", (void *)(long)dram->dram_baseaddr);
+	pprintf(&dram->dram_baseaddr,	"DRAM base : %p\n", (void *)(uintptr_t)dram->dram_baseaddr);
 	pprintf(&dram->dram_clk,	"DRAM clk  : %d\n", dram->dram_clk);
 	pprintf(&dram->dram_type,	"DRAM type : %d\n", dram->dram_type);
 	pprintf(&dram->dram_rank_num,	"DRAM rank : %d\n", dram->dram_rank_num);

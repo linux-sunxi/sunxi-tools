@@ -325,7 +325,7 @@ void hexdump(void *data, uint32_t offset, size_t size)
 	unsigned char *buf = data;
 	for (j = 0; j < size; j+=16) {
 		size_t i;
-		printf("%08lx: ",(long int)offset + j);
+		printf("%08zx: ", offset + j);
 		for (i = 0; i < 16; i++) {
 			if (j + i < size)
 				printf("%02x ", buf[j+i]);
