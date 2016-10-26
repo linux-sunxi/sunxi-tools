@@ -102,7 +102,7 @@ LIBUSB_CFLAGS = `pkg-config --cflags $(LIBUSB)`
 LIBUSB_LIBS = `pkg-config --libs $(LIBUSB)`
 
 sunxi-fel: fel.c fel-to-spl-thunk.h progress.c progress.h
-	$(CC) $(CFLAGS) $(LIBUSB_CFLAGS) $(LDFLAGS) -o $@ $(filter %.c,$^) $(LIBS) $(LIBUSB_LIBS)
+	$(CC) $(CFLAGS) $(LIBUSB_CFLAGS) $(LDFLAGS) -o $@ fel.c progress.c $(LIBS) $(LIBUSB_LIBS)
 
 sunxi-nand-part: nand-part-main.c nand-part.c nand-part-a10.h nand-part-a20.h
 	$(CC) $(CFLAGS) -c -o nand-part-main.o nand-part-main.c
@@ -111,7 +111,7 @@ sunxi-nand-part: nand-part-main.c nand-part.c nand-part-a10.h nand-part-a20.h
 	$(CC) $(LDFLAGS) -o $@ nand-part-main.o nand-part-a10.o nand-part-a20.o $(LIBS)
 
 sunxi-%: %.c
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(filter %.c,$^) $(LIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(filter %.c,$<) $(LIBS)
 
 %.bin: %.elf
 	$(CROSS_COMPILE)objcopy -O binary $< $@
@@ -153,10 +153,10 @@ boot_head_sun5i.elf: boot_head.S boot_head.lds
 sunxi-bootinfo: bootinfo.c
 
 sunxi-meminfo: meminfo.c
-	$(CROSS_COMPILE)gcc -g -O0 -Wall -static -o $@ $^
+	$(CROSS_COMPILE)gcc -g -O0 -Wall -static -o $@ $<
 
 sunxi-script_extractor: script_extractor.c
-	$(CROSS_COMPILE)gcc -g -O0 -Wall -static -o $@ $^
+	$(CROSS_COMPILE)gcc -g -O0 -Wall -static -o $@ $<
 
 version.h:
 	@./autoversion.sh > $@
