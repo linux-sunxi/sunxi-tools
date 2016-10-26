@@ -15,6 +15,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "common.h"
+#include "portable_endian.h"
+#include "progress.h"
+
 #include <libusb.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -27,10 +31,6 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sys/stat.h>
-
-#include "common.h"
-#include "portable_endian.h"
-#include "progress.h"
 
 static const uint16_t AW_USB_VENDOR_ID  = 0x1F3A;
 static const uint16_t AW_USB_PRODUCT_ID = 0xEFE8;
