@@ -19,6 +19,8 @@
 
 #include <stddef.h> /* offsetof */
 
+#include "version.h" /* auto-generated VERSION string */
+
 /** flag function argument as unused */
 #ifdef UNUSED
 #elif defined(__GNUC__)

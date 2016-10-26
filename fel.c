@@ -28,6 +28,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
+#include "common.h"
 #include "portable_endian.h"
 #include "progress.h"
 
@@ -1582,6 +1583,7 @@ int main(int argc, char **argv)
 #endif
 
 	if (argc <= 1) {
+		puts("sunxi-fel " VERSION "\n");
 		printf("Usage: %s [options] command arguments... [command...]\n"
 			"	-v, --verbose			Verbose logging\n"
 			"	-p, --progress			\"write\" transfers show a progress bar\n"

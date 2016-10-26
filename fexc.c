@@ -215,6 +215,7 @@ done:
  */
 static inline void app_usage(const char *arg0, int mode)
 {
+	fputs("sunxi-fexc " VERSION "\n\n", stderr);
 	errf("Usage: %s [-vq]%s[<input> [<output>]]\n", arg0,
 	     mode ? " " : " [-I <infmt>] [-O <outfmt>] ");
 

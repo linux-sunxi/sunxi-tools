@@ -20,6 +20,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "common.h"
 #include "portable_endian.h"
 
 struct phoenix_ptable {
@@ -76,6 +77,7 @@ err:
 
 static void usage(char **argv)
 {
+	puts("phoenix-info " VERSION "\n");
 	printf("Usage: %s [options] [phoenix_image]\n"
 		"	-v	verbose\n"
 		"	-q	quiet\n"

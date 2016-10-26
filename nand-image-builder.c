@@ -39,6 +39,7 @@
 #include <errno.h>
 #include <getopt.h>
 
+#include "common.h"
 #include "portable_endian.h"
 
 #if defined(CONFIG_BCH_CONST_PARAMS)
@@ -62,7 +63,6 @@
 
 #define cpu_to_be32 htobe32
 #define kfree free
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
 #define BCH_PRIMITIVE_POLY	0x5803
 
@@ -916,7 +916,9 @@ static int create_image(const struct image_info *info)
 static void display_help(int status)
 {
 	fprintf(status == EXIT_SUCCESS ? stdout : stderr,
-	        "Usage: sunxi-nand-image-builder [OPTIONS] source-image output-image\n"
+		"sunxi-nand-image-builder %s\n"
+		"\n"
+		"Usage: sunxi-nand-image-builder [OPTIONS] source-image output-image\n"
 		"\n"
 		"Creates a raw NAND image that can be read by the sunxi NAND controller.\n"
 		"\n"
@@ -960,8 +962,8 @@ static void display_help(int status)
 		"  A normal image can be generated with\n"
 		"    sunxi-nand-image-builder -p 16384 -o 1280 -e 0x400000 -s -c 40/1024\n"
 		"  A boot0 image can be generated with\n"
-		"    sunxi-nand-image-builder -p 16384 -o 1280 -e 0x400000 -s -b -u 4096 -c 64/1024\n"
-		);
+		"    sunxi-nand-image-builder -p 16384 -o 1280 -e 0x400000 -s -b -u 4096 -c 64/1024\n",
+		VERSION);
 	exit(status);
 }
 

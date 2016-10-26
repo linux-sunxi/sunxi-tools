@@ -336,6 +336,13 @@ void print_boot1_file_head(boot1_file_head_t *hdr, loader_type type)
 		printf("Unknown boot0 header version\n");
 }
 
+static void usage(const char *cmd)
+{
+	puts("sunxi-bootinfo " VERSION "\n");
+	printf("Usage: %s [<filename>]\n", cmd);
+	printf("       With no <filename> given, will read from stdin instead\n");
+}
+
 int main(int argc, char * argv[])
 {
 	FILE *in = stdin;
@@ -352,8 +359,11 @@ int main(int argc, char * argv[])
 	}
 	if (argc > 1) {
 		in = fopen(argv[1], "rb");
-		if (!in)
-			fail("open input: ");
+		if (!in) {
+			if (*argv[1] == '-')
+				usage(argv[0]);
+			fail("open input");
+		}
 	}
 	int len;
 
