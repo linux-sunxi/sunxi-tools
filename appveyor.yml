@@ -1,0 +1,25 @@
+# Build configuration file for AppVeyor, https://www.appveyor.com/
+version: 'v1.4 #{build}'
+
+shallow_clone: true
+os: MinGW
+
+environment:
+  CC: gcc
+  CFLAGS: -g -O2
+
+install:
+  - cmd: .appveyor/install-libusb.cmd
+
+# Build via Makefile
+build_script:
+  - cmd: set PATH=C:\MinGW\bin;%PATH%
+  - cmd: mingw32-make LIBUSB_CFLAGS="-I libusb/include/libusb-1.0" LIBUSB_LIBS="-L libusb/MinGW32/dll -lusb-1.0"
+  - cmd: mingw32-make misc
+
+after_build:
+  - cmd: .appveyor/package-artifacts.cmd
+
+artifacts:
+  - path: dist\sunxi-tools-win32.7z
+    name: sunxi-tools-win32
