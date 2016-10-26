@@ -100,6 +100,10 @@ sunxi-fexc: fexc.h script.h script.c \
 LIBUSB = libusb-1.0
 LIBUSB_CFLAGS = `pkg-config --cflags $(LIBUSB)`
 LIBUSB_LIBS = `pkg-config --libs $(LIBUSB)`
+ifeq ($(OS),Windows_NT)
+	# Windows lacks mman.h / mmap()
+	DEFINES += -DNO_MMAP
+endif
 
 sunxi-fel: fel.c fel-to-spl-thunk.h progress.c progress.h
 	$(CC) $(CFLAGS) $(LIBUSB_CFLAGS) $(LDFLAGS) -o $@ $(filter %.c,$^) $(LIBS) $(LIBUSB_LIBS)

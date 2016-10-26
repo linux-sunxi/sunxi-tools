@@ -24,7 +24,9 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <sys/mman.h>
+#ifndef NO_MMAP
+  #include <sys/mman.h>
+#endif
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -365,6 +367,10 @@ int main(int argc, char **argv)
 	if (!in_name && !do_mmap)
 		usage(1);
 	if (do_mmap) {
+#ifdef NO_MMAP
+		errno = ENOSYS; /* Function not implemented */
+		perror("mmap PIO");
+#else
 		int pagesize = sysconf(_SC_PAGESIZE);
 		int fd = open("/dev/mem",O_RDWR);
 		int addr = 0x01c20800 & ~(pagesize-1);
@@ -380,6 +386,7 @@ int main(int argc, char **argv)
 		}
 		close(fd);
 		buf += offset;
+#endif
 	}
 	if (in_name) {
 		if (strcmp(in_name, "-") == 0) {
