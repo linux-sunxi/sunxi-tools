@@ -25,6 +25,8 @@
 #include <sys/io.h>
 #include <stdbool.h>
 
+#include "common.h"
+
 typedef uint32_t u32;
 
 /* from u-boot code: */
@@ -412,7 +414,7 @@ sun4i_dram_para_print_fex(struct sun4i_dram_para *dram_para)
 static int
 sun4i_dram_para_print(bool uboot)
 {
-	struct sun4i_dram_para dram_para = {0};
+	struct sun4i_dram_para dram_para = { .baseaddr = 0 };
 	int ret;
 
 	ret = sunxi_dram_clock_read(&dram_para.clock);
@@ -710,6 +712,7 @@ sun8i_dram_regs_print(void)
 static void
 print_usage(const char *name)
 {
+	puts("sunxi-meminfo " VERSION "\n");
 	printf("Utility to retrieve DRAM information from registers on "
 	       "Allwinner SoCs.\n");
 	printf("\n");
