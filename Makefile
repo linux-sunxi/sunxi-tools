@@ -56,16 +56,17 @@ BINDIR  ?= $(PREFIX)/bin
 
 .PHONY: all clean tools target-tools install install-tools install-target-tools
 
-all: tools target-tools
-
 tools: $(TOOLS) $(FEXC_LINKS)
 target-tools: $(TARGET_TOOLS)
+
+all: tools target-tools
 
 misc: version.h $(MISC_TOOLS)
 
 binfiles: $(BINFILES)
 
-install: install-tools install-target-tools
+install: install-tools
+install-all: install-tools install-target-tools
 
 install-tools: $(TOOLS)
 	install -d $(DESTDIR)$(BINDIR)
