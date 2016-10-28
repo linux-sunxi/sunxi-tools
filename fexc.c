@@ -21,7 +21,9 @@
 #include <libgen.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/mman.h>
+#ifndef NO_MMAP
+  #include <sys/mman.h>
+#endif
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -117,6 +119,7 @@ static inline int script_parse(enum script_format format,
 			pr_err("%s: %s: %s\n", filename,
 			       "fstat", strerror(errno));
 			goto bin_close;
+#ifndef NO_MMAP
 		} else if (S_ISREG(sb.st_mode)) {
 			/* regular file, mmap it */
 			bin = mmap(0, sb.st_size, PROT_READ, MAP_SHARED, in, 0);
@@ -127,6 +130,7 @@ static inline int script_parse(enum script_format format,
 			}
 			bin_size = sb.st_size;
 			allocated = 0;
+#endif
 		} else {
 			/* something else... just read it all! */
 			bin = read_all(in, filename, &bin_size);
@@ -138,10 +142,12 @@ static inline int script_parse(enum script_format format,
 		ret = script_decompile_bin(bin, bin_size, filename, script);
 		if (allocated)
 			free(bin);
+#ifndef NO_MMAP
 		else if (munmap(bin, bin_size) == -1) {
 			pr_err("%s: %s: %s\n", filename,
 			       "munmap", strerror(errno));
 		}
+#endif
 bin_close:
 		close(in);
 		}; break;

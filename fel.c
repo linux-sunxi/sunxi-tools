@@ -15,6 +15,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "common.h"
+#include "portable_endian.h"
+#include "progress.h"
+
 #include <libusb.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -27,10 +31,6 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sys/stat.h>
-
-#include "common.h"
-#include "portable_endian.h"
-#include "progress.h"
 
 static const uint16_t AW_USB_VENDOR_ID  = 0x1F3A;
 static const uint16_t AW_USB_PRODUCT_ID = 0xEFE8;
@@ -325,7 +325,7 @@ void hexdump(void *data, uint32_t offset, size_t size)
 	unsigned char *buf = data;
 	for (j = 0; j < size; j+=16) {
 		size_t i;
-		printf("%08lx: ",(long int)offset + j);
+		printf("%08zx: ", offset + j);
 		for (i = 0; i < 16; i++) {
 			if (j + i < size)
 				printf("%02x ", buf[j+i]);

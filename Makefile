@@ -98,8 +98,14 @@ sunxi-fexc: fexc.h script.h script.c \
 	script_fex.h script_fex.c
 
 LIBUSB = libusb-1.0
-LIBUSB_CFLAGS = `pkg-config --cflags $(LIBUSB)`
-LIBUSB_LIBS = `pkg-config --libs $(LIBUSB)`
+LIBUSB_CFLAGS ?= `pkg-config --cflags $(LIBUSB)`
+LIBUSB_LIBS ?= `pkg-config --libs $(LIBUSB)`
+ifeq ($(OS),Windows_NT)
+	# Windows lacks mman.h / mmap()
+	DEFINES += -DNO_MMAP
+	# portable_endian.h relies on winsock2
+	LIBS += -lws2_32
+endif
 
 sunxi-fel: fel.c fel-to-spl-thunk.h progress.c progress.h
 	$(CC) $(CFLAGS) $(LIBUSB_CFLAGS) $(LDFLAGS) -o $@ $(filter %.c,$^) $(LIBS) $(LIBUSB_LIBS)
