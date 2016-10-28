@@ -145,6 +145,16 @@ Currently this means `phoenix_info` and `sunxi-nand-image-builder`.
 * `make install-misc`
 builds *misc* and installs the resulting binaries.
 
+## Using sunxi-tools under Windows
+Please note that our main development (and testing) is focused on unix-oriented
+operating systems. The Windows port of `sunxi-tools` is **highly experimental** -
+use at your own risk!
+
+Nevertheless, we're now providing some
+[prebuilt Win32 binaries](https://ci.appveyor.com/project/linuxsunxi/sunxi-tools/build/artifacts).
+For the required USB driver installation and (preliminary) usage information, refer to
+[these instructions](http://linux-sunxi.org/FEL/USBBoot#Using_sunxi-fel_on_Windows).
+
 ## License
 This software is licensed under the terms of GPLv2+ as defined by the
 Free Software Foundation, details can be read in the [LICENSE.md](LICENSE.md)
