@@ -1,6 +1,8 @@
 # sunxi-tools
 [![License](http://img.shields.io/badge/License-GPL-green.svg)](LICENSE.md)
 [![Build Status](https://travis-ci.org/linux-sunxi/sunxi-tools.svg?branch=master)](https://travis-ci.org/linux-sunxi/sunxi-tools)
+[![Build status](https://ci.appveyor.com/api/projects/status/96u5jmnx76jk6qwe/branch/windows?svg=true)](https://ci.appveyor.com/project/linuxsunxi/sunxi-tools/branch/windows)
+[![Build Status](https://tea-ci.org/api/badges/linux-sunxi/sunxi-tools/status.svg?branch=windows)](https://tea-ci.org/linux-sunxi/sunxi-tools)
 [![Releases](https://img.shields.io/github/release/linux-sunxi/sunxi-tools.svg)](https://github.com/linux-sunxi/sunxi-tools/releases)
 [![Commits](https://img.shields.io/github/commits-since/linux-sunxi/sunxi-tools/v1.4.svg)](https://github.com/linux-sunxi/sunxi-tools/compare/v1.4...master)
 
