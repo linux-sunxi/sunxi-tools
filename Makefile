@@ -39,8 +39,9 @@ TOOLS = sunxi-fexc sunxi-bootinfo sunxi-fel sunxi-nand-part
 FEXC_LINKS = bin2fex fex2bin
 
 # Tools which are only useful on the target
-TARGET_TOOLS = sunxi-pio
+TARGET_TOOLS = sunxi-meminfo sunxi-pio
 
+# Misc tools (of more "exotic" nature) not part of our default build / install
 MISC_TOOLS = phoenix_info sunxi-nand-image-builder
 
 # ARM binaries and images
@@ -56,16 +57,17 @@ BINDIR  ?= $(PREFIX)/bin
 
 .PHONY: all clean tools target-tools install install-tools install-target-tools
 
-all: tools target-tools
-
 tools: $(TOOLS) $(FEXC_LINKS)
 target-tools: $(TARGET_TOOLS)
 
-misc: version.h $(MISC_TOOLS)
+all: tools target-tools
+
+misc: $(MISC_TOOLS)
 
 binfiles: $(BINFILES)
 
-install: install-tools install-target-tools
+install: install-tools
+install-all: install-tools install-target-tools
 
 install-tools: $(TOOLS)
 	install -d $(DESTDIR)$(BINDIR)
@@ -82,12 +84,18 @@ install-target-tools: $(TARGET_TOOLS)
 		install -m0755 $$t $(DESTDIR)$(BINDIR)/$$t ; \
 	done
 
+install-misc: $(MISC_TOOLS)
+	install -d $(DESTDIR)$(BINDIR)
+	@set -ex ; for t in $^ ; do \
+		install -m0755 $$t $(DESTDIR)$(BINDIR)/$$t ; \
+	done
+
 
 clean:
 	@rm -vf $(TOOLS) $(FEXC_LINKS) $(TARGET_TOOLS) $(MISC_TOOLS)
 	@rm -vf version.h *.o *.elf *.sunxi *.bin *.nm *.orig
 
-$(TOOLS) $(TARGET_TOOLS): Makefile common.h version.h
+$(TOOLS) $(TARGET_TOOLS) $(MISC_TOOLS): Makefile common.h version.h
 
 fex2bin bin2fex: sunxi-fexc
 	ln -nsf $< $@
@@ -118,6 +126,8 @@ sunxi-nand-part: nand-part-main.c nand-part.c nand-part-a10.h nand-part-a20.h
 
 sunxi-%: %.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(filter %.c,$^) $(LIBS)
+phoenix_info: phoenix_info.c
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS)
 
 %.bin: %.elf
 	$(CROSS_COMPILE)objcopy -O binary $< $@
@@ -158,11 +168,14 @@ boot_head_sun5i.elf: boot_head.S boot_head.lds
 
 sunxi-bootinfo: bootinfo.c
 
+# target tools
+TARGET_CFLAGS = -g -O0 -Wall -Wextra -std=c99 $(DEFINES) -Iinclude/ -static
+sunxi-pio: pio.c
+	$(CROSS_COMPILE)gcc $(TARGET_CFLAGS) -o $@ $<
 sunxi-meminfo: meminfo.c
-	$(CROSS_COMPILE)gcc -g -O0 -Wall -static -o $@ $^
-
+	$(CROSS_COMPILE)gcc $(TARGET_CFLAGS) -o $@ $<
 sunxi-script_extractor: script_extractor.c
-	$(CROSS_COMPILE)gcc -g -O0 -Wall -static -o $@ $^
+	$(CROSS_COMPILE)gcc $(TARGET_CFLAGS) -o $@ $<
 
 version.h:
 	@./autoversion.sh > $@

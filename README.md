@@ -91,6 +91,52 @@ To build this, get a toolchain and run:
 	make CROSS_COMPILE=arm-linux-gnueabihf- sunxi-script_extractor
 ---
 
+## Building
+
+Compilation requires the development version of *libusb-1.0* (include header
+and library) to be installed for `sunxi-fel`. Unless you explicitly pass
+*LIBUSB_CFLAGS* and *LIBUSB_LIBS* to the make utility, `pkg-config` is also
+needed.
+
+Available build targets:
+
+* `make tools`
+builds tools that are useful on the host. This is what most people will want,
+and our default target (when simply using `make`).
+
+* `make target-tools`
+builds tools that are intended for the target (Allwinner SoC), using a
+cross-compiler. The toolchain prefix *CROSS_COMPILE* defaults to `arm-none-eabi-`,
+adjust it if needed.
+<br>_Hint:_ When compiling 'natively' on the target platform you may
+simply use an empty toolchain prefix here (`make target-tools CROSS_COMPILE=`
+or `make all CROSS_COMPILE=`).
+
+* `make all`
+builds both *tools* and *target-tools*.
+
+* `make install-tools`
+builds *tools* and then copies/installs them to a filesystem location. The
+destination is affected by settings for `DESTDIR`, `PREFIX` and possibly
+`BINDIR`. For details, please refer to the *Makefile*.
+You may use `make install` as a shortcut for this.
+
+* `make install-target-tools`
+builds *target-tools* and then copies/installs them to a filesystem location
+selected by `DESTDIR`, `PREFIX` and possibly `BINDIR` - see `make install-tools`
+above.
+
+* `make install-all`
+builds and installs both *tools* and *target-tools*.
+
+* `make misc`
+builds miscellaneous (host) utilities that are not part of our 'standard' suite.
+Currently this means `phoenix_info` and `sunxi-nand-image-builder`. There is no
+dedicated "install" target for these, you need to copy them manuallly.
+
+* `make install-misc`
+builds *misc* and installs the resulting binaries.
+
 ## License
 This software is licensed under the terms of GPLv2+ as defined by the
 Free Software Foundation, details can be read in the [LICENSE.md](LICENSE.md)
