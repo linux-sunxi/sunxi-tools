@@ -131,8 +131,7 @@ builds and installs both *tools* and *target-tools*.
 
 * `make misc`
 builds miscellaneous (host) utilities that are not part of our 'standard' suite.
-Currently this means `phoenix_info` and `sunxi-nand-image-builder`. There is no
-dedicated "install" target for these, you need to copy them manuallly.
+Currently this means `phoenix_info` and `sunxi-nand-image-builder`.
 
 * `make install-misc`
 builds *misc* and installs the resulting binaries.
