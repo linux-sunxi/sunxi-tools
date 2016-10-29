@@ -13,5 +13,5 @@ build:
   commands:
     - if [ $$BITS = 32 ]; then TARGET=i686; fi
     - if [ $$BITS = 64 ]; then TARGET=x86_64; fi
-    - pacman -S --needed --noconfirm --noprogressbar mingw-w64-${TARGET}-libusb
-    - make && make misc
+    - pacman -S --needed --noconfirm --noprogressbar mingw-w64-${TARGET}-libusb unzip
+    - make && make misc && make -C tests/ check_all_fex
