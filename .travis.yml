@@ -3,6 +3,9 @@ sudo: false
 
 language: c
 
+# treat all warnings as errors
+env: EXTRA_CFLAGS=-Werror
+
 os:
   - linux
   - osx
@@ -10,7 +13,7 @@ compiler:
   - gcc
   - clang
 
-# OSX uses Apple's flavor of clang anyway, so there's no point in using "gcc".
+# OSX uses Apple's flavor of clang anyway, so there's no point in trying "gcc".
 # This excludes the "gcc" compiler from the build matrix for OSX:
 matrix:
   exclude:
@@ -23,17 +26,24 @@ addons:
     packages:
     - libusb-1.0-0-dev
 
-# take care of the libusb dependency for Mac OS X
+# take care of the libusb dependency for Mac OS X; on Linux use "make all" later
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
       brew update;
       brew install libusb;
+    else
+      export TARGET="all CROSS_COMPILE=";
     fi
 
-# build using the Makefile, treat all warnings as errors
+# build using the Makefile
 script:
-  - make EXTRA_CFLAGS=-Werror
-  - make misc EXTRA_CFLAGS=-Werror
+  - make ${TARGET} && make misc
+
+# when on Linux: run/simulate a test install
+after_success:
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+      make install-all install-misc DESTDIR=/tmp PREFIX=/sunxi-tools;
+    fi
 
 # turn off email notifications
 notifications:
