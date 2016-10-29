@@ -4,7 +4,7 @@ sudo: false
 language: c
 
 # treat all warnings as errors
-env: EXTRA_CFLAGS=-Werror
+env: CFLAGS=-Werror
 
 os:
   - linux
