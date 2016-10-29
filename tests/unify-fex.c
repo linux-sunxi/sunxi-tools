@@ -23,6 +23,7 @@
  */
 
 #include <ctype.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -36,7 +37,7 @@ int main(int argc, char **argv)
 	FILE *input = stdin;
 	char line[1024];
 	char *c, *p;
-	long long num;
+	int64_t num;
 
 	if (argc >= 2) {
 		input = fopen(argv[1], "r");
@@ -74,7 +75,7 @@ int main(int argc, char **argv)
 					/* get pin number (including bank) */
 					num = ((p[6] - 'A') << 5) + strtoll(p + 7, &c, 10);
 					c = strdup(c);
-					sprintf(p, "port:P%c%02lld%s", 'A' + (int)(num >> 5), (num & 0x1F), c);
+					sprintf(p, "port:P%c%02" PRId64 "%s", 'A' + (int)(num >> 5), num & 0x1F, c);
 					free(c);
 
 					/* check angle brackets to determine options count */
@@ -115,7 +116,7 @@ int main(int argc, char **argv)
 					if (!hex && num >= 2147483648LL)
 						num -= 4294967296LL;
 
-					sprintf(p, hex ? "0x%llx" : "%lld", num);
+					sprintf(p, hex ? "0x%" PRIx64 : "%" PRId64, num);
 				} else {
 					/*
 					 * We expect all other (= non-numeric) values
