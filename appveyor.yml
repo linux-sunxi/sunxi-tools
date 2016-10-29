@@ -18,7 +18,7 @@ build_script:
   - cmd: mingw32-make misc
 
 test_script:
-  - cmd: mingw32-make -C tests/ check_all_fex
+  - cmd: mingw32-make -C tests/ check_all_fex FIND=/bin/find
 
 after_test:
   - cmd: .appveyor/package-artifacts.cmd

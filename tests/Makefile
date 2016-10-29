@@ -9,7 +9,7 @@ check: check_all_fex coverage
 
 # Conversion cycle (.fex -> .bin -> .fex) test for all sunxi-boards
 check_all_fex: $(BOARDS_DIR)/README unify-fex
-	./test_all_fex.sh $(BOARDS_DIR)
+	./test_all_fex.sh $(BOARDS_DIR) $(FIND)
 
 coverage:
 	# Usage help / invocation with no args
