@@ -114,6 +114,11 @@ static inline int script_parse(enum script_format format,
 			pr_err("%s: %s\n", filename, strerror(errno));
 			break;
 		}
+#ifdef _WIN32
+		/* need to set "binary" mode for input, otherwise reading might fail
+		 * prematurely on <EOF> chars */
+		_setmode(in, _O_BINARY);
+#endif
 
 		if (fstat(in, &sb) == -1) {
 			pr_err("%s: %s: %s\n", filename,
@@ -189,6 +194,11 @@ static inline int script_generate(enum script_format format,
 			pr_err("%s: %s\n", filename, strerror(errno));
 			goto done;
 		}
+#ifdef _WIN32
+		/* need to set "binary" mode, otherwise writing might spoil the output
+		 * with implicit <CR> --> <CR><LF> conversions */
+		_setmode(out, _O_BINARY);
+#endif
 
 		bin_size = script_bin_size(script, &sections, &entries);
 		bin = calloc(1, bin_size);
