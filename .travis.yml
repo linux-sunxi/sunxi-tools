@@ -3,8 +3,9 @@ sudo: false
 
 language: c
 
-# treat all warnings as errors
-env: EXTRA_CFLAGS=-Werror
+# treat all warnings as errors, fake cross-toolchain (build everything on host)
+env:
+  - CFLAGS=-Werror CROSS_COMPILE=""
 
 os:
   - linux
@@ -26,24 +27,23 @@ addons:
     packages:
     - libusb-1.0-0-dev
 
-# take care of the libusb dependency for Mac OS X; on Linux use "make all" later
+# take care of the libusb dependency for Mac OS X; select make/install target
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
       brew update;
       brew install libusb;
+      export TARGET=tools;
     else
-      export TARGET="all CROSS_COMPILE=";
+      export TARGET=all;
     fi
 
 # build using the Makefile
 script:
   - make ${TARGET} && make misc
 
-# when on Linux: run/simulate a test install
+# run/simulate a test install
 after_success:
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
-      make install-all install-misc DESTDIR=/tmp PREFIX=/sunxi-tools;
-    fi
+  - make install-${TARGET} install-misc DESTDIR=/tmp PREFIX=/sunxi-tools
 
 # turn off email notifications
 notifications:
