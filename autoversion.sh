@@ -10,7 +10,13 @@ if VER=`git describe --tags --dirty --always`; then
 	echo "Setting version information: ${VER}" >&2
 else
 	VER=${LATEST_RELEASE}
-	echo "Unable to determine current version (using \"${VER}\" as fallback)" >&2
+	# try to add short commit ID on AppVeyor
+	if [ -n ${APPVEYOR_REPO_COMMIT} ]; then
+		VER="${VER} `echo ${APPVEYOR_REPO_COMMIT} | cut -c 1-7`"
+		echo "Deriving version from commit ID: ${VER}" >&2
+	else
+		echo "Unable to determine current version (using \"${VER}\" as fallback)" >&2
+	fi
 fi
 echo >&2
 
