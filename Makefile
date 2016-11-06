@@ -33,13 +33,13 @@ endif
 DEFAULT_CFLAGS += -Iinclude/
 
 # Tools useful on host and target
-TOOLS = sunxi-fexc sunxi-bootinfo sunxi-fel sunxi-nand-part
+TOOLS = sunxi-fexc sunxi-bootinfo sunxi-fel sunxi-nand-part sunxi-pio
 
 # Symlinks to sunxi-fexc
 FEXC_LINKS = bin2fex fex2bin
 
 # Tools which are only useful on the target
-TARGET_TOOLS = sunxi-meminfo sunxi-pio
+TARGET_TOOLS = sunxi-meminfo
 
 # Misc tools (of more "exotic" nature) not part of our default build / install
 MISC_TOOLS = phoenix_info sunxi-nand-image-builder
@@ -173,8 +173,6 @@ sunxi-bootinfo: bootinfo.c
 
 # target tools
 TARGET_CFLAGS = $(DEFAULT_CFLAGS) -static $(CFLAGS)
-sunxi-pio: pio.c
-	$(CROSS_CC) $(TARGET_CFLAGS) -o $@ $<
 sunxi-meminfo: meminfo.c
 	$(CROSS_CC) $(TARGET_CFLAGS) -o $@ $<
 sunxi-script_extractor: script_extractor.c
