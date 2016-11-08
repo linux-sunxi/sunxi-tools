@@ -776,6 +776,22 @@ uint32_t aw_fel_readl(libusb_device_handle *usb, uint32_t addr)
 	return val;
 }
 
+/*
+ * aw_fel_readl_n() wrapper that can handle large transfers. If necessary,
+ * those will be done in separate 'chunks' of no more than LCODE_MAX_WORDS.
+ */
+void fel_readl_n(libusb_device_handle *usb, uint32_t addr,
+		 uint32_t *dst, size_t count)
+{
+	while (count > 0) {
+		size_t n = count > LCODE_MAX_WORDS ? LCODE_MAX_WORDS : count;
+		aw_fel_readl_n(usb, addr, dst, n);
+		addr += n * sizeof(uint32_t);
+		dst += n;
+		count -= n;
+	}
+}
+
 /* multiple "writel" from a source buffer to sequential addresses */
 void aw_fel_writel_n(libusb_device_handle *usb, uint32_t addr,
 		     uint32_t *src, size_t count)
@@ -825,6 +841,22 @@ void aw_fel_writel_n(libusb_device_handle *usb, uint32_t addr,
 void aw_fel_writel(libusb_device_handle *usb, uint32_t addr, uint32_t val)
 {
 	aw_fel_writel_n(usb, addr, &val, 1);
+}
+
+/*
+ * aw_fel_writel_n() wrapper that can handle large transfers. If necessary,
+ * those will be done in separate 'chunks' of no more than LCODE_MAX_WORDS.
+ */
+void fel_writel_n(libusb_device_handle *usb, uint32_t addr,
+		  uint32_t *src, size_t count)
+{
+	while (count > 0) {
+		size_t n = count > LCODE_MAX_WORDS ? LCODE_MAX_WORDS : count;
+		aw_fel_writel_n(usb, addr, src, n);
+		addr += n * sizeof(uint32_t);
+		src += n;
+		count -= n;
+	}
 }
 
 void aw_fel_print_sid(libusb_device_handle *usb)
