@@ -715,6 +715,35 @@ void aw_write_arm_cp_reg(libusb_device_handle *usb, soc_sram_info *sram_info,
 }
 
 /*
+ * copy "long" (i.e. 32-bit words) between arbitrary addresses within SoC memory
+ * This is useful for the same reasons that "readl"/"writel" were introduced:
+ * Byte-oriented transfers ("string" copy) might not give the expected results
+ * when accessing hardware registers, like e.g. the (G)PIO config/state.
+ */
+void aw_fel_copyl_n(libusb_device_handle *usb, uint32_t dst_addr,
+		    uint32_t src_addr, size_t count)
+{
+	if (count == 0) return;
+	soc_sram_info *sram_info = aw_fel_get_sram_info(usb);
+	uint32_t arm_code[] = {
+		htole32(0xe59f0018), /* ldr  r0, [pc, #24] ; ldr r0, [dst_addr] */
+		htole32(0xe59f1018), /* ldr  r1, [pc, #24] ; ldr r1, [src_addr] */
+		htole32(0xe59f2018), /* ldr  r2, [pc, #24] ; ldr r2, [count]    */
+		/* copy_loop: */
+		htole32(0xe2522001), /* subs r2, r2, #1    ; r2 -= 1            */
+		htole32(0x412fff1e), /* bxmi lr            ; return if (r2 < 0) */
+		htole32(0xe4913004), /* ldr  r3, [r1], #4  ; load and post-inc  */
+		htole32(0xe4803004), /* str  r3, [r0], #4  ; store and post-inc */
+		htole32(0xeafffffa), /* b    copy_loop                          */
+		htole32(dst_addr), /* destination address */
+		htole32(src_addr), /* source address */
+		htole32(count),    /* (word) count */
+	};
+	aw_fel_write(usb, arm_code, sram_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(usb, sram_info->scratch_addr);
+}
+
+/*
  * We don't want the scratch code/buffer to exceed a maximum size of 0x400 bytes
  * (256 32-bit words) on readl_n/writel_n transfers. To guarantee this, we have
  * to account for the amount of space the ARM code uses.
