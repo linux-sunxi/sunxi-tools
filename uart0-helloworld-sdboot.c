@@ -138,6 +138,7 @@ enum sunxi_gpio_number {
 #define SUN5I_GPB_UART0         (2)
 #define SUN6I_GPH_UART0         (2)
 #define SUN8I_H3_GPA_UART0      (2)
+#define SUN50I_H5_GPA_UART0     (2)
 #define SUN50I_A64_GPB_UART0    (4)
 #define SUNXI_GPF_UART0         (4)
 
@@ -288,6 +289,11 @@ int soc_is_h3(void)
 	return soc_id == 0x1680;
 }
 
+int soc_is_h5(void)
+{
+	return soc_id == 0x1718;
+}
+
 /*****************************************************************************
  * UART is mostly the same on A10/A13/A20/A31/H3/A64, except that newer SoCs *
  * have changed the APB numbering scheme (A10/A13/A20 used to have APB0 and  *
@@ -347,6 +353,10 @@ void gpio_init(void)
 	} else if (soc_is_h3()) {
 		sunxi_gpio_set_cfgpin(SUNXI_GPA(4), SUN8I_H3_GPA_UART0);
 		sunxi_gpio_set_cfgpin(SUNXI_GPA(5), SUN8I_H3_GPA_UART0);
+		sunxi_gpio_set_pull(SUNXI_GPA(5), SUNXI_GPIO_PULL_UP);
+	} else if (soc_is_h5()) {
+		sunxi_gpio_set_cfgpin(SUNXI_GPA(4), SUN50I_H5_GPA_UART0);
+		sunxi_gpio_set_cfgpin(SUNXI_GPA(5), SUN50I_H5_GPA_UART0);
 		sunxi_gpio_set_pull(SUNXI_GPA(5), SUNXI_GPIO_PULL_UP);
 	} else {
 		/* Unknown SoC */
@@ -420,7 +430,7 @@ enum { BOOT_DEVICE_UNK, BOOT_DEVICE_FEL, BOOT_DEVICE_MMC0, BOOT_DEVICE_SPI };
 int get_boot_device(void)
 {
 	u32 *spl_signature = (void *)0x4;
-	if (soc_is_a64() || soc_is_a80())
+	if (soc_is_a64() || soc_is_a80() || soc_is_h5())
 		spl_signature = (void *)0x10004;
 
 	/* Check the eGON.BT0 magic in the SPL header */
@@ -457,6 +467,8 @@ int main(void)
 		uart0_puts("Allwinner A64!\n");
 	else if (soc_is_h3())
 		uart0_puts("Allwinner H3!\n");
+	else if (soc_is_h5())
+		uart0_puts("Allwinner H5!\n");
 	else
 		uart0_puts("unknown Allwinner SoC!\n");
 
