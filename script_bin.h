@@ -27,7 +27,8 @@ struct script_bin_section {
 /** binary representation of the head of the script file */
 struct script_bin_head {
 	uint32_t sections;
-	uint32_t version[3];
+	uint32_t filesize;
+	uint32_t version[2];
 	struct script_bin_section section[];
 };
 
