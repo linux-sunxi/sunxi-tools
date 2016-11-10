@@ -264,6 +264,7 @@ void aw_fel_print_version(libusb_device_handle *usb)
 	case 0x1667: soc_name="A33"; break;
 	case 0x1673: soc_name="A83T"; break;
 	case 0x1680: soc_name="H3"; break;
+	case 0x1718: soc_name="H5"; break;
 	}
 
 	printf("%.8s soc=%08x(%s) %08x ver=%04x %02x %02x scratchpad=%08x %08x %08x\n",
@@ -606,6 +607,15 @@ soc_sram_info soc_sram_info_table[] = {
 		.thunk_addr   = 0xA200, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.sid_addr     = 0x01C14200,
+	},
+	{
+		.soc_id       = 0x1718, /* Allwinner H5 */
+		.spl_addr     = 0x10000,
+		.scratch_addr = 0x11000,
+		.thunk_addr   = 0x1A200, .thunk_size = 0x200,
+		.swap_buffers = a64_sram_swap_buffers,
+		.sid_addr     = 0x01C14200,
+		.rvbar_reg    = 0x017000A0,
 	},
 	{
 		.soc_id       = 0x1639, /* Allwinner A80 */
