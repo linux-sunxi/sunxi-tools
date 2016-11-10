@@ -17,7 +17,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 CC ?= gcc
-DEFAULT_CFLAGS := -g -O0 -Wall -Wextra -std=c99
+DEFAULT_CFLAGS := -std=c99
+DEFAULT_CFLAGS += -Wall -Wextra -Wno-unused-result
 
 DEFAULT_CFLAGS += -D_POSIX_C_SOURCE=200112L
 # Define _BSD_SOURCE, necessary to expose all endian conversions properly.

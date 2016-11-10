@@ -5,7 +5,7 @@ language: c
 
 # treat all warnings as errors, fake cross-toolchain (build everything on host)
 env:
-  - CFLAGS=-Werror CROSS_COMPILE=""
+  - CFLAGS="-g -O2 -Werror" CROSS_COMPILE=""
 
 os:
   - linux
