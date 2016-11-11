@@ -348,7 +348,15 @@ int script_parse_fex(FILE *in, const char *filename, struct script *script)
 					continue;
 				}
 			} else {
-				goto invalid_char_at_p;
+				/* goto invalid_char_at_p; */
+				errf("Warning: %s:%zu: unquoted value '%s', assuming string\n",
+				     filename, line, p);
+				if (script_string_entry_new(last_section, key, pe-p, p)) {
+					pr_debug("%s.%s = \"%s\"\n",
+						 last_section->name, key, p);
+					continue;
+				}
+				perror("malloc");
 			}
 			errf("E: %s:%zu: parse error at %zu.\n",
 			     filename, line, p-buffer+1);

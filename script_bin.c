@@ -97,7 +97,7 @@ size_t script_bin_size(struct script *script,
 	return bin_size;
 }
 
-int script_generate_bin(void *bin, size_t UNUSED(bin_size),
+int script_generate_bin(void *bin, size_t bin_size,
 			struct script *script,
 			size_t sections, size_t entries)
 {
@@ -122,9 +122,9 @@ int script_generate_bin(void *bin, size_t UNUSED(bin_size),
 		 (void*)data-bin);
 
 	head->sections = sections;
-	head->version[0] = 0;
-	head->version[1] = 1;
-	head->version[2] = 2;
+	head->filesize = bin_size;
+	head->version[0] = 1;
+	head->version[1] = 2;
 
 	for (ls = list_first(&script->sections); ls;
 	     ls = list_next(&script->sections, ls)) {
@@ -326,11 +326,10 @@ int script_decompile_bin(void *bin, size_t bin_size,
 	unsigned int i;
 	struct script_bin_head *head = bin;
 
-	if (((head->version[0] & 0x3FFF) > SCRIPT_BIN_VERSION_LIMIT) ||
-	    (head->version[1] > SCRIPT_BIN_VERSION_LIMIT) ||
-	    (head->version[2] > SCRIPT_BIN_VERSION_LIMIT)) {
-		pr_err("Malformed data: version %u.%u.%u.\n",
-		       head->version[0], head->version[1], head->version[2]);
+	if ((head->version[0] > SCRIPT_BIN_VERSION_LIMIT) ||
+	    (head->version[1] > SCRIPT_BIN_VERSION_LIMIT)) {
+		pr_err("Malformed data: version %u.%u.\n",
+		       head->version[0], head->version[1]);
 		return 0;
 	}
 
@@ -340,10 +339,10 @@ int script_decompile_bin(void *bin, size_t bin_size,
 		return 0;
 	}
 
-	pr_info("%s: version: %u.%u.%u\n", filename,
-		head->version[0] & 0x3FFF, head->version[1], head->version[2]);
-	pr_info("%s: size: %zu (%u sections)\n", filename,
-		bin_size, head->sections);
+	pr_info("%s: version: %u.%u\n", filename,
+		head->version[0], head->version[1]);
+	pr_info("%s: size: %zu (%u sections), header value: %u\n", filename,
+		bin_size, head->sections, head->filesize);
 
 	/* TODO: SANITY: compare head.sections with bin_size */
 	for (i=0; i < head->sections; i++) {
