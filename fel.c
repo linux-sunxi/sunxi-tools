@@ -1422,52 +1422,72 @@ static feldev_handle *open_fel_device(int busnum, int devnum,
 			}
 			exit(1);
 		}
-		return result;
-	}
+	} else {
+		/* look for specific bus and device number */
+		bool found = false;
+		ssize_t rc, i;
+		libusb_device **list;
 
-	/* look for specific bus and device number */
-	pr_info("Selecting USB Bus %03d Device %03d\n", busnum, devnum);
-	bool found = false;
-	ssize_t rc, i;
-	libusb_device **list;
-
-	rc = libusb_get_device_list(NULL, &list);
-	if (rc < 0)
-		usb_error(rc, "libusb_get_device_list()", 1);
-	for (i = 0; i < rc; i++) {
-		if (libusb_get_bus_number(list[i]) == busnum
-		    && libusb_get_device_address(list[i]) == devnum) {
-			found = true; /* bus:devnum matched */
-			struct libusb_device_descriptor desc;
-			libusb_get_device_descriptor(list[i], &desc);
-			if (desc.idVendor != vendor_id
-			    || desc.idProduct != product_id) {
-				fprintf(stderr, "ERROR: Bus %03d Device %03d not a FEL device "
-					"(expected %04x:%04x, got %04x:%04x)\n", busnum, devnum,
-					vendor_id, product_id, desc.idVendor, desc.idProduct);
-				exit(1);
+		rc = libusb_get_device_list(NULL, &list);
+		if (rc < 0)
+			usb_error(rc, "libusb_get_device_list()", 1);
+		for (i = 0; i < rc; i++) {
+			if (libusb_get_bus_number(list[i]) == busnum
+			    && libusb_get_device_address(list[i]) == devnum) {
+				found = true; /* bus:devnum matched */
+				struct libusb_device_descriptor desc;
+				libusb_get_device_descriptor(list[i], &desc);
+				if (desc.idVendor != vendor_id
+				    || desc.idProduct != product_id) {
+					fprintf(stderr, "ERROR: Bus %03d Device %03d not a FEL device "
+						"(expected %04x:%04x, got %04x:%04x)\n", busnum, devnum,
+						vendor_id, product_id, desc.idVendor, desc.idProduct);
+					exit(1);
+				}
+				/* open handle to this specific device (incrementing its refcount) */
+				rc = libusb_open(list[i], &result->usb->handle);
+				if (rc != 0)
+					usb_error(rc, "libusb_open()", 1);
+				break;
 			}
-			/* open handle to this specific device (incrementing its refcount) */
-			rc = libusb_open(list[i], &result->usb->handle);
-			if (rc != 0)
-				usb_error(rc, "libusb_open()", 1);
-			break;
+		}
+		libusb_free_device_list(list, true);
+
+		if (!found) {
+			fprintf(stderr, "ERROR: Bus %03d Device %03d not found in libusb device list\n",
+				busnum, devnum);
+			exit(1);
 		}
 	}
-	libusb_free_device_list(list, true);
 
-	if (!found) {
-		fprintf(stderr, "ERROR: Bus %03d Device %03d not found in libusb device list\n",
-			busnum, devnum);
-		exit(1);
-	}
+	feldev_claim(result); /* claim interface, detect USB endpoints */
+
 	return result;
 }
 
 void feldev_close(feldev_handle *dev)
 {
-	libusb_close(dev->usb->handle);
-	free(dev->usb); /* release memory allocated for felusb_handle struct */
+	if (dev) {
+		if (dev->usb->handle) {
+			feldev_release(dev);
+			libusb_close(dev->usb->handle);
+		}
+		free(dev->usb); /* release memory allocated for felusb_handle */
+	}
+}
+
+void feldev_init(void)
+{
+	int rc = libusb_init(NULL);
+	if (rc != 0)
+		usb_error(rc, "libusb_init()", 1);
+}
+
+void feldev_done(feldev_handle *dev)
+{
+	feldev_close(dev);
+	free(dev);
+	libusb_exit(NULL);
 }
 
 int main(int argc, char **argv)
@@ -1539,17 +1559,15 @@ int main(int argc, char **argv)
 				fprintf(stderr, "ERROR: Expected 'bus:devnum', got '%s'.\n", dev_arg);
 				exit(1);
 			}
+			pr_info("Selecting USB Bus %03d Device %03d\n", busnum, devnum);
 		} else
 			break; /* no valid (prefix) option detected, exit loop */
 		argc -= 1;
 		argv += 1;
 	}
 
-	int rc = libusb_init(NULL);
-	assert(rc == 0);
+	feldev_init();
 	handle = open_fel_device(busnum, devnum, AW_USB_VENDOR_ID, AW_USB_PRODUCT_ID);
-	assert(handle != NULL);
-	feldev_claim(handle);
 
 	while (argc > 1 ) {
 		int skip = 1;
@@ -1645,10 +1663,7 @@ int main(int argc, char **argv)
 		aw_fel_execute(handle, uboot_entry);
 	}
 
-	feldev_release(handle);
-	feldev_close(handle);
-	free(handle);
-	libusb_exit(NULL);
+	feldev_done(handle);
 
 	return 0;
 }
