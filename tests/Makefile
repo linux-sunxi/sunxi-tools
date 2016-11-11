@@ -33,3 +33,16 @@ unify-fex: unify-fex.c
 
 clean:
 	rm -rf $(BOARDS_DIR).zip $(BOARDS_DIR) unify-fex
+
+#
+# Dedicated rule for Travis CI test of sunxi-boards. This assumes that the
+# sunxi-tools source (archive) was extracted into a subdir below the working
+# directory, meaning that BOARDS_DIR should be "../.."
+#
+sunxi-boards_CI: unify-fex
+	# compile sunxi-fexc, link bin2fex and fex2bin
+	make -C .. bin2fex fex2bin
+	# apply patches to BOARDS_DIR, ignore mismatches
+	cat patches/*.patch | patch --forward -r- -p2 -d $(BOARDS_DIR) || true
+	# and finally run the tests
+	./test_all_fex.sh $(BOARDS_DIR)
