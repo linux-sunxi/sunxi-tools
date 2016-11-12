@@ -18,6 +18,7 @@
 #include "common.h"
 #include "portable_endian.h"
 #include "progress.h"
+#include "soc_info.h"
 
 #include <libusb.h>
 #include <stdint.h>
@@ -60,17 +61,6 @@ struct  aw_usb_request {
 	uint32_t length2;	/* Same as length */
 	char	pad[10];
 }  __attribute__((packed));
-
-struct aw_fel_version {
-	char signature[8];
-	uint32_t soc_id;	/* 0x00162300 */
-	uint32_t unknown_0a;	/* 1 */
-	uint16_t protocol;	/* 1 */
-	uint8_t  unknown_12;	/* 0x44 */
-	uint8_t  unknown_13;	/* 0x08 */
-	uint32_t scratchpad;	/* 0x7e00 */
-	uint32_t pad[2];	/* unused */
-} __attribute__((packed));
 
 static const int AW_USB_READ = 0x11;
 static const int AW_USB_WRITE = 0x12;
@@ -434,252 +424,15 @@ void aw_fel_fill(libusb_device_handle *usb, uint32_t offset, size_t size, unsign
 	aw_write_buffer(usb, buf, offset, size, false);
 }
 
-/*
- * The 'sram_swap_buffers' structure is used to describe information about
- * two buffers in SRAM, the content of which needs to be exchanged before
- * calling the U-Boot SPL code and then exchanged again before returning
- * control back to the FEL code from the BROM.
- */
-
-typedef struct {
-	uint32_t buf1; /* BROM buffer */
-	uint32_t buf2; /* backup storage location */
-	uint32_t size; /* buffer size */
-} sram_swap_buffers;
-
-/*
- * Each SoC variant may have its own list of memory buffers to be exchanged
- * and the information about the placement of the thunk code, which handles
- * the transition of execution from the BROM FEL code to the U-Boot SPL and
- * back.
- *
- * Note: the entries in the 'swap_buffers' tables need to be sorted by 'buf1'
- * addresses. And the 'buf1' addresses are the BROM data buffers, while 'buf2'
- * addresses are the intended backup locations.
- *
- * Also for performance reasons, we optionally want to have MMU enabled with
- * optimal section attributes configured (the code from the BROM should use
- * I-cache, writing data to the DRAM area should use write combining). The
- * reason is that the BROM FEL protocol implementation moves data using the
- * CPU somewhere on the performance critical path when transferring data over
- * USB. The older SoC variants (A10/A13/A20/A31/A23) already have MMU enabled
- * and we only need to adjust section attributes. The BROM in newer SoC variants
- * (A33/A83T/H3) doesn't enable MMU anymore, so we need to find some 16K of
- * spare space in SRAM to place the translation table there and specify it as
- * the 'mmu_tt_addr' field in the 'soc_sram_info' structure. The 'mmu_tt_addr'
- * address must be 16K aligned.
- */
-typedef struct {
-	uint32_t           soc_id;       /* ID of the SoC */
-	uint32_t           spl_addr;     /* SPL load address */
-	uint32_t           scratch_addr; /* A safe place to upload & run code */
-	uint32_t           thunk_addr;   /* Address of the thunk code */
-	uint32_t           thunk_size;   /* Maximal size of the thunk code */
-	bool               needs_l2en;   /* Set the L2EN bit */
-	uint32_t           mmu_tt_addr;  /* MMU translation table address */
-	uint32_t           sid_addr;     /* base address for SID_KEY[0-3] registers */
-	uint32_t           rvbar_reg;    /* MMIO address of RVBARADDR0_L register */
-	sram_swap_buffers *swap_buffers;
-} soc_sram_info;
-
-/*
- * The FEL code from BROM in A10/A13/A20 sets up two stacks for itself. One
- * at 0x2000 (and growing down) for the IRQ handler. And another one at 0x7000
- * (and also growing down) for the regular code. In order to use the whole
- * 32 KiB in the A1/A2 sections of SRAM, we need to temporarily move these
- * stacks elsewhere. And the addresses 0x7D00-0x7FFF contain something
- * importantant too (overwriting them kills FEL). On A10/A13/A20 we can use
- * the SRAM sections A3/A4 (0x8000-0xBFFF) for this purpose.
- */
-sram_swap_buffers a10_a13_a20_sram_swap_buffers[] = {
-	/* 0x1C00-0x1FFF (IRQ stack) */
-	{ .buf1 = 0x01C00, .buf2 = 0xA400, .size = 0x0400 },
-	/* 0x5C00-0x6FFF (Stack) */
-	{ .buf1 = 0x05C00, .buf2 = 0xA800, .size = 0x1400 },
-	/* 0x7C00-0x7FFF (Something important) */
-	{ .buf1 = 0x07C00, .buf2 = 0xBC00, .size = 0x0400 },
-	{ .size = 0 }  /* End of the table */
-};
-
-/*
- * A31 is very similar to A10/A13/A20, except that it has no SRAM at 0x8000.
- * So we use the SRAM section B at 0x20000-0x2FFFF instead. In the FEL mode,
- * the MMU translation table is allocated by the BROM at 0x20000. But we can
- * also safely use it as the backup storage because the MMU is temporarily
- * disabled during the time of the SPL execution.
- */
-sram_swap_buffers a31_sram_swap_buffers[] = {
-	{ .buf1 = 0x01800, .buf2 = 0x20000, .size = 0x800 },
-	{ .buf1 = 0x05C00, .buf2 = 0x20800, .size = 0x8000 - 0x5C00 },
-	{ .size = 0 }  /* End of the table */
-};
-
-/*
- * A64 has 32KiB of SRAM A at 0x10000 and a large SRAM C at 0x18000. SRAM A
- * and SRAM C reside in the address space back-to-back without any gaps, thus
- * representing a singe large contiguous area. Everything is the same as on
- * A10/A13/A20, but just shifted by 0x10000.
- */
-sram_swap_buffers a64_sram_swap_buffers[] = {
-	/* 0x11C00-0x11FFF (IRQ stack) */
-	{ .buf1 = 0x11C00, .buf2 = 0x1A400, .size = 0x0400 },
-	/* 0x15C00-0x16FFF (Stack) */
-	{ .buf1 = 0x15C00, .buf2 = 0x1A800, .size = 0x1400 },
-	/* 0x17C00-0x17FFF (Something important) */
-	{ .buf1 = 0x17C00, .buf2 = 0x1BC00, .size = 0x0400 },
-	{ .size = 0 }  /* End of the table */
-};
-
-/*
- * Use the SRAM section at 0x44000 as the backup storage. This is the memory,
- * which is normally shared with the OpenRISC core (should we do an extra check
- * to ensure that this core is powered off and can't interfere?).
- */
-sram_swap_buffers ar100_abusing_sram_swap_buffers[] = {
-	{ .buf1 = 0x01800, .buf2 = 0x44000, .size = 0x800 },
-	{ .buf1 = 0x05C00, .buf2 = 0x44800, .size = 0x8000 - 0x5C00 },
-	{ .size = 0 }  /* End of the table */
-};
-
-/*
- * A80 has 40KiB SRAM A1 at 0x10000 where the SPL has to be loaded to. The
- * secure SRAM B at 0x20000 is used as backup area for FEL stacks and data.
- */
-sram_swap_buffers a80_sram_swap_buffers[] = {
-	{ .buf1 = 0x11800, .buf2 = 0x20000, .size = 0x800 },
-	{ .buf1 = 0x15400, .buf2 = 0x20800, .size = 0x18000 - 0x15400 },
-	{ .size = 0 }  /* End of the table */
-};
-
-soc_sram_info soc_sram_info_table[] = {
-	{
-		.soc_id       = 0x1623, /* Allwinner A10 */
-		.scratch_addr = 0x1000,
-		.thunk_addr   = 0xA200, .thunk_size = 0x200,
-		.swap_buffers = a10_a13_a20_sram_swap_buffers,
-		.needs_l2en   = true,
-		.sid_addr     = 0x01C23800,
-	},
-	{
-		.soc_id       = 0x1625, /* Allwinner A13 */
-		.scratch_addr = 0x1000,
-		.thunk_addr   = 0xA200, .thunk_size = 0x200,
-		.swap_buffers = a10_a13_a20_sram_swap_buffers,
-		.needs_l2en   = true,
-		.sid_addr     = 0x01C23800,
-	},
-	{
-		.soc_id       = 0x1651, /* Allwinner A20 */
-		.scratch_addr = 0x1000,
-		.thunk_addr   = 0xA200, .thunk_size = 0x200,
-		.swap_buffers = a10_a13_a20_sram_swap_buffers,
-		.sid_addr     = 0x01C23800,
-	},
-	{
-		.soc_id       = 0x1650, /* Allwinner A23 */
-		.scratch_addr = 0x1000,
-		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
-		.swap_buffers = ar100_abusing_sram_swap_buffers,
-		.sid_addr     = 0x01C23800,
-	},
-	{
-		.soc_id       = 0x1633, /* Allwinner A31 */
-		.scratch_addr = 0x1000,
-		.thunk_addr   = 0x22E00, .thunk_size = 0x200,
-		.swap_buffers = a31_sram_swap_buffers,
-	},
-	{
-		.soc_id       = 0x1667, /* Allwinner A33 */
-		.scratch_addr = 0x1000,
-		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
-		.swap_buffers = ar100_abusing_sram_swap_buffers,
-		.sid_addr     = 0x01C23800,
-	},
-	{
-		.soc_id       = 0x1689, /* Allwinner A64 */
-		.spl_addr     = 0x10000,
-		.scratch_addr = 0x11000,
-		.thunk_addr   = 0x1A200, .thunk_size = 0x200,
-		.swap_buffers = a64_sram_swap_buffers,
-		.sid_addr     = 0x01C14200,
-		.rvbar_reg    = 0x017000A0,
-	},
-	{
-		.soc_id       = 0x1673, /* Allwinner A83T */
-		.scratch_addr = 0x1000,
-		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
-		.swap_buffers = ar100_abusing_sram_swap_buffers,
-		.sid_addr     = 0x01C14200,
-	},
-	{
-		.soc_id       = 0x1680, /* Allwinner H3 */
-		.scratch_addr = 0x1000,
-		.mmu_tt_addr  = 0x8000,
-		.thunk_addr   = 0xA200, .thunk_size = 0x200,
-		.swap_buffers = a10_a13_a20_sram_swap_buffers,
-		.sid_addr     = 0x01C14200,
-	},
-	{
-		.soc_id       = 0x1718, /* Allwinner H5 */
-		.spl_addr     = 0x10000,
-		.scratch_addr = 0x11000,
-		.thunk_addr   = 0x1A200, .thunk_size = 0x200,
-		.swap_buffers = a64_sram_swap_buffers,
-		.sid_addr     = 0x01C14200,
-		.rvbar_reg    = 0x017000A0,
-	},
-	{
-		.soc_id       = 0x1639, /* Allwinner A80 */
-		.spl_addr     = 0x10000,
-		.scratch_addr = 0x11000,
-		.thunk_addr   = 0x23400, .thunk_size = 0x200,
-		.swap_buffers = a80_sram_swap_buffers,
-	},
-	{ .swap_buffers = NULL } /* End of the table */
-};
-
-/*
- * This generic record assumes BROM with similar properties to A10/A13/A20/A31,
- * but no extra SRAM sections beyond 0x8000. It also assumes that the IRQ
- * handler stack usage never exceeds 0x400 bytes.
- *
- * The users may or may not hope that the 0x7000-0x8000 area is also unused
- * by the BROM and re-purpose it for the SPL stack.
- *
- * The size limit for the ".text + .data" sections is ~21 KiB.
- */
-sram_swap_buffers generic_sram_swap_buffers[] = {
-	{ .buf1 = 0x01C00, .buf2 = 0x5800, .size = 0x400 },
-	{ .size = 0 }  /* End of the table */
-};
-
-soc_sram_info generic_sram_info = {
-	.scratch_addr = 0x1000,
-	.thunk_addr   = 0x5680, .thunk_size = 0x180,
-	.swap_buffers = generic_sram_swap_buffers,
-};
-
-soc_sram_info *aw_fel_get_sram_info(libusb_device_handle *usb)
+soc_info_t *aw_fel_get_soc_info(libusb_device_handle *usb)
 {
-	/* persistent sram_info, retrieves result pointer once and caches it */
-	static soc_sram_info *result = NULL;
+	/* persistent SoC info, retrieves result pointer once and caches it */
+	static soc_info_t *result = NULL;
 	if (result == NULL) {
-		int i;
-
 		struct aw_fel_version buf;
 		aw_fel_get_version(usb, &buf);
 
-		for (i = 0; soc_sram_info_table[i].swap_buffers; i++)
-			if (soc_sram_info_table[i].soc_id == buf.soc_id) {
-				result = &soc_sram_info_table[i];
-				break;
-			}
-
-		if (!result) {
-			printf("Warning: no 'soc_sram_info' data for your SoC (id=%04X)\n",
-			       buf.soc_id);
-			result = &generic_sram_info;
-		}
+		result = get_soc_info_from_version(&buf);
 	}
 	return result;
 }
@@ -691,7 +444,7 @@ static uint32_t fel_to_spl_thunk[] = {
 #define	DRAM_BASE		0x40000000
 #define	DRAM_SIZE		0x80000000
 
-uint32_t aw_read_arm_cp_reg(libusb_device_handle *usb, soc_sram_info *sram_info,
+uint32_t aw_read_arm_cp_reg(libusb_device_handle *usb, soc_info_t *soc_info,
 			    uint32_t coproc, uint32_t opc1, uint32_t crn,
 			    uint32_t crm, uint32_t opc2)
 {
@@ -707,13 +460,13 @@ uint32_t aw_read_arm_cp_reg(libusb_device_handle *usb, soc_sram_info *sram_info,
 		htole32(0xe58f0000), /* str  r0, [pc]                         */
 		htole32(0xe12fff1e), /* bx   lr                               */
 	};
-	aw_fel_write(usb, arm_code, sram_info->scratch_addr, sizeof(arm_code));
-	aw_fel_execute(usb, sram_info->scratch_addr);
-	aw_fel_read(usb, sram_info->scratch_addr + 12, &val, sizeof(val));
+	aw_fel_write(usb, arm_code, soc_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(usb, soc_info->scratch_addr);
+	aw_fel_read(usb, soc_info->scratch_addr + 12, &val, sizeof(val));
 	return le32toh(val);
 }
 
-void aw_write_arm_cp_reg(libusb_device_handle *usb, soc_sram_info *sram_info,
+void aw_write_arm_cp_reg(libusb_device_handle *usb, soc_info_t *soc_info,
 			 uint32_t coproc, uint32_t opc1, uint32_t crn,
 			 uint32_t crm, uint32_t opc2, uint32_t val)
 {
@@ -731,15 +484,15 @@ void aw_write_arm_cp_reg(libusb_device_handle *usb, soc_sram_info *sram_info,
 		htole32(0xe12fff1e), /* bx   lr                               */
 		htole32(val)
 	};
-	aw_fel_write(usb, arm_code, sram_info->scratch_addr, sizeof(arm_code));
-	aw_fel_execute(usb, sram_info->scratch_addr);
+	aw_fel_write(usb, arm_code, soc_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(usb, soc_info->scratch_addr);
 }
 
 /* multiple "readl" from sequential addresses to a destination buffer */
 void aw_fel_readl_n(libusb_device_handle *usb, uint32_t addr,
 		    uint32_t *dst, size_t count)
 {
-	soc_sram_info *sram_info = aw_fel_get_sram_info(usb);
+	soc_info_t *soc_info = aw_fel_get_soc_info(usb);
 	uint32_t val;
 	uint32_t arm_code[] = {
 		htole32(0xe59f0010), /* ldr        r0, [pc, #16]            */
@@ -752,15 +505,15 @@ void aw_fel_readl_n(libusb_device_handle *usb, uint32_t addr,
 		/* value goes here */
 	};
 	/* scratch buffer setup: transfers ARM code and also sets the addr */
-	aw_fel_write(usb, arm_code, sram_info->scratch_addr, sizeof(arm_code));
+	aw_fel_write(usb, arm_code, soc_info->scratch_addr, sizeof(arm_code));
 	while (count-- > 0) {
 		/*
 		 * Since the scratch code auto-increments addr, we can simply
 		 * execute it repeatedly for sequential "readl"s; retrieving
 		 * one uint32_t each time.
 		 */
-		aw_fel_execute(usb, sram_info->scratch_addr);
-		aw_fel_read(usb, sram_info->scratch_addr + 28, &val, sizeof(val));
+		aw_fel_execute(usb, soc_info->scratch_addr);
+		aw_fel_read(usb, soc_info->scratch_addr + 28, &val, sizeof(val));
 		*dst++ = le32toh(val);
 	}
 }
@@ -779,7 +532,7 @@ void aw_fel_writel_n(libusb_device_handle *usb, uint32_t addr,
 {
 	if (count == 0) return; /* on zero count, do not access *src at all */
 
-	soc_sram_info *sram_info = aw_fel_get_sram_info(usb);
+	soc_info_t *soc_info = aw_fel_get_soc_info(usb);
 	uint32_t arm_code[] = {
 		htole32(0xe59f0010), /* ldr        r0, [pc, #16]            */
 		htole32(0xe59f1010), /* ldr        r1, [pc, #16]            */
@@ -791,16 +544,16 @@ void aw_fel_writel_n(libusb_device_handle *usb, uint32_t addr,
 		htole32(*src++)
 	};
 	/* scratch buffer setup: transfers ARM code, addr and first value */
-	aw_fel_write(usb, arm_code, sram_info->scratch_addr, sizeof(arm_code));
-	aw_fel_execute(usb, sram_info->scratch_addr); /* stores first value */
+	aw_fel_write(usb, arm_code, soc_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(usb, soc_info->scratch_addr); /* stores first value */
 	while (--count > 0) {
 		/*
 		 * Subsequent transfers only need to set up the next value
 		 * to store (since the scratch code auto-increments addr).
 		 */
 		uint32_t val = htole32(*src++);
-		aw_fel_write(usb, &val, sram_info->scratch_addr + 28, sizeof(val));
-		aw_fel_execute(usb, sram_info->scratch_addr);
+		aw_fel_write(usb, &val, soc_info->scratch_addr + 28, sizeof(val));
+		aw_fel_execute(usb, soc_info->scratch_addr);
 	}
 }
 
@@ -812,7 +565,7 @@ void aw_fel_writel(libusb_device_handle *usb, uint32_t addr, uint32_t val)
 
 void aw_fel_print_sid(libusb_device_handle *usb)
 {
-	soc_sram_info *soc_info = aw_fel_get_sram_info(usb);
+	soc_info_t *soc_info = aw_fel_get_soc_info(usb);
 	if (soc_info->sid_addr) {
 		pr_info("SID key (e-fuses) at 0x%08X\n", soc_info->sid_addr);
 
@@ -829,7 +582,7 @@ void aw_fel_print_sid(libusb_device_handle *usb)
 	}
 }
 
-void aw_enable_l2_cache(libusb_device_handle *usb, soc_sram_info *sram_info)
+void aw_enable_l2_cache(libusb_device_handle *usb, soc_info_t *soc_info)
 {
 	uint32_t arm_code[] = {
 		htole32(0xee112f30), /* mrc        15, 0, r2, cr1, cr0, {1}  */
@@ -838,11 +591,11 @@ void aw_enable_l2_cache(libusb_device_handle *usb, soc_sram_info *sram_info)
 		htole32(0xe12fff1e), /* bx         lr                        */
 	};
 
-	aw_fel_write(usb, arm_code, sram_info->scratch_addr, sizeof(arm_code));
-	aw_fel_execute(usb, sram_info->scratch_addr);
+	aw_fel_write(usb, arm_code, soc_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(usb, soc_info->scratch_addr);
 }
 
-void aw_get_stackinfo(libusb_device_handle *usb, soc_sram_info *sram_info,
+void aw_get_stackinfo(libusb_device_handle *usb, soc_info_t *soc_info,
                       uint32_t *sp_irq, uint32_t *sp)
 {
 	uint32_t results[2] = { 0 };
@@ -855,9 +608,9 @@ void aw_get_stackinfo(libusb_device_handle *usb, soc_sram_info *sram_info,
 		htole32(0xe12fff1e), /* bx         lr                        */
 	};
 
-	aw_fel_write(usb, arm_code, sram_info->scratch_addr, sizeof(arm_code));
-	aw_fel_execute(usb, sram_info->scratch_addr);
-	aw_fel_read(usb, sram_info->scratch_addr + 0x10, results, 8);
+	aw_fel_write(usb, arm_code, soc_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(usb, soc_info->scratch_addr);
+	aw_fel_read(usb, soc_info->scratch_addr + 0x10, results, 8);
 #else
 	/* Works everywhere */
 	uint32_t arm_code[] = {
@@ -872,56 +625,56 @@ void aw_get_stackinfo(libusb_device_handle *usb, soc_sram_info *sram_info,
 		htole32(0xe12fff1e), /* bx         lr                        */
 	};
 
-	aw_fel_write(usb, arm_code, sram_info->scratch_addr, sizeof(arm_code));
-	aw_fel_execute(usb, sram_info->scratch_addr);
-	aw_fel_read(usb, sram_info->scratch_addr + 0x24, results, 8);
+	aw_fel_write(usb, arm_code, soc_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(usb, soc_info->scratch_addr);
+	aw_fel_read(usb, soc_info->scratch_addr + 0x24, results, 8);
 #endif
 	*sp_irq = le32toh(results[0]);
 	*sp     = le32toh(results[1]);
 }
 
-uint32_t aw_get_ttbr0(libusb_device_handle *usb, soc_sram_info *sram_info)
+uint32_t aw_get_ttbr0(libusb_device_handle *usb, soc_info_t *soc_info)
 {
-	return aw_read_arm_cp_reg(usb, sram_info, 15, 0, 2, 0, 0);
+	return aw_read_arm_cp_reg(usb, soc_info, 15, 0, 2, 0, 0);
 }
 
-uint32_t aw_get_ttbcr(libusb_device_handle *usb, soc_sram_info *sram_info)
+uint32_t aw_get_ttbcr(libusb_device_handle *usb, soc_info_t *soc_info)
 {
-	return aw_read_arm_cp_reg(usb, sram_info, 15, 0, 2, 0, 2);
+	return aw_read_arm_cp_reg(usb, soc_info, 15, 0, 2, 0, 2);
 }
 
-uint32_t aw_get_dacr(libusb_device_handle *usb, soc_sram_info *sram_info)
+uint32_t aw_get_dacr(libusb_device_handle *usb, soc_info_t *soc_info)
 {
-	return aw_read_arm_cp_reg(usb, sram_info, 15, 0, 3, 0, 0);
+	return aw_read_arm_cp_reg(usb, soc_info, 15, 0, 3, 0, 0);
 }
 
-uint32_t aw_get_sctlr(libusb_device_handle *usb, soc_sram_info *sram_info)
+uint32_t aw_get_sctlr(libusb_device_handle *usb, soc_info_t *soc_info)
 {
-	return aw_read_arm_cp_reg(usb, sram_info, 15, 0, 1, 0, 0);
+	return aw_read_arm_cp_reg(usb, soc_info, 15, 0, 1, 0, 0);
 }
 
-void aw_set_ttbr0(libusb_device_handle *usb, soc_sram_info *sram_info,
+void aw_set_ttbr0(libusb_device_handle *usb, soc_info_t *soc_info,
 		  uint32_t ttbr0)
 {
-	return aw_write_arm_cp_reg(usb, sram_info, 15, 0, 2, 0, 0, ttbr0);
+	return aw_write_arm_cp_reg(usb, soc_info, 15, 0, 2, 0, 0, ttbr0);
 }
 
-void aw_set_ttbcr(libusb_device_handle *usb, soc_sram_info *sram_info,
+void aw_set_ttbcr(libusb_device_handle *usb, soc_info_t *soc_info,
 		  uint32_t ttbcr)
 {
-	return aw_write_arm_cp_reg(usb, sram_info, 15, 0, 2, 0, 2, ttbcr);
+	return aw_write_arm_cp_reg(usb, soc_info, 15, 0, 2, 0, 2, ttbcr);
 }
 
-void aw_set_dacr(libusb_device_handle *usb, soc_sram_info *sram_info,
+void aw_set_dacr(libusb_device_handle *usb, soc_info_t *soc_info,
 		 uint32_t dacr)
 {
-	aw_write_arm_cp_reg(usb, sram_info, 15, 0, 3, 0, 0, dacr);
+	aw_write_arm_cp_reg(usb, soc_info, 15, 0, 3, 0, 0, dacr);
 }
 
-void aw_set_sctlr(libusb_device_handle *usb, soc_sram_info *sram_info,
+void aw_set_sctlr(libusb_device_handle *usb, soc_info_t *soc_info,
 		  uint32_t sctlr)
 {
-	aw_write_arm_cp_reg(usb, sram_info, 15, 0, 1, 0, 0, sctlr);
+	aw_write_arm_cp_reg(usb, soc_info, 15, 0, 1, 0, 0, sctlr);
 }
 
 /*
@@ -952,7 +705,7 @@ uint32_t *aw_generate_mmu_translation_table(void)
 }
 
 uint32_t *aw_backup_and_disable_mmu(libusb_device_handle *usb,
-                                    soc_sram_info *sram_info)
+                                    soc_info_t *soc_info)
 {
 	uint32_t *tt = NULL;
 	uint32_t sctlr, ttbr0, ttbcr, dacr;
@@ -981,7 +734,7 @@ uint32_t *aw_backup_and_disable_mmu(libusb_device_handle *usb,
 	 */
 
 	/* Basically, ignore M/Z/I/V/UNK bits and expect no TEX remap */
-	sctlr = aw_get_sctlr(usb, sram_info);
+	sctlr = aw_get_sctlr(usb, soc_info);
 	if ((sctlr & ~((0x7 << 11) | (1 << 6) | 1)) != 0x00C50038) {
 		fprintf(stderr, "Unexpected SCTLR (%08X)\n", sctlr);
 		exit(1);
@@ -992,19 +745,19 @@ uint32_t *aw_backup_and_disable_mmu(libusb_device_handle *usb,
 		return NULL;
 	}
 
-	dacr = aw_get_dacr(usb, sram_info);
+	dacr = aw_get_dacr(usb, soc_info);
 	if (dacr != 0x55555555) {
 		fprintf(stderr, "Unexpected DACR (%08X)\n", dacr);
 		exit(1);
 	}
 
-	ttbcr = aw_get_ttbcr(usb, sram_info);
+	ttbcr = aw_get_ttbcr(usb, soc_info);
 	if (ttbcr != 0x00000000) {
 		fprintf(stderr, "Unexpected TTBCR (%08X)\n", ttbcr);
 		exit(1);
 	}
 
-	ttbr0 = aw_get_ttbr0(usb, sram_info);
+	ttbr0 = aw_get_ttbr0(usb, soc_info);
 	if (ttbr0 & 0x3FFF) {
 		fprintf(stderr, "Unexpected TTBR0 (%08X)\n", ttbr0);
 		exit(1);
@@ -1029,19 +782,19 @@ uint32_t *aw_backup_and_disable_mmu(libusb_device_handle *usb,
 	}
 
 	pr_info("Disabling I-cache, MMU and branch prediction...");
-	aw_fel_write(usb, arm_code, sram_info->scratch_addr, sizeof(arm_code));
-	aw_fel_execute(usb, sram_info->scratch_addr);
+	aw_fel_write(usb, arm_code, soc_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(usb, soc_info->scratch_addr);
 	pr_info(" done.\n");
 
 	return tt;
 }
 
 void aw_restore_and_enable_mmu(libusb_device_handle *usb,
-                               soc_sram_info *sram_info,
+                               soc_info_t *soc_info,
                                uint32_t *tt)
 {
 	uint32_t i;
-	uint32_t ttbr0 = aw_get_ttbr0(usb, sram_info);
+	uint32_t ttbr0 = aw_get_ttbr0(usb, soc_info);
 
 	uint32_t arm_code[] = {
 		/* Invalidate I-cache, TLB and BTB */
@@ -1083,8 +836,8 @@ void aw_restore_and_enable_mmu(libusb_device_handle *usb,
 	aw_fel_write(usb, tt, ttbr0, 16 * 1024);
 
 	pr_info("Enabling I-cache, MMU and branch prediction...");
-	aw_fel_write(usb, arm_code, sram_info->scratch_addr, sizeof(arm_code));
-	aw_fel_execute(usb, sram_info->scratch_addr);
+	aw_fel_write(usb, arm_code, soc_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(usb, soc_info->scratch_addr);
 	pr_info(" done.\n");
 
 	free(tt);
@@ -1099,7 +852,7 @@ void aw_restore_and_enable_mmu(libusb_device_handle *usb,
 void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 				  uint8_t *buf, size_t len)
 {
-	soc_sram_info *sram_info = aw_fel_get_sram_info(usb);
+	soc_info_t *soc_info = aw_fel_get_soc_info(usb);
 	sram_swap_buffers *swap_buffers;
 	char header_signature[9] = { 0 };
 	size_t i, thunk_size;
@@ -1107,10 +860,10 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 	uint32_t sp, sp_irq;
 	uint32_t spl_checksum, spl_len, spl_len_limit = SPL_LEN_LIMIT;
 	uint32_t *buf32 = (uint32_t *)buf;
-	uint32_t cur_addr = sram_info->spl_addr;
+	uint32_t cur_addr = soc_info->spl_addr;
 	uint32_t *tt = NULL;
 
-	if (!sram_info || !sram_info->swap_buffers) {
+	if (!soc_info || !soc_info->swap_buffers) {
 		fprintf(stderr, "SPL: Unsupported SoC type\n");
 		exit(1);
 	}
@@ -1137,22 +890,22 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 		exit(1);
 	}
 
-	if (sram_info->needs_l2en) {
+	if (soc_info->needs_l2en) {
 		pr_info("Enabling the L2 cache\n");
-		aw_enable_l2_cache(usb, sram_info);
+		aw_enable_l2_cache(usb, soc_info);
 	}
 
-	aw_get_stackinfo(usb, sram_info, &sp_irq, &sp);
+	aw_get_stackinfo(usb, soc_info, &sp_irq, &sp);
 	pr_info("Stack pointers: sp_irq=0x%08X, sp=0x%08X\n", sp_irq, sp);
 
-	tt = aw_backup_and_disable_mmu(usb, sram_info);
-	if (!tt && sram_info->mmu_tt_addr) {
-		if (sram_info->mmu_tt_addr & 0x3FFF) {
+	tt = aw_backup_and_disable_mmu(usb, soc_info);
+	if (!tt && soc_info->mmu_tt_addr) {
+		if (soc_info->mmu_tt_addr & 0x3FFF) {
 			fprintf(stderr, "SPL: 'mmu_tt_addr' must be 16K aligned\n");
 			exit(1);
 		}
 		pr_info("Generating the new MMU translation table at 0x%08X\n",
-		        sram_info->mmu_tt_addr);
+		        soc_info->mmu_tt_addr);
 		/*
 		 * These settings are used by the BROM in A10/A13/A20 and
 		 * we replicate them here when enabling the MMU. The DACR
@@ -1163,17 +916,17 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 		 * for all the possible virtual addresses (N=0) and that the
 		 * translation table must be aligned at a 16K boundary.
 		 */
-		aw_set_dacr(usb, sram_info, 0x55555555);
-		aw_set_ttbcr(usb, sram_info, 0x00000000);
-		aw_set_ttbr0(usb, sram_info, sram_info->mmu_tt_addr);
+		aw_set_dacr(usb, soc_info, 0x55555555);
+		aw_set_ttbcr(usb, soc_info, 0x00000000);
+		aw_set_ttbr0(usb, soc_info, soc_info->mmu_tt_addr);
 		tt = aw_generate_mmu_translation_table();
 	}
 
-	swap_buffers = sram_info->swap_buffers;
+	swap_buffers = soc_info->swap_buffers;
 	for (i = 0; swap_buffers[i].size; i++) {
-		if ((swap_buffers[i].buf2 >= sram_info->spl_addr) &&
-		    (swap_buffers[i].buf2 < sram_info->spl_addr + spl_len_limit))
-			spl_len_limit = swap_buffers[i].buf2 - sram_info->spl_addr;
+		if ((swap_buffers[i].buf2 >= soc_info->spl_addr) &&
+		    (swap_buffers[i].buf2 < soc_info->spl_addr + spl_len_limit))
+			spl_len_limit = swap_buffers[i].buf2 - soc_info->spl_addr;
 		if (len > 0 && cur_addr < swap_buffers[i].buf1) {
 			uint32_t tmp = swap_buffers[i].buf1 - cur_addr;
 			if (tmp > len)
@@ -1195,8 +948,8 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 	}
 
 	/* Clarify the SPL size limitations, and bail out if they are not met */
-	if (sram_info->thunk_addr < spl_len_limit)
-		spl_len_limit = sram_info->thunk_addr;
+	if (soc_info->thunk_addr < spl_len_limit)
+		spl_len_limit = soc_info->thunk_addr;
 
 	if (spl_len > spl_len_limit) {
 		fprintf(stderr, "SPL: too large (need %d, have %d)\n",
@@ -1208,19 +961,19 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 	if (len > 0)
 		aw_fel_write(usb, buf, cur_addr, len);
 
-	thunk_size = sizeof(fel_to_spl_thunk) + sizeof(sram_info->spl_addr) +
+	thunk_size = sizeof(fel_to_spl_thunk) + sizeof(soc_info->spl_addr) +
 		     (i + 1) * sizeof(*swap_buffers);
 
-	if (thunk_size > sram_info->thunk_size) {
+	if (thunk_size > soc_info->thunk_size) {
 		fprintf(stderr, "SPL: bad thunk size (need %d, have %d)\n",
-			(int)sizeof(fel_to_spl_thunk), sram_info->thunk_size);
+			(int)sizeof(fel_to_spl_thunk), soc_info->thunk_size);
 		exit(1);
 	}
 
 	thunk_buf = malloc(thunk_size);
 	memcpy(thunk_buf, fel_to_spl_thunk, sizeof(fel_to_spl_thunk));
 	memcpy(thunk_buf + sizeof(fel_to_spl_thunk) / sizeof(uint32_t),
-	       &sram_info->spl_addr, sizeof(sram_info->spl_addr));
+	       &soc_info->spl_addr, sizeof(soc_info->spl_addr));
 	memcpy(thunk_buf + sizeof(fel_to_spl_thunk) / sizeof(uint32_t) + 1,
 	       swap_buffers, (i + 1) * sizeof(*swap_buffers));
 
@@ -1228,8 +981,8 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 		thunk_buf[i] = htole32(thunk_buf[i]);
 
 	pr_info("=> Executing the SPL...");
-	aw_fel_write(usb, thunk_buf, sram_info->thunk_addr, thunk_size);
-	aw_fel_execute(usb, sram_info->thunk_addr);
+	aw_fel_write(usb, thunk_buf, soc_info->thunk_addr, thunk_size);
+	aw_fel_execute(usb, soc_info->thunk_addr);
 	pr_info(" done.\n");
 
 	free(thunk_buf);
@@ -1238,7 +991,7 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 	usleep(250000);
 
 	/* Read back the result and check if everything was fine */
-	aw_fel_read(usb, sram_info->spl_addr + 4, header_signature, 8);
+	aw_fel_read(usb, soc_info->spl_addr + 4, header_signature, 8);
 	if (strcmp(header_signature, "eGON.FEL") != 0) {
 		fprintf(stderr, "SPL: failure code '%s'\n",
 			header_signature);
@@ -1247,7 +1000,7 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 
 	/* re-enable the MMU if it was enabled by BROM */
 	if (tt != NULL)
-		aw_restore_and_enable_mmu(usb, sram_info, tt);
+		aw_restore_and_enable_mmu(usb, soc_info, tt);
 }
 
 /*
@@ -1377,10 +1130,10 @@ bool have_sunxi_spl(libusb_device_handle *usb, uint32_t spl_addr)
 void pass_fel_information(libusb_device_handle *usb,
 			  uint32_t script_address, uint32_t uEnv_length)
 {
-	soc_sram_info *sram_info = aw_fel_get_sram_info(usb);
+	soc_info_t *soc_info = aw_fel_get_soc_info(usb);
 
 	/* write something _only_ if we have a suitable SPL header */
-	if (have_sunxi_spl(usb, sram_info->spl_addr)) {
+	if (have_sunxi_spl(usb, soc_info->spl_addr)) {
 		pr_info("Passing boot info via sunxi SPL: "
 			"script address = 0x%08X, uEnv length = %u\n",
 			script_address, uEnv_length);
@@ -1389,7 +1142,7 @@ void pass_fel_information(libusb_device_handle *usb,
 			htole32(uEnv_length)
 		};
 		aw_fel_write(usb, transfer,
-			sram_info->spl_addr + 0x18, sizeof(transfer));
+			soc_info->spl_addr + 0x18, sizeof(transfer));
 	}
 }
 
@@ -1444,7 +1197,7 @@ static int aw_fel_get_endpoint(libusb_device_handle *usb)
  */
 void aw_rmr_request(libusb_device_handle *usb, uint32_t entry_point, bool aarch64)
 {
-	soc_sram_info *soc_info = aw_fel_get_sram_info(usb);
+	soc_info_t *soc_info = aw_fel_get_soc_info(usb);
 	if (!soc_info->rvbar_reg) {
 		fprintf(stderr, "ERROR: Can't issue RMR request!\n"
 			"RVBAR is not supported or unknown for your SoC (id=%04X).\n",

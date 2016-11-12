@@ -121,7 +121,10 @@ endif
 
 HOST_CFLAGS = $(DEFAULT_CFLAGS) $(CFLAGS)
 
-sunxi-fel: fel.c fel-to-spl-thunk.h progress.c progress.h
+PROGRESS = progress.c progress.h
+SOC_INFO = soc_info.c soc_info.h
+
+sunxi-fel: fel.c fel-to-spl-thunk.h $(PROGRESS) $(SOC_INFO)
 	$(CC) $(HOST_CFLAGS) $(LIBUSB_CFLAGS) $(LDFLAGS) -o $@ $(filter %.c,$^) $(LIBS) $(LIBUSB_LIBS)
 
 sunxi-nand-part: nand-part-main.c nand-part.c nand-part-a10.h nand-part-a20.h
