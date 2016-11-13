@@ -37,9 +37,9 @@ before_install:
       export TARGET=all;
     fi
 
-# build using the Makefile
+# build (and test) using the Makefile, with a single overall status
 script:
-  - make ${TARGET} && make misc
+  - make ${TARGET} && make misc && make check
 
 # run/simulate a test install
 after_success:

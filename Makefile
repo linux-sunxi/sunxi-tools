@@ -58,6 +58,7 @@ PREFIX  ?= /usr/local
 BINDIR  ?= $(PREFIX)/bin
 
 .PHONY: all clean tools target-tools install install-tools install-target-tools
+.PHONY: check
 
 tools: $(TOOLS) $(FEXC_LINKS)
 target-tools: $(TARGET_TOOLS)
@@ -94,6 +95,7 @@ install-misc: $(MISC_TOOLS)
 
 
 clean:
+	make -C tests/ clean
 	@rm -vf $(TOOLS) $(FEXC_LINKS) $(TARGET_TOOLS) $(MISC_TOOLS)
 	@rm -vf version.h *.o *.elf *.sunxi *.bin *.nm *.orig
 
@@ -186,3 +188,6 @@ version.h:
 	@for x in $(TOOLS) $(FEXC_LINKS) $(TARGET_TOOLS) version.h '*.o' '*.swp'; do \
 		echo "$$x"; \
 	done | sort -V > $@
+
+check: $(FEXC_LINKS)
+	make -C tests/
