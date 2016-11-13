@@ -8,8 +8,8 @@ Copyright (C) 2012  Alejandro Mery <amery@geeks.cl>
 [this link](https://github.com/linux-sunxi/sunxi-tools/contributors)
 or use the command `git shortlog -se --no-merges`.
 
-Tools to help hacking Allwinner A10 (aka sun4i) based devices and
-its successors ([sunxi][]), that's why the 'x' in the package name.
+Command line utilities to work with devices based on [Allwinner SoC]s:
+sun4i, sun5i, ... - that's why the 'x' in the package name.
 
 ### sunxi-fexc
 `.fex` file (de)compiler
@@ -141,5 +141,5 @@ This software is licensed under the terms of GPLv2+ as defined by the
 Free Software Foundation, details can be read in the [LICENSE.md](LICENSE.md)
 file.
 
-[sunxi]: http://linux-sunxi.org
+[allwinner soc]: http://linux-sunxi.org/Allwinner_SoC_Family
 [fel mode]: http://linux-sunxi.org/FEL
