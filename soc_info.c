@@ -103,7 +103,7 @@ soc_info_t soc_info_table[] = {
 		.needs_l2en   = true,
 		.sid_addr     = 0x01C23800,
 	},{
-		.soc_id       = 0x1625, /* Allwinner A13, R8 */
+		.soc_id       = 0x1625, /* Allwinner A10s, A13, R8 */
 		.scratch_addr = 0x1000,
 		.thunk_addr   = 0xA200, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,

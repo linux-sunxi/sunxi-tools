@@ -247,51 +247,28 @@ void soc_detection_init(void)
 	}
 }
 
-int soc_is_a10(void)
-{
-	return soc_id == 0x1623;
-}
+/* Most SoCs can reliably be distinguished by simply checking their ID value */
+
+#define soc_is_a10()	(soc_id == 0x1623)
+#define soc_is_a20()	(soc_id == 0x1651)
+#define soc_is_a31()	(soc_id == 0x1633)
+#define soc_is_a80()	(soc_id == 0x1639)
+#define soc_is_a64()	(soc_id == 0x1689)
+#define soc_is_h3()	(soc_id == 0x1680)
+#define soc_is_h5()	(soc_id == 0x1718)
+
+/* A10s and A13 share the same ID, so we need a little more effort on those */
 
 int soc_is_a10s(void)
 {
-	return (soc_id == 0x1625) &&
-	       (((readl(SUN4I_SID_BASE + 0x08) >> 12) & 0xf) == 7);
+	return soc_id == 0x1625 &&
+	       (readl(SUN4I_SID_BASE + 8) & 0xf000) == 0x7000;
 }
 
 int soc_is_a13(void)
 {
-	return (soc_id == 0x1625) &&
-	       !(((readl(SUN4I_SID_BASE + 0x08) >> 12) & 0xf) == 7);
-}
-
-int soc_is_a20(void)
-{
-	return soc_id == 0x1651;
-}
-
-int soc_is_a31(void)
-{
-	return soc_id == 0x1633;
-}
-
-int soc_is_a80(void)
-{
-	return soc_id == 0x1639;
-}
-
-int soc_is_a64(void)
-{
-	return soc_id == 0x1689;
-}
-
-int soc_is_h3(void)
-{
-	return soc_id == 0x1680;
-}
-
-int soc_is_h5(void)
-{
-	return soc_id == 0x1718;
+	return soc_id == 0x1625 &&
+	       (readl(SUN4I_SID_BASE + 8) & 0xf000) != 0x7000;
 }
 
 /*****************************************************************************
