@@ -2,6 +2,7 @@
 [![License](http://img.shields.io/badge/License-GPL-green.svg)](LICENSE.md)
 [![Build Status](https://travis-ci.org/linux-sunxi/sunxi-tools.svg?branch=master)](https://travis-ci.org/linux-sunxi/sunxi-tools)
 [![Releases](https://img.shields.io/github/release/linux-sunxi/sunxi-tools.svg)](https://github.com/linux-sunxi/sunxi-tools/releases)
+[![Commits](https://img.shields.io/github/commits-since/linux-sunxi/sunxi-tools/v1.4.svg)](https://github.com/linux-sunxi/sunxi-tools/compare/v1.4...master)
 
 Copyright (C) 2012  Alejandro Mery <amery@geeks.cl>
 <br>For a full list of contributors, see
