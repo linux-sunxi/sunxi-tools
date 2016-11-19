@@ -191,7 +191,7 @@ void aw_read_fel_status(feldev_handle *dev)
 }
 
 /* AW_FEL_VERSION request */
-void aw_fel_get_version(feldev_handle *dev, struct aw_fel_version *buf)
+static void aw_fel_get_version(feldev_handle *dev, struct aw_fel_version *buf)
 {
 	aw_send_fel_request(dev, AW_FEL_VERSION, 0, 0);
 	aw_usb_read(dev, buf, sizeof(*buf));
@@ -386,6 +386,10 @@ feldev_handle *feldev_open(int busnum, int devnum,
 	}
 
 	feldev_claim(result); /* claim interface, detect USB endpoints */
+
+	/* retrieve BROM version and SoC information */
+	aw_fel_get_version(result, &result->soc_version);
+	result->soc_info = get_soc_info_from_version(&result->soc_version);
 
 	return result;
 }

@@ -28,9 +28,11 @@
 
 typedef struct _felusb_handle felusb_handle; /* opaque data type */
 
-/* More general FEL "device" handle, to be extended later */
+/* More general FEL "device" handle, including version data and SoC info */
 typedef struct {
 	felusb_handle *usb;
+	struct aw_fel_version soc_version;
+	soc_info_t *soc_info;
 } feldev_handle;
 
 /* FEL device management */
@@ -44,7 +46,6 @@ void feldev_close(feldev_handle *dev);
 
 /* FEL functions */
 
-void aw_fel_get_version(feldev_handle *dev, struct aw_fel_version *buf);
 void aw_fel_read(feldev_handle *dev, uint32_t offset, void *buf, size_t len);
 void aw_fel_write(feldev_handle *dev, void *buf, uint32_t offset, size_t len);
 void aw_fel_write_buffer(feldev_handle *dev, void *buf, uint32_t offset,

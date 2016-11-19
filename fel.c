@@ -85,8 +85,7 @@ int get_image_type(const uint8_t *buf, size_t len)
 
 void aw_fel_print_version(feldev_handle *dev)
 {
-	struct aw_fel_version buf;
-	aw_fel_get_version(dev, &buf);
+	struct aw_fel_version buf = dev->soc_version;
 
 	const char *soc_name="unknown";
 	switch (buf.soc_id) {
@@ -236,19 +235,6 @@ void aw_fel_fill(feldev_handle *dev, uint32_t offset, size_t size, unsigned char
 	aw_write_buffer(dev, buf, offset, size, false);
 }
 
-soc_info_t *aw_fel_get_soc_info(feldev_handle *dev)
-{
-	/* persistent SoC info, retrieves result pointer once and caches it */
-	static soc_info_t *result = NULL;
-	if (result == NULL) {
-		struct aw_fel_version buf;
-		aw_fel_get_version(dev, &buf);
-
-		result = get_soc_info_from_version(&buf);
-	}
-	return result;
-}
-
 static uint32_t fel_to_spl_thunk[] = {
 	#include "fel-to-spl-thunk.h"
 };
@@ -320,7 +306,7 @@ void aw_fel_readl_n(feldev_handle *dev, uint32_t addr,
 			"ERROR: Max. word count exceeded, truncating aw_fel_readl_n() transfer\n");
 		count = LCODE_MAX_WORDS;
 	}
-	soc_info_t *soc_info = aw_fel_get_soc_info(dev);
+	soc_info_t *soc_info = dev->soc_info;
 
 	assert(LCODE_MAX_WORDS < 256); /* protect against corruption of ARM code */
 	uint32_t arm_code[] = {
@@ -387,7 +373,7 @@ void aw_fel_writel_n(feldev_handle *dev, uint32_t addr,
 			"ERROR: Max. word count exceeded, truncating aw_fel_writel_n() transfer\n");
 		count = LCODE_MAX_WORDS;
 	}
-	soc_info_t *soc_info = aw_fel_get_soc_info(dev);
+	soc_info_t *soc_info = dev->soc_info;
 
 	assert(LCODE_MAX_WORDS < 256); /* protect against corruption of ARM code */
 	/*
@@ -445,7 +431,7 @@ void fel_writel_n(feldev_handle *dev, uint32_t addr, uint32_t *src, size_t count
 
 void aw_fel_print_sid(feldev_handle *dev)
 {
-	soc_info_t *soc_info = aw_fel_get_soc_info(dev);
+	soc_info_t *soc_info = dev->soc_info;
 	if (soc_info->sid_addr) {
 		pr_info("SID key (e-fuses) at 0x%08X\n", soc_info->sid_addr);
 
@@ -731,7 +717,7 @@ void aw_restore_and_enable_mmu(feldev_handle *dev,
 
 void aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t len)
 {
-	soc_info_t *soc_info = aw_fel_get_soc_info(dev);
+	soc_info_t *soc_info = dev->soc_info;
 	sram_swap_buffers *swap_buffers;
 	char header_signature[9] = { 0 };
 	size_t i, thunk_size;
@@ -1007,7 +993,7 @@ bool have_sunxi_spl(feldev_handle *dev, uint32_t spl_addr)
 void pass_fel_information(feldev_handle *dev,
 			  uint32_t script_address, uint32_t uEnv_length)
 {
-	soc_info_t *soc_info = aw_fel_get_soc_info(dev);
+	soc_info_t *soc_info = dev->soc_info;
 
 	/* write something _only_ if we have a suitable SPL header */
 	if (have_sunxi_spl(dev, soc_info->spl_addr)) {
@@ -1034,7 +1020,7 @@ void pass_fel_information(feldev_handle *dev,
  */
 void aw_rmr_request(feldev_handle *dev, uint32_t entry_point, bool aarch64)
 {
-	soc_info_t *soc_info = aw_fel_get_soc_info(dev);
+	soc_info_t *soc_info = dev->soc_info;
 	if (!soc_info->rvbar_reg) {
 		fprintf(stderr, "ERROR: Can't issue RMR request!\n"
 			"RVBAR is not supported or unknown for your SoC (id=%04X).\n",
