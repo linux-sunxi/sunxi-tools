@@ -33,6 +33,7 @@
 
 #define USB_TIMEOUT	10000 /* 10 seconds */
 
+static bool fel_lib_initialized = false;
 
 /* This is out 'private' data type that will be part of a "FEL device" handle */
 struct _felusb_handle {
@@ -315,6 +316,8 @@ void feldev_release(feldev_handle *dev)
 feldev_handle *feldev_open(int busnum, int devnum,
 			   uint16_t vendor_id, uint16_t product_id)
 {
+	if (!fel_lib_initialized) /* if not already done: auto-initialize */
+		feldev_init();
 	feldev_handle *result = calloc(1, sizeof(feldev_handle));
 	if (!result) {
 		fprintf(stderr, "FAILED to allocate feldev_handle memory.\n");
@@ -404,11 +407,12 @@ void feldev_init(void)
 	int rc = libusb_init(NULL);
 	if (rc != 0)
 		usb_error(rc, "libusb_init()", 1);
+	fel_lib_initialized = true;
 }
 
 void feldev_done(feldev_handle *dev)
 {
 	feldev_close(dev);
 	free(dev);
-	libusb_exit(NULL);
+	if (fel_lib_initialized) libusb_exit(NULL);
 }

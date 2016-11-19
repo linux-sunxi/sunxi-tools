@@ -1194,7 +1194,6 @@ int main(int argc, char **argv)
 		argv += 1;
 	}
 
-	feldev_init();
 	handle = feldev_open(busnum, devnum, AW_USB_VENDOR_ID, AW_USB_PRODUCT_ID);
 
 	while (argc > 1 ) {
