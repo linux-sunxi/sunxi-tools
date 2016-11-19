@@ -53,6 +53,18 @@ void usb_error(int rc, const char *caption, int exitcode)
 		exit(exitcode);
 }
 
+/* 'Private' data type that will be used as "USB handle" */
+typedef struct _felusb_handle {
+	libusb_device_handle *handle;
+	int endpoint_out, endpoint_in;
+	bool iface_detached;
+} felusb_handle;
+
+/* More general FEL "device" handle, to be extended later */
+typedef struct {
+	felusb_handle *usb;
+} feldev_handle;
+
 struct  aw_usb_request {
 	char signature[8];
 	uint32_t length;
@@ -172,7 +184,7 @@ int get_image_type(const uint8_t *buf, size_t len)
 	return buf[30];
 }
 
-void aw_send_usb_request(libusb_device_handle *usb, int type, int length)
+static void aw_send_usb_request(feldev_handle *dev, int type, int length)
 {
 	struct aw_usb_request req = {
 		.signature = "AWUC",
@@ -181,29 +193,33 @@ void aw_send_usb_request(libusb_device_handle *usb, int type, int length)
 		.unknown1 = htole32(0x0c000000)
 	};
 	req.length2 = req.length;
-	usb_bulk_send(usb, AW_USB_FEL_BULK_EP_OUT, &req, sizeof(req), false);
+	usb_bulk_send(dev->usb->handle, AW_USB_FEL_BULK_EP_OUT,
+		      &req, sizeof(req), false);
 }
 
-void aw_read_usb_response(libusb_device_handle *usb)
+static void aw_read_usb_response(feldev_handle *dev)
 {
 	char buf[13];
-	usb_bulk_recv(usb, AW_USB_FEL_BULK_EP_IN, &buf, sizeof(buf));
+	usb_bulk_recv(dev->usb->handle, AW_USB_FEL_BULK_EP_IN,
+		      buf, sizeof(buf));
 	assert(strcmp(buf, "AWUS") == 0);
 }
 
-void aw_usb_write(libusb_device_handle *usb, const void *data, size_t len,
-		  bool progress)
+static void aw_usb_write(feldev_handle *dev, const void *data, size_t len,
+			 bool progress)
 {
-	aw_send_usb_request(usb, AW_USB_WRITE, len);
-	usb_bulk_send(usb, AW_USB_FEL_BULK_EP_OUT, data, len, progress);
-	aw_read_usb_response(usb);
+	aw_send_usb_request(dev, AW_USB_WRITE, len);
+	usb_bulk_send(dev->usb->handle, AW_USB_FEL_BULK_EP_OUT,
+		      data, len, progress);
+	aw_read_usb_response(dev);
 }
 
-void aw_usb_read(libusb_device_handle *usb, const void *data, size_t len)
+static void aw_usb_read(feldev_handle *dev, const void *data, size_t len)
 {
-	aw_send_usb_request(usb, AW_USB_READ, len);
-	usb_bulk_send(usb, AW_USB_FEL_BULK_EP_IN, data, len, false);
-	aw_read_usb_response(usb);
+	aw_send_usb_request(dev, AW_USB_READ, len);
+	usb_bulk_send(dev->usb->handle, AW_USB_FEL_BULK_EP_IN,
+	              data, len, false);
+	aw_read_usb_response(dev);
 }
 
 struct aw_fel_request {
@@ -218,27 +234,28 @@ static const int AW_FEL_1_WRITE = 0x101;
 static const int AW_FEL_1_EXEC  = 0x102;
 static const int AW_FEL_1_READ  = 0x103;
 
-void aw_send_fel_request(libusb_device_handle *usb, int type, uint32_t addr, uint32_t length)
+void aw_send_fel_request(feldev_handle *dev, int type,
+			 uint32_t addr, uint32_t length)
 {
 	struct aw_fel_request req = {
 		.request = htole32(type),
 		.address = htole32(addr),
 		.length = htole32(length)
 	};
-	aw_usb_write(usb, &req, sizeof(req), false);
+	aw_usb_write(dev, &req, sizeof(req), false);
 }
 
-void aw_read_fel_status(libusb_device_handle *usb)
+void aw_read_fel_status(feldev_handle *dev)
 {
 	char buf[8];
-	aw_usb_read(usb, &buf, sizeof(buf));
+	aw_usb_read(dev, buf, sizeof(buf));
 }
 
-void aw_fel_get_version(libusb_device_handle *usb, struct aw_fel_version *buf)
+void aw_fel_get_version(feldev_handle *dev, struct aw_fel_version *buf)
 {
-	aw_send_fel_request(usb, AW_FEL_VERSION, 0, 0);
-	aw_usb_read(usb, buf, sizeof(*buf));
-	aw_read_fel_status(usb);
+	aw_send_fel_request(dev, AW_FEL_VERSION, 0, 0);
+	aw_usb_read(dev, buf, sizeof(*buf));
+	aw_read_fel_status(dev);
 
 	buf->soc_id = (le32toh(buf->soc_id) >> 8) & 0xFFFF;
 	buf->unknown_0a = le32toh(buf->unknown_0a);
@@ -248,10 +265,10 @@ void aw_fel_get_version(libusb_device_handle *usb, struct aw_fel_version *buf)
 	buf->pad[1] = le32toh(buf->pad[1]);
 }
 
-void aw_fel_print_version(libusb_device_handle *usb)
+void aw_fel_print_version(feldev_handle *dev)
 {
 	struct aw_fel_version buf;
-	aw_fel_get_version(usb, &buf);
+	aw_fel_get_version(dev, &buf);
 
 	const char *soc_name="unknown";
 	switch (buf.soc_id) {
@@ -275,24 +292,24 @@ void aw_fel_print_version(libusb_device_handle *usb)
 		buf.scratchpad, buf.pad[0], buf.pad[1]);
 }
 
-void aw_fel_read(libusb_device_handle *usb, uint32_t offset, void *buf, size_t len)
+void aw_fel_read(feldev_handle *dev, uint32_t offset, void *buf, size_t len)
 {
-	aw_send_fel_request(usb, AW_FEL_1_READ, offset, len);
-	aw_usb_read(usb, buf, len);
-	aw_read_fel_status(usb);
+	aw_send_fel_request(dev, AW_FEL_1_READ, offset, len);
+	aw_usb_read(dev, buf, len);
+	aw_read_fel_status(dev);
 }
 
-void aw_fel_write(libusb_device_handle *usb, void *buf, uint32_t offset, size_t len)
+void aw_fel_write(feldev_handle *dev, void *buf, uint32_t offset, size_t len)
 {
-	aw_send_fel_request(usb, AW_FEL_1_WRITE, offset, len);
-	aw_usb_write(usb, buf, len, false);
-	aw_read_fel_status(usb);
+	aw_send_fel_request(dev, AW_FEL_1_WRITE, offset, len);
+	aw_usb_write(dev, buf, len, false);
+	aw_read_fel_status(dev);
 }
 
-void aw_fel_execute(libusb_device_handle *usb, uint32_t offset)
+void aw_fel_execute(feldev_handle *dev, uint32_t offset)
 {
-	aw_send_fel_request(usb, AW_FEL_1_EXEC, offset, 0);
-	aw_read_fel_status(usb);
+	aw_send_fel_request(dev, AW_FEL_1_EXEC, offset, 0);
+	aw_read_fel_status(dev);
 }
 
 /*
@@ -302,7 +319,7 @@ void aw_fel_execute(libusb_device_handle *usb, uint32_t offset)
  * progress callbacks.
  * The return value represents elapsed time in seconds (needed for execution).
  */
-double aw_write_buffer(libusb_device_handle *usb, void *buf, uint32_t offset,
+double aw_write_buffer(feldev_handle *dev, void *buf, uint32_t offset,
 		       size_t len, bool progress)
 {
 	/* safeguard against overwriting an already loaded U-Boot binary */
@@ -316,9 +333,9 @@ double aw_write_buffer(libusb_device_handle *usb, void *buf, uint32_t offset,
 		exit(1);
 	}
 	double start = gettime();
-	aw_send_fel_request(usb, AW_FEL_1_WRITE, offset, len);
-	aw_usb_write(usb, buf, len, progress);
-	aw_read_fel_status(usb);
+	aw_send_fel_request(dev, AW_FEL_1_WRITE, offset, len);
+	aw_usb_write(dev, buf, len, progress);
+	aw_read_fel_status(dev);
 	return gettime() - start;
 }
 
@@ -405,33 +422,33 @@ void *load_file(const char *name, size_t *size)
 	return buf;
 }
 
-void aw_fel_hexdump(libusb_device_handle *usb, uint32_t offset, size_t size)
+void aw_fel_hexdump(feldev_handle *dev, uint32_t offset, size_t size)
 {
 	unsigned char buf[size];
-	aw_fel_read(usb, offset, buf, size);
+	aw_fel_read(dev, offset, buf, size);
 	hexdump(buf, offset, size);
 }
 
-void aw_fel_dump(libusb_device_handle *usb, uint32_t offset, size_t size)
+void aw_fel_dump(feldev_handle *dev, uint32_t offset, size_t size)
 {
 	unsigned char buf[size];
-	aw_fel_read(usb, offset, buf, size);
+	aw_fel_read(dev, offset, buf, size);
 	fwrite(buf, size, 1, stdout);
 }
-void aw_fel_fill(libusb_device_handle *usb, uint32_t offset, size_t size, unsigned char value)
+void aw_fel_fill(feldev_handle *dev, uint32_t offset, size_t size, unsigned char value)
 {
 	unsigned char buf[size];
 	memset(buf, value, size);
-	aw_write_buffer(usb, buf, offset, size, false);
+	aw_write_buffer(dev, buf, offset, size, false);
 }
 
-soc_info_t *aw_fel_get_soc_info(libusb_device_handle *usb)
+soc_info_t *aw_fel_get_soc_info(feldev_handle *dev)
 {
 	/* persistent SoC info, retrieves result pointer once and caches it */
 	static soc_info_t *result = NULL;
 	if (result == NULL) {
 		struct aw_fel_version buf;
-		aw_fel_get_version(usb, &buf);
+		aw_fel_get_version(dev, &buf);
 
 		result = get_soc_info_from_version(&buf);
 	}
@@ -445,7 +462,7 @@ static uint32_t fel_to_spl_thunk[] = {
 #define	DRAM_BASE		0x40000000
 #define	DRAM_SIZE		0x80000000
 
-uint32_t aw_read_arm_cp_reg(libusb_device_handle *usb, soc_info_t *soc_info,
+uint32_t aw_read_arm_cp_reg(feldev_handle *dev, soc_info_t *soc_info,
 			    uint32_t coproc, uint32_t opc1, uint32_t crn,
 			    uint32_t crm, uint32_t opc2)
 {
@@ -461,13 +478,13 @@ uint32_t aw_read_arm_cp_reg(libusb_device_handle *usb, soc_info_t *soc_info,
 		htole32(0xe58f0000), /* str  r0, [pc]                         */
 		htole32(0xe12fff1e), /* bx   lr                               */
 	};
-	aw_fel_write(usb, arm_code, soc_info->scratch_addr, sizeof(arm_code));
-	aw_fel_execute(usb, soc_info->scratch_addr);
-	aw_fel_read(usb, soc_info->scratch_addr + 12, &val, sizeof(val));
+	aw_fel_write(dev, arm_code, soc_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(dev, soc_info->scratch_addr);
+	aw_fel_read(dev, soc_info->scratch_addr + 12, &val, sizeof(val));
 	return le32toh(val);
 }
 
-void aw_write_arm_cp_reg(libusb_device_handle *usb, soc_info_t *soc_info,
+void aw_write_arm_cp_reg(feldev_handle *dev, soc_info_t *soc_info,
 			 uint32_t coproc, uint32_t opc1, uint32_t crn,
 			 uint32_t crm, uint32_t opc2, uint32_t val)
 {
@@ -485,8 +502,8 @@ void aw_write_arm_cp_reg(libusb_device_handle *usb, soc_info_t *soc_info,
 		htole32(0xe12fff1e), /* bx   lr                               */
 		htole32(val)
 	};
-	aw_fel_write(usb, arm_code, soc_info->scratch_addr, sizeof(arm_code));
-	aw_fel_execute(usb, soc_info->scratch_addr);
+	aw_fel_write(dev, arm_code, soc_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(dev, soc_info->scratch_addr);
 }
 
 /*
@@ -500,7 +517,7 @@ void aw_write_arm_cp_reg(libusb_device_handle *usb, soc_info_t *soc_info,
 #define LCODE_MAX_WORDS  (LCODE_MAX_TOTAL - LCODE_ARM_WORDS) /* data words */
 
 /* multiple "readl" from sequential addresses to a destination buffer */
-void aw_fel_readl_n(libusb_device_handle *usb, uint32_t addr,
+void aw_fel_readl_n(feldev_handle *dev, uint32_t addr,
 		    uint32_t *dst, size_t count)
 {
 	if (count == 0) return;
@@ -509,7 +526,7 @@ void aw_fel_readl_n(libusb_device_handle *usb, uint32_t addr,
 			"ERROR: Max. word count exceeded, truncating aw_fel_readl_n() transfer\n");
 		count = LCODE_MAX_WORDS;
 	}
-	soc_info_t *soc_info = aw_fel_get_soc_info(usb);
+	soc_info_t *soc_info = aw_fel_get_soc_info(dev);
 
 	assert(LCODE_MAX_WORDS < 256); /* protect against corruption of ARM code */
 	uint32_t arm_code[] = {
@@ -531,11 +548,11 @@ void aw_fel_readl_n(libusb_device_handle *usb, uint32_t addr,
 	assert(sizeof(arm_code) == LCODE_ARM_SIZE);
 
 	/* scratch buffer setup: transfers ARM code, including addr and count */
-	aw_fel_write(usb, arm_code, soc_info->scratch_addr, sizeof(arm_code));
+	aw_fel_write(dev, arm_code, soc_info->scratch_addr, sizeof(arm_code));
 	/* execute code, read back the result */
-	aw_fel_execute(usb, soc_info->scratch_addr);
+	aw_fel_execute(dev, soc_info->scratch_addr);
 	uint32_t buffer[count];
-	aw_fel_read(usb, soc_info->scratch_addr + LCODE_ARM_SIZE,
+	aw_fel_read(dev, soc_info->scratch_addr + LCODE_ARM_SIZE,
 		    buffer, sizeof(buffer));
 	/* extract values to destination buffer */
 	uint32_t *val = buffer;
@@ -544,10 +561,10 @@ void aw_fel_readl_n(libusb_device_handle *usb, uint32_t addr,
 }
 
 /* "readl" of a single value */
-uint32_t aw_fel_readl(libusb_device_handle *usb, uint32_t addr)
+uint32_t aw_fel_readl(feldev_handle *dev, uint32_t addr)
 {
 	uint32_t val;
-	aw_fel_readl_n(usb, addr, &val, 1);
+	aw_fel_readl_n(dev, addr, &val, 1);
 	return val;
 }
 
@@ -555,12 +572,11 @@ uint32_t aw_fel_readl(libusb_device_handle *usb, uint32_t addr)
  * aw_fel_readl_n() wrapper that can handle large transfers. If necessary,
  * those will be done in separate 'chunks' of no more than LCODE_MAX_WORDS.
  */
-void fel_readl_n(libusb_device_handle *usb, uint32_t addr,
-		 uint32_t *dst, size_t count)
+void fel_readl_n(feldev_handle *dev, uint32_t addr, uint32_t *dst, size_t count)
 {
 	while (count > 0) {
 		size_t n = count > LCODE_MAX_WORDS ? LCODE_MAX_WORDS : count;
-		aw_fel_readl_n(usb, addr, dst, n);
+		aw_fel_readl_n(dev, addr, dst, n);
 		addr += n * sizeof(uint32_t);
 		dst += n;
 		count -= n;
@@ -568,7 +584,7 @@ void fel_readl_n(libusb_device_handle *usb, uint32_t addr,
 }
 
 /* multiple "writel" from a source buffer to sequential addresses */
-void aw_fel_writel_n(libusb_device_handle *usb, uint32_t addr,
+void aw_fel_writel_n(feldev_handle *dev, uint32_t addr,
 		     uint32_t *src, size_t count)
 {
 	if (count == 0) return;
@@ -577,7 +593,7 @@ void aw_fel_writel_n(libusb_device_handle *usb, uint32_t addr,
 			"ERROR: Max. word count exceeded, truncating aw_fel_writel_n() transfer\n");
 		count = LCODE_MAX_WORDS;
 	}
-	soc_info_t *soc_info = aw_fel_get_soc_info(usb);
+	soc_info_t *soc_info = aw_fel_get_soc_info(dev);
 
 	assert(LCODE_MAX_WORDS < 256); /* protect against corruption of ARM code */
 	/*
@@ -606,42 +622,41 @@ void aw_fel_writel_n(libusb_device_handle *usb, uint32_t addr,
 	for (i = 0; i < count; i++)
 		arm_code[LCODE_ARM_WORDS + i] = htole32(*src++);
 	/* scratch buffer setup: transfers ARM code and data */
-	aw_fel_write(usb, arm_code, soc_info->scratch_addr,
+	aw_fel_write(dev, arm_code, soc_info->scratch_addr,
 	             (LCODE_ARM_WORDS + count) * sizeof(uint32_t));
 	/* execute, and we're done */
-	aw_fel_execute(usb, soc_info->scratch_addr);
+	aw_fel_execute(dev, soc_info->scratch_addr);
 }
 
 /* "writel" of a single value */
-void aw_fel_writel(libusb_device_handle *usb, uint32_t addr, uint32_t val)
+void aw_fel_writel(feldev_handle *dev, uint32_t addr, uint32_t val)
 {
-	aw_fel_writel_n(usb, addr, &val, 1);
+	aw_fel_writel_n(dev, addr, &val, 1);
 }
 
 /*
  * aw_fel_writel_n() wrapper that can handle large transfers. If necessary,
  * those will be done in separate 'chunks' of no more than LCODE_MAX_WORDS.
  */
-void fel_writel_n(libusb_device_handle *usb, uint32_t addr,
-		  uint32_t *src, size_t count)
+void fel_writel_n(feldev_handle *dev, uint32_t addr, uint32_t *src, size_t count)
 {
 	while (count > 0) {
 		size_t n = count > LCODE_MAX_WORDS ? LCODE_MAX_WORDS : count;
-		aw_fel_writel_n(usb, addr, src, n);
+		aw_fel_writel_n(dev, addr, src, n);
 		addr += n * sizeof(uint32_t);
 		src += n;
 		count -= n;
 	}
 }
 
-void aw_fel_print_sid(libusb_device_handle *usb)
+void aw_fel_print_sid(feldev_handle *dev)
 {
-	soc_info_t *soc_info = aw_fel_get_soc_info(usb);
+	soc_info_t *soc_info = aw_fel_get_soc_info(dev);
 	if (soc_info->sid_addr) {
 		pr_info("SID key (e-fuses) at 0x%08X\n", soc_info->sid_addr);
 
 		uint32_t key[4];
-		aw_fel_readl_n(usb, soc_info->sid_addr, key, 4);
+		aw_fel_readl_n(dev, soc_info->sid_addr, key, 4);
 
 		unsigned int i;
 		/* output SID in "xxxxxxxx:xxxxxxxx:xxxxxxxx:xxxxxxxx" format */
@@ -653,7 +668,7 @@ void aw_fel_print_sid(libusb_device_handle *usb)
 	}
 }
 
-void aw_enable_l2_cache(libusb_device_handle *usb, soc_info_t *soc_info)
+void aw_enable_l2_cache(feldev_handle *dev, soc_info_t *soc_info)
 {
 	uint32_t arm_code[] = {
 		htole32(0xee112f30), /* mrc        15, 0, r2, cr1, cr0, {1}  */
@@ -662,11 +677,11 @@ void aw_enable_l2_cache(libusb_device_handle *usb, soc_info_t *soc_info)
 		htole32(0xe12fff1e), /* bx         lr                        */
 	};
 
-	aw_fel_write(usb, arm_code, soc_info->scratch_addr, sizeof(arm_code));
-	aw_fel_execute(usb, soc_info->scratch_addr);
+	aw_fel_write(dev, arm_code, soc_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(dev, soc_info->scratch_addr);
 }
 
-void aw_get_stackinfo(libusb_device_handle *usb, soc_info_t *soc_info,
+void aw_get_stackinfo(feldev_handle *dev, soc_info_t *soc_info,
                       uint32_t *sp_irq, uint32_t *sp)
 {
 	uint32_t results[2] = { 0 };
@@ -679,9 +694,9 @@ void aw_get_stackinfo(libusb_device_handle *usb, soc_info_t *soc_info,
 		htole32(0xe12fff1e), /* bx         lr                        */
 	};
 
-	aw_fel_write(usb, arm_code, soc_info->scratch_addr, sizeof(arm_code));
-	aw_fel_execute(usb, soc_info->scratch_addr);
-	aw_fel_read(usb, soc_info->scratch_addr + 0x10, results, 8);
+	aw_fel_write(dev, arm_code, soc_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(dev, soc_info->scratch_addr);
+	aw_fel_read(dev, soc_info->scratch_addr + 0x10, results, 8);
 #else
 	/* Works everywhere */
 	uint32_t arm_code[] = {
@@ -696,56 +711,56 @@ void aw_get_stackinfo(libusb_device_handle *usb, soc_info_t *soc_info,
 		htole32(0xe12fff1e), /* bx         lr                        */
 	};
 
-	aw_fel_write(usb, arm_code, soc_info->scratch_addr, sizeof(arm_code));
-	aw_fel_execute(usb, soc_info->scratch_addr);
-	aw_fel_read(usb, soc_info->scratch_addr + 0x24, results, 8);
+	aw_fel_write(dev, arm_code, soc_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(dev, soc_info->scratch_addr);
+	aw_fel_read(dev, soc_info->scratch_addr + 0x24, results, 8);
 #endif
 	*sp_irq = le32toh(results[0]);
 	*sp     = le32toh(results[1]);
 }
 
-uint32_t aw_get_ttbr0(libusb_device_handle *usb, soc_info_t *soc_info)
+uint32_t aw_get_ttbr0(feldev_handle *dev, soc_info_t *soc_info)
 {
-	return aw_read_arm_cp_reg(usb, soc_info, 15, 0, 2, 0, 0);
+	return aw_read_arm_cp_reg(dev, soc_info, 15, 0, 2, 0, 0);
 }
 
-uint32_t aw_get_ttbcr(libusb_device_handle *usb, soc_info_t *soc_info)
+uint32_t aw_get_ttbcr(feldev_handle *dev, soc_info_t *soc_info)
 {
-	return aw_read_arm_cp_reg(usb, soc_info, 15, 0, 2, 0, 2);
+	return aw_read_arm_cp_reg(dev, soc_info, 15, 0, 2, 0, 2);
 }
 
-uint32_t aw_get_dacr(libusb_device_handle *usb, soc_info_t *soc_info)
+uint32_t aw_get_dacr(feldev_handle *dev, soc_info_t *soc_info)
 {
-	return aw_read_arm_cp_reg(usb, soc_info, 15, 0, 3, 0, 0);
+	return aw_read_arm_cp_reg(dev, soc_info, 15, 0, 3, 0, 0);
 }
 
-uint32_t aw_get_sctlr(libusb_device_handle *usb, soc_info_t *soc_info)
+uint32_t aw_get_sctlr(feldev_handle *dev, soc_info_t *soc_info)
 {
-	return aw_read_arm_cp_reg(usb, soc_info, 15, 0, 1, 0, 0);
+	return aw_read_arm_cp_reg(dev, soc_info, 15, 0, 1, 0, 0);
 }
 
-void aw_set_ttbr0(libusb_device_handle *usb, soc_info_t *soc_info,
+void aw_set_ttbr0(feldev_handle *dev, soc_info_t *soc_info,
 		  uint32_t ttbr0)
 {
-	return aw_write_arm_cp_reg(usb, soc_info, 15, 0, 2, 0, 0, ttbr0);
+	return aw_write_arm_cp_reg(dev, soc_info, 15, 0, 2, 0, 0, ttbr0);
 }
 
-void aw_set_ttbcr(libusb_device_handle *usb, soc_info_t *soc_info,
+void aw_set_ttbcr(feldev_handle *dev, soc_info_t *soc_info,
 		  uint32_t ttbcr)
 {
-	return aw_write_arm_cp_reg(usb, soc_info, 15, 0, 2, 0, 2, ttbcr);
+	return aw_write_arm_cp_reg(dev, soc_info, 15, 0, 2, 0, 2, ttbcr);
 }
 
-void aw_set_dacr(libusb_device_handle *usb, soc_info_t *soc_info,
+void aw_set_dacr(feldev_handle *dev, soc_info_t *soc_info,
 		 uint32_t dacr)
 {
-	aw_write_arm_cp_reg(usb, soc_info, 15, 0, 3, 0, 0, dacr);
+	aw_write_arm_cp_reg(dev, soc_info, 15, 0, 3, 0, 0, dacr);
 }
 
-void aw_set_sctlr(libusb_device_handle *usb, soc_info_t *soc_info,
+void aw_set_sctlr(feldev_handle *dev, soc_info_t *soc_info,
 		  uint32_t sctlr)
 {
-	aw_write_arm_cp_reg(usb, soc_info, 15, 0, 1, 0, 0, sctlr);
+	aw_write_arm_cp_reg(dev, soc_info, 15, 0, 1, 0, 0, sctlr);
 }
 
 /*
@@ -775,7 +790,7 @@ uint32_t *aw_generate_mmu_translation_table(void)
 	return tt;
 }
 
-uint32_t *aw_backup_and_disable_mmu(libusb_device_handle *usb,
+uint32_t *aw_backup_and_disable_mmu(feldev_handle *dev,
                                     soc_info_t *soc_info)
 {
 	uint32_t *tt = NULL;
@@ -805,7 +820,7 @@ uint32_t *aw_backup_and_disable_mmu(libusb_device_handle *usb,
 	 */
 
 	/* Basically, ignore M/Z/I/V/UNK bits and expect no TEX remap */
-	sctlr = aw_get_sctlr(usb, soc_info);
+	sctlr = aw_get_sctlr(dev, soc_info);
 	if ((sctlr & ~((0x7 << 11) | (1 << 6) | 1)) != 0x00C50038) {
 		fprintf(stderr, "Unexpected SCTLR (%08X)\n", sctlr);
 		exit(1);
@@ -816,19 +831,19 @@ uint32_t *aw_backup_and_disable_mmu(libusb_device_handle *usb,
 		return NULL;
 	}
 
-	dacr = aw_get_dacr(usb, soc_info);
+	dacr = aw_get_dacr(dev, soc_info);
 	if (dacr != 0x55555555) {
 		fprintf(stderr, "Unexpected DACR (%08X)\n", dacr);
 		exit(1);
 	}
 
-	ttbcr = aw_get_ttbcr(usb, soc_info);
+	ttbcr = aw_get_ttbcr(dev, soc_info);
 	if (ttbcr != 0x00000000) {
 		fprintf(stderr, "Unexpected TTBCR (%08X)\n", ttbcr);
 		exit(1);
 	}
 
-	ttbr0 = aw_get_ttbr0(usb, soc_info);
+	ttbr0 = aw_get_ttbr0(dev, soc_info);
 	if (ttbr0 & 0x3FFF) {
 		fprintf(stderr, "Unexpected TTBR0 (%08X)\n", ttbr0);
 		exit(1);
@@ -836,7 +851,7 @@ uint32_t *aw_backup_and_disable_mmu(libusb_device_handle *usb,
 
 	tt = malloc(16 * 1024);
 	pr_info("Reading the MMU translation table from 0x%08X\n", ttbr0);
-	aw_fel_read(usb, ttbr0, tt, 16 * 1024);
+	aw_fel_read(dev, ttbr0, tt, 16 * 1024);
 	for (i = 0; i < 4096; i++)
 		tt[i] = le32toh(tt[i]);
 
@@ -853,19 +868,19 @@ uint32_t *aw_backup_and_disable_mmu(libusb_device_handle *usb,
 	}
 
 	pr_info("Disabling I-cache, MMU and branch prediction...");
-	aw_fel_write(usb, arm_code, soc_info->scratch_addr, sizeof(arm_code));
-	aw_fel_execute(usb, soc_info->scratch_addr);
+	aw_fel_write(dev, arm_code, soc_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(dev, soc_info->scratch_addr);
 	pr_info(" done.\n");
 
 	return tt;
 }
 
-void aw_restore_and_enable_mmu(libusb_device_handle *usb,
+void aw_restore_and_enable_mmu(feldev_handle *dev,
                                soc_info_t *soc_info,
                                uint32_t *tt)
 {
 	uint32_t i;
-	uint32_t ttbr0 = aw_get_ttbr0(usb, soc_info);
+	uint32_t ttbr0 = aw_get_ttbr0(dev, soc_info);
 
 	uint32_t arm_code[] = {
 		/* Invalidate I-cache, TLB and BTB */
@@ -904,11 +919,11 @@ void aw_restore_and_enable_mmu(libusb_device_handle *usb,
 	pr_info("Writing back the MMU translation table.\n");
 	for (i = 0; i < 4096; i++)
 		tt[i] = htole32(tt[i]);
-	aw_fel_write(usb, tt, ttbr0, 16 * 1024);
+	aw_fel_write(dev, tt, ttbr0, 16 * 1024);
 
 	pr_info("Enabling I-cache, MMU and branch prediction...");
-	aw_fel_write(usb, arm_code, soc_info->scratch_addr, sizeof(arm_code));
-	aw_fel_execute(usb, soc_info->scratch_addr);
+	aw_fel_write(dev, arm_code, soc_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(dev, soc_info->scratch_addr);
 	pr_info(" done.\n");
 
 	free(tt);
@@ -920,10 +935,9 @@ void aw_restore_and_enable_mmu(libusb_device_handle *usb,
  */
 #define SPL_LEN_LIMIT 0x8000
 
-void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
-				  uint8_t *buf, size_t len)
+void aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t len)
 {
-	soc_info_t *soc_info = aw_fel_get_soc_info(usb);
+	soc_info_t *soc_info = aw_fel_get_soc_info(dev);
 	sram_swap_buffers *swap_buffers;
 	char header_signature[9] = { 0 };
 	size_t i, thunk_size;
@@ -963,13 +977,13 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 
 	if (soc_info->needs_l2en) {
 		pr_info("Enabling the L2 cache\n");
-		aw_enable_l2_cache(usb, soc_info);
+		aw_enable_l2_cache(dev, soc_info);
 	}
 
-	aw_get_stackinfo(usb, soc_info, &sp_irq, &sp);
+	aw_get_stackinfo(dev, soc_info, &sp_irq, &sp);
 	pr_info("Stack pointers: sp_irq=0x%08X, sp=0x%08X\n", sp_irq, sp);
 
-	tt = aw_backup_and_disable_mmu(usb, soc_info);
+	tt = aw_backup_and_disable_mmu(dev, soc_info);
 	if (!tt && soc_info->mmu_tt_addr) {
 		if (soc_info->mmu_tt_addr & 0x3FFF) {
 			fprintf(stderr, "SPL: 'mmu_tt_addr' must be 16K aligned\n");
@@ -987,9 +1001,9 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 		 * for all the possible virtual addresses (N=0) and that the
 		 * translation table must be aligned at a 16K boundary.
 		 */
-		aw_set_dacr(usb, soc_info, 0x55555555);
-		aw_set_ttbcr(usb, soc_info, 0x00000000);
-		aw_set_ttbr0(usb, soc_info, soc_info->mmu_tt_addr);
+		aw_set_dacr(dev, soc_info, 0x55555555);
+		aw_set_ttbcr(dev, soc_info, 0x00000000);
+		aw_set_ttbr0(dev, soc_info, soc_info->mmu_tt_addr);
 		tt = aw_generate_mmu_translation_table();
 	}
 
@@ -1002,7 +1016,7 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 			uint32_t tmp = swap_buffers[i].buf1 - cur_addr;
 			if (tmp > len)
 				tmp = len;
-			aw_fel_write(usb, buf, cur_addr, tmp);
+			aw_fel_write(dev, buf, cur_addr, tmp);
 			cur_addr += tmp;
 			buf += tmp;
 			len -= tmp;
@@ -1011,7 +1025,7 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 			uint32_t tmp = swap_buffers[i].size;
 			if (tmp > len)
 				tmp = len;
-			aw_fel_write(usb, buf, swap_buffers[i].buf2, tmp);
+			aw_fel_write(dev, buf, swap_buffers[i].buf2, tmp);
 			cur_addr += tmp;
 			buf += tmp;
 			len -= tmp;
@@ -1030,7 +1044,7 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 
 	/* Write the remaining part of the SPL */
 	if (len > 0)
-		aw_fel_write(usb, buf, cur_addr, len);
+		aw_fel_write(dev, buf, cur_addr, len);
 
 	thunk_size = sizeof(fel_to_spl_thunk) + sizeof(soc_info->spl_addr) +
 		     (i + 1) * sizeof(*swap_buffers);
@@ -1052,8 +1066,8 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 		thunk_buf[i] = htole32(thunk_buf[i]);
 
 	pr_info("=> Executing the SPL...");
-	aw_fel_write(usb, thunk_buf, soc_info->thunk_addr, thunk_size);
-	aw_fel_execute(usb, soc_info->thunk_addr);
+	aw_fel_write(dev, thunk_buf, soc_info->thunk_addr, thunk_size);
+	aw_fel_execute(dev, soc_info->thunk_addr);
 	pr_info(" done.\n");
 
 	free(thunk_buf);
@@ -1062,7 +1076,7 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 	usleep(250000);
 
 	/* Read back the result and check if everything was fine */
-	aw_fel_read(usb, soc_info->spl_addr + 4, header_signature, 8);
+	aw_fel_read(dev, soc_info->spl_addr + 4, header_signature, 8);
 	if (strcmp(header_signature, "eGON.FEL") != 0) {
 		fprintf(stderr, "SPL: failure code '%s'\n",
 			header_signature);
@@ -1071,7 +1085,7 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
 
 	/* re-enable the MMU if it was enabled by BROM */
 	if (tt != NULL)
-		aw_restore_and_enable_mmu(usb, soc_info, tt);
+		aw_restore_and_enable_mmu(dev, soc_info, tt);
 }
 
 /*
@@ -1080,8 +1094,7 @@ void aw_fel_write_and_execute_spl(libusb_device_handle *usb,
  * address stored within the image header; and the function preserves the
  * U-Boot entry point (offset) and size values.
  */
-void aw_fel_write_uboot_image(libusb_device_handle *usb,
-		uint8_t *buf, size_t len)
+void aw_fel_write_uboot_image(feldev_handle *dev, uint8_t *buf, size_t len)
 {
 	if (len <= HEADER_SIZE)
 		return; /* Insufficient size (no actual data), just bail out */
@@ -1132,7 +1145,7 @@ void aw_fel_write_uboot_image(libusb_device_handle *usb,
 	pr_info("Writing image \"%.*s\", %u bytes @ 0x%08X.\n",
 		IH_NMLEN, buf + HEADER_NAME_OFFSET, data_size, load_addr);
 
-	aw_write_buffer(usb, buf + HEADER_SIZE, load_addr, data_size, false);
+	aw_write_buffer(dev, buf + HEADER_SIZE, load_addr, data_size, false);
 
 	/* keep track of U-Boot memory region in global vars */
 	uboot_entry = load_addr;
@@ -1142,17 +1155,16 @@ void aw_fel_write_uboot_image(libusb_device_handle *usb,
 /*
  * This function handles the common part of both "spl" and "uboot" commands.
  */
-void aw_fel_process_spl_and_uboot(libusb_device_handle *usb,
-		const char *filename)
+void aw_fel_process_spl_and_uboot(feldev_handle *dev, const char *filename)
 {
 	/* load file into memory buffer */
 	size_t size;
 	uint8_t *buf = load_file(filename, &size);
 	/* write and execute the SPL from the buffer */
-	aw_fel_write_and_execute_spl(usb, buf, size);
+	aw_fel_write_and_execute_spl(dev, buf, size);
 	/* check for optional main U-Boot binary (and transfer it, if applicable) */
 	if (size > SPL_LEN_LIMIT)
-		aw_fel_write_uboot_image(usb, buf + SPL_LEN_LIMIT, size - SPL_LEN_LIMIT);
+		aw_fel_write_uboot_image(dev, buf + SPL_LEN_LIMIT, size - SPL_LEN_LIMIT);
 	free(buf);
 }
 
@@ -1166,11 +1178,11 @@ void aw_fel_process_spl_and_uboot(libusb_device_handle *usb,
 #define SPL_SIGNATURE			"SPL" /* marks "sunxi" header */
 #define SPL_MIN_VERSION			1 /* minimum required version */
 #define SPL_MAX_VERSION			1 /* maximum supported version */
-bool have_sunxi_spl(libusb_device_handle *usb, uint32_t spl_addr)
+bool have_sunxi_spl(feldev_handle *dev, uint32_t spl_addr)
 {
 	uint8_t spl_signature[4];
 
-	aw_fel_read(usb, spl_addr + 0x14,
+	aw_fel_read(dev, spl_addr + 0x14,
 		&spl_signature, sizeof(spl_signature));
 
 	if (memcmp(spl_signature, SPL_SIGNATURE, 3) != 0)
@@ -1198,13 +1210,13 @@ bool have_sunxi_spl(libusb_device_handle *usb, uint32_t spl_addr)
  * (see "boot_file_head" in ${U-BOOT}/arch/arm/include/asm/arch-sunxi/spl.h),
  * providing the boot script address (DRAM location of boot.scr).
  */
-void pass_fel_information(libusb_device_handle *usb,
+void pass_fel_information(feldev_handle *dev,
 			  uint32_t script_address, uint32_t uEnv_length)
 {
-	soc_info_t *soc_info = aw_fel_get_soc_info(usb);
+	soc_info_t *soc_info = aw_fel_get_soc_info(dev);
 
 	/* write something _only_ if we have a suitable SPL header */
-	if (have_sunxi_spl(usb, soc_info->spl_addr)) {
+	if (have_sunxi_spl(dev, soc_info->spl_addr)) {
 		pr_info("Passing boot info via sunxi SPL: "
 			"script address = 0x%08X, uEnv length = %u\n",
 			script_address, uEnv_length);
@@ -1212,18 +1224,18 @@ void pass_fel_information(libusb_device_handle *usb,
 			htole32(script_address),
 			htole32(uEnv_length)
 		};
-		aw_fel_write(usb, transfer,
+		aw_fel_write(dev, transfer,
 			soc_info->spl_addr + 0x18, sizeof(transfer));
 	}
 }
 
-static int aw_fel_get_endpoint(libusb_device_handle *usb)
+static int aw_fel_get_endpoint(feldev_handle *dev)
 {
-	struct libusb_device *dev = libusb_get_device(usb);
+	struct libusb_device *usb = libusb_get_device(dev->usb->handle);
 	struct libusb_config_descriptor *config;
 	int if_idx, set_idx, ep_idx, ret;
 
-	ret = libusb_get_active_config_descriptor(dev, &config);
+	ret = libusb_get_active_config_descriptor(usb, &config);
 	if (ret)
 		return ret;
 
@@ -1266,9 +1278,9 @@ static int aw_fel_get_endpoint(libusb_device_handle *usb)
  * The code was inspired by
  * https://github.com/apritzel/u-boot/commit/fda6bd1bf285c44f30ea15c7e6231bf53c31d4a8
  */
-void aw_rmr_request(libusb_device_handle *usb, uint32_t entry_point, bool aarch64)
+void aw_rmr_request(feldev_handle *dev, uint32_t entry_point, bool aarch64)
 {
-	soc_info_t *soc_info = aw_fel_get_soc_info(usb);
+	soc_info_t *soc_info = aw_fel_get_soc_info(dev);
 	if (!soc_info->rvbar_reg) {
 		fprintf(stderr, "ERROR: Can't issue RMR request!\n"
 			"RVBAR is not supported or unknown for your SoC (id=%04X).\n",
@@ -1298,12 +1310,12 @@ void aw_rmr_request(libusb_device_handle *usb, uint32_t entry_point, bool aarch6
 		htole32(rmr_mode)
 	};
 	/* scratch buffer setup: transfers ARM code and parameter values */
-	aw_fel_write(usb, arm_code, soc_info->scratch_addr, sizeof(arm_code));
+	aw_fel_write(dev, arm_code, soc_info->scratch_addr, sizeof(arm_code));
 	/* execute the thunk code (triggering a warm reset on the SoC) */
 	pr_info("Store entry point 0x%08X to RVBAR 0x%08X, "
 		"and request warm reset with RMR mode %u...",
 		entry_point, soc_info->rvbar_reg, rmr_mode);
-	aw_fel_execute(usb, soc_info->scratch_addr);
+	aw_fel_execute(dev, soc_info->scratch_addr);
 	pr_info(" done.\n");
 }
 
@@ -1316,7 +1328,7 @@ static bool is_uEnv(void *buffer, size_t size)
 }
 
 /* private helper function, gets used for "write*" and "multi*" transfers */
-static unsigned int file_upload(libusb_device_handle *handle, size_t count,
+static unsigned int file_upload(feldev_handle *dev, size_t count,
 				size_t argc, char **argv, progress_cb_t callback)
 {
 	if (argc < count * 2) {
@@ -1338,13 +1350,13 @@ static unsigned int file_upload(libusb_device_handle *handle, size_t count,
 		void *buf = load_file(argv[i * 2 + 1], &size);
 		if (size > 0) {
 			uint32_t offset = strtoul(argv[i * 2], NULL, 0);
-			aw_write_buffer(handle, buf, offset, size, callback != NULL);
+			aw_write_buffer(dev, buf, offset, size, callback != NULL);
 
 			/* If we transferred a script, try to inform U-Boot about its address. */
 			if (get_image_type(buf, size) == IH_TYPE_SCRIPT)
-				pass_fel_information(handle, offset, 0);
+				pass_fel_information(dev, offset, 0);
 			if (is_uEnv(buf, size)) /* uEnv-style data */
-				pass_fel_information(handle, offset, size);
+				pass_fel_information(dev, offset, size);
 		}
 		free(buf);
 	}
@@ -1352,19 +1364,29 @@ static unsigned int file_upload(libusb_device_handle *handle, size_t count,
 	return i; /* return number of files that were processed */
 }
 
-/* open libusb handle to desired FEL device */
-static libusb_device_handle *open_fel_device(int busnum, int devnum,
+/* open handle to desired FEL device */
+static feldev_handle *open_fel_device(int busnum, int devnum,
 		uint16_t vendor_id, uint16_t product_id)
 {
-	libusb_device_handle *result = NULL;
+	feldev_handle *result = calloc(1, sizeof(feldev_handle));
+	if (!result) {
+		fprintf(stderr, "FAILED to allocate feldev_handle memory.\n");
+		exit(1);
+	}
+	result->usb = calloc(1, sizeof(felusb_handle));
+	if (!result->usb) {
+		fprintf(stderr, "FAILED to allocate felusb_handle memory.\n");
+		free(result);
+		exit(1);
+	}
 
 	if (busnum < 0 || devnum < 0) {
 		/* With the default values (busnum -1, devnum -1) we don't care
 		 * for a specific USB device; so let libusb open the first
 		 * device that matches VID/PID.
 		 */
-		result = libusb_open_device_with_vid_pid(NULL, vendor_id, product_id);
-		if (!result) {
+		result->usb->handle = libusb_open_device_with_vid_pid(NULL, vendor_id, product_id);
+		if (!result->usb->handle) {
 			switch (errno) {
 			case EACCES:
 				fprintf(stderr, "ERROR: You don't have permission to access Allwinner USB FEL device\n");
@@ -1401,7 +1423,7 @@ static libusb_device_handle *open_fel_device(int busnum, int devnum,
 				exit(1);
 			}
 			/* open handle to this specific device (incrementing its refcount) */
-			rc = libusb_open(list[i], &result);
+			rc = libusb_open(list[i], &result->usb->handle);
 			if (rc != 0)
 				usb_error(rc, "libusb_open()", 1);
 			break;
@@ -1417,11 +1439,17 @@ static libusb_device_handle *open_fel_device(int busnum, int devnum,
 	return result;
 }
 
+void feldev_close(feldev_handle *dev)
+{
+	libusb_close(dev->usb->handle);
+	free(dev->usb); /* release memory allocated for felusb_handle struct */
+}
+
 int main(int argc, char **argv)
 {
 	bool uboot_autostart = false; /* flag for "uboot" command = U-Boot autostart */
 	bool pflag_active = false; /* -p switch, causing "write" to output progress */
-	libusb_device_handle *handle;
+	feldev_handle *handle;
 	int busnum = -1, devnum = -1;
 #if defined(__linux__)
 	int iface_detached = -1;
@@ -1499,12 +1527,12 @@ int main(int argc, char **argv)
 	assert(rc == 0);
 	handle = open_fel_device(busnum, devnum, AW_USB_VENDOR_ID, AW_USB_PRODUCT_ID);
 	assert(handle != NULL);
-	rc = libusb_claim_interface(handle, 0);
+	rc = libusb_claim_interface(handle->usb->handle, 0);
 #if defined(__linux__)
 	if (rc != LIBUSB_SUCCESS) {
-		libusb_detach_kernel_driver(handle, 0);
+		libusb_detach_kernel_driver(handle->usb->handle, 0);
 		iface_detached = 0;
-		rc = libusb_claim_interface(handle, 0);
+		rc = libusb_claim_interface(handle->usb->handle, 0);
 	}
 #endif
 	assert(rc == 0);
@@ -1608,12 +1636,13 @@ int main(int argc, char **argv)
 		aw_fel_execute(handle, uboot_entry);
 	}
 
-	libusb_release_interface(handle, 0);
+	libusb_release_interface(handle->usb->handle, 0);
 #if defined(__linux__)
 	if (iface_detached >= 0)
-		libusb_attach_kernel_driver(handle, iface_detached);
+		libusb_attach_kernel_driver(handle->usb->handle, iface_detached);
 #endif
-	libusb_close(handle);
+	feldev_close(handle);
+	free(handle);
 	libusb_exit(NULL);
 
 	return 0;
