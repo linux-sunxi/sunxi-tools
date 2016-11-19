@@ -52,4 +52,7 @@ void aw_fel_write_buffer(feldev_handle *dev, void *buf, uint32_t offset,
 			 size_t len, bool progress);
 void aw_fel_execute(feldev_handle *dev, uint32_t offset);
 
+void fel_readl_n(feldev_handle *dev, uint32_t addr, uint32_t *dst, size_t count);
+void fel_writel_n(feldev_handle *dev, uint32_t addr, uint32_t *src, size_t count);
+
 #endif /* _SUNXI_TOOLS_FEL_LIB_H */

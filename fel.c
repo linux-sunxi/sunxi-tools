@@ -286,147 +286,18 @@ void aw_write_arm_cp_reg(feldev_handle *dev, soc_info_t *soc_info,
 	aw_fel_execute(dev, soc_info->scratch_addr);
 }
 
-/*
- * We don't want the scratch code/buffer to exceed a maximum size of 0x400 bytes
- * (256 32-bit words) on readl_n/writel_n transfers. To guarantee this, we have
- * to account for the amount of space the ARM code uses.
- */
-#define LCODE_ARM_WORDS  12 /* word count of the [read/write]l_n scratch code */
-#define LCODE_ARM_SIZE   (LCODE_ARM_WORDS << 2) /* code size in bytes */
-#define LCODE_MAX_TOTAL  0x100 /* max. words in buffer */
-#define LCODE_MAX_WORDS  (LCODE_MAX_TOTAL - LCODE_ARM_WORDS) /* data words */
-
-/* multiple "readl" from sequential addresses to a destination buffer */
-void aw_fel_readl_n(feldev_handle *dev, uint32_t addr,
-		    uint32_t *dst, size_t count)
-{
-	if (count == 0) return;
-	if (count > LCODE_MAX_WORDS) {
-		fprintf(stderr,
-			"ERROR: Max. word count exceeded, truncating aw_fel_readl_n() transfer\n");
-		count = LCODE_MAX_WORDS;
-	}
-	soc_info_t *soc_info = dev->soc_info;
-
-	assert(LCODE_MAX_WORDS < 256); /* protect against corruption of ARM code */
-	uint32_t arm_code[] = {
-		htole32(0xe59f0020), /* ldr  r0, [pc, #32] ; ldr r0,[read_addr]  */
-		htole32(0xe28f1024), /* add  r1, pc, #36   ; adr r1, read_data   */
-		htole32(0xe59f201c), /* ldr  r2, [pc, #28] ; ldr r2,[read_count] */
-		htole32(0xe3520000 + LCODE_MAX_WORDS), /* cmp	r2, #LCODE_MAX_WORDS */
-		htole32(0xc3a02000 + LCODE_MAX_WORDS), /* movgt	r2, #LCODE_MAX_WORDS */
-		/* read_loop: */
-		htole32(0xe2522001), /* subs r2, r2, #1    ; r2 -= 1             */
-		htole32(0x412fff1e), /* bxmi lr            ; return if (r2 < 0)  */
-		htole32(0xe4903004), /* ldr  r3, [r0], #4  ; load and post-inc   */
-		htole32(0xe4813004), /* str  r3, [r1], #4  ; store and post-inc  */
-		htole32(0xeafffffa), /* b    read_loop                           */
-		htole32(addr),       /* read_addr */
-		htole32(count)       /* read_count */
-		/* read_data (buffer) follows, i.e. values go here */
-	};
-	assert(sizeof(arm_code) == LCODE_ARM_SIZE);
-
-	/* scratch buffer setup: transfers ARM code, including addr and count */
-	aw_fel_write(dev, arm_code, soc_info->scratch_addr, sizeof(arm_code));
-	/* execute code, read back the result */
-	aw_fel_execute(dev, soc_info->scratch_addr);
-	uint32_t buffer[count];
-	aw_fel_read(dev, soc_info->scratch_addr + LCODE_ARM_SIZE,
-		    buffer, sizeof(buffer));
-	/* extract values to destination buffer */
-	uint32_t *val = buffer;
-	while (count-- > 0)
-		*dst++ = le32toh(*val++);
-}
-
 /* "readl" of a single value */
-uint32_t aw_fel_readl(feldev_handle *dev, uint32_t addr)
+uint32_t fel_readl(feldev_handle *dev, uint32_t addr)
 {
 	uint32_t val;
-	aw_fel_readl_n(dev, addr, &val, 1);
+	fel_readl_n(dev, addr, &val, 1);
 	return val;
 }
 
-/*
- * aw_fel_readl_n() wrapper that can handle large transfers. If necessary,
- * those will be done in separate 'chunks' of no more than LCODE_MAX_WORDS.
- */
-void fel_readl_n(feldev_handle *dev, uint32_t addr, uint32_t *dst, size_t count)
-{
-	while (count > 0) {
-		size_t n = count > LCODE_MAX_WORDS ? LCODE_MAX_WORDS : count;
-		aw_fel_readl_n(dev, addr, dst, n);
-		addr += n * sizeof(uint32_t);
-		dst += n;
-		count -= n;
-	}
-}
-
-/* multiple "writel" from a source buffer to sequential addresses */
-void aw_fel_writel_n(feldev_handle *dev, uint32_t addr,
-		     uint32_t *src, size_t count)
-{
-	if (count == 0) return;
-	if (count > LCODE_MAX_WORDS) {
-		fprintf(stderr,
-			"ERROR: Max. word count exceeded, truncating aw_fel_writel_n() transfer\n");
-		count = LCODE_MAX_WORDS;
-	}
-	soc_info_t *soc_info = dev->soc_info;
-
-	assert(LCODE_MAX_WORDS < 256); /* protect against corruption of ARM code */
-	/*
-	 * We need a fixed array size to allow for (partial) initialization,
-	 * so we'll claim the maximum total number of words (0x100) here.
-	 */
-	uint32_t arm_code[LCODE_MAX_TOTAL] = {
-		htole32(0xe59f0020), /* ldr  r0, [pc, #32] ; ldr r0,[write_addr] */
-		htole32(0xe28f1024), /* add  r1, pc, #36   ; adr r1, write_data  */
-		htole32(0xe59f201c), /* ldr  r2, [pc, #28] ; ldr r2,[write_count]*/
-		htole32(0xe3520000 + LCODE_MAX_WORDS), /* cmp	r2, #LCODE_MAX_WORDS */
-		htole32(0xc3a02000 + LCODE_MAX_WORDS), /* movgt	r2, #LCODE_MAX_WORDS */
-		/* write_loop: */
-		htole32(0xe2522001), /* subs r2, r2, #1    ; r2 -= 1             */
-		htole32(0x412fff1e), /* bxmi lr            ; return if (r2 < 0)  */
-		htole32(0xe4913004), /* ldr  r3, [r1], #4  ; load and post-inc   */
-		htole32(0xe4803004), /* str  r3, [r0], #4  ; store and post-inc  */
-		htole32(0xeafffffa), /* b    write_loop                          */
-		htole32(addr),       /* write_addr */
-		htole32(count)       /* write_count */
-		/* write_data (buffer) follows, i.e. values taken from here */
-	};
-
-	/* copy values from source buffer */
-	size_t i;
-	for (i = 0; i < count; i++)
-		arm_code[LCODE_ARM_WORDS + i] = htole32(*src++);
-	/* scratch buffer setup: transfers ARM code and data */
-	aw_fel_write(dev, arm_code, soc_info->scratch_addr,
-	             (LCODE_ARM_WORDS + count) * sizeof(uint32_t));
-	/* execute, and we're done */
-	aw_fel_execute(dev, soc_info->scratch_addr);
-}
-
 /* "writel" of a single value */
-void aw_fel_writel(feldev_handle *dev, uint32_t addr, uint32_t val)
+void fel_writel(feldev_handle *dev, uint32_t addr, uint32_t val)
 {
-	aw_fel_writel_n(dev, addr, &val, 1);
-}
-
-/*
- * aw_fel_writel_n() wrapper that can handle large transfers. If necessary,
- * those will be done in separate 'chunks' of no more than LCODE_MAX_WORDS.
- */
-void fel_writel_n(feldev_handle *dev, uint32_t addr, uint32_t *src, size_t count)
-{
-	while (count > 0) {
-		size_t n = count > LCODE_MAX_WORDS ? LCODE_MAX_WORDS : count;
-		aw_fel_writel_n(dev, addr, src, n);
-		addr += n * sizeof(uint32_t);
-		src += n;
-		count -= n;
-	}
+	fel_writel_n(dev, addr, &val, 1);
 }
 
 void aw_fel_print_sid(feldev_handle *dev)
@@ -436,7 +307,7 @@ void aw_fel_print_sid(feldev_handle *dev)
 		pr_info("SID key (e-fuses) at 0x%08X\n", soc_info->sid_addr);
 
 		uint32_t key[4];
-		aw_fel_readl_n(dev, soc_info->sid_addr, key, 4);
+		fel_readl_n(dev, soc_info->sid_addr, key, 4);
 
 		unsigned int i;
 		/* output SID in "xxxxxxxx:xxxxxxxx:xxxxxxxx:xxxxxxxx" format */
@@ -1192,10 +1063,10 @@ int main(int argc, char **argv)
 			aw_fel_dump(handle, strtoul(argv[2], NULL, 0), strtoul(argv[3], NULL, 0));
 			skip = 3;
 		} else if (strcmp(argv[1], "readl") == 0 && argc > 2) {
-			printf("0x%08x\n", aw_fel_readl(handle, strtoul(argv[2], NULL, 0)));
+			printf("0x%08x\n", fel_readl(handle, strtoul(argv[2], NULL, 0)));
 			skip = 2;
 		} else if (strcmp(argv[1], "writel") == 0 && argc > 3) {
-			aw_fel_writel(handle, strtoul(argv[2], NULL, 0), strtoul(argv[3], NULL, 0));
+			fel_writel(handle, strtoul(argv[2], NULL, 0), strtoul(argv[3], NULL, 0));
 			skip = 3;
 		} else if (strncmp(argv[1], "exe", 3) == 0 && argc > 2) {
 			aw_fel_execute(handle, strtoul(argv[2], NULL, 0));
