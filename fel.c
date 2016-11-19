@@ -488,34 +488,58 @@ void aw_write_arm_cp_reg(libusb_device_handle *usb, soc_info_t *soc_info,
 	aw_fel_execute(usb, soc_info->scratch_addr);
 }
 
+/*
+ * We don't want the scratch code/buffer to exceed a maximum size of 0x400 bytes
+ * (256 32-bit words) on readl_n/writel_n transfers. To guarantee this, we have
+ * to account for the amount of space the ARM code uses.
+ */
+#define LCODE_ARM_WORDS  12 /* word count of the [read/write]l_n scratch code */
+#define LCODE_ARM_SIZE   (LCODE_ARM_WORDS << 2) /* code size in bytes */
+#define LCODE_MAX_TOTAL  0x100 /* max. words in buffer */
+#define LCODE_MAX_WORDS  (LCODE_MAX_TOTAL - LCODE_ARM_WORDS) /* data words */
+
 /* multiple "readl" from sequential addresses to a destination buffer */
 void aw_fel_readl_n(libusb_device_handle *usb, uint32_t addr,
 		    uint32_t *dst, size_t count)
 {
-	soc_info_t *soc_info = aw_fel_get_soc_info(usb);
-	uint32_t val;
-	uint32_t arm_code[] = {
-		htole32(0xe59f0010), /* ldr        r0, [pc, #16]            */
-		htole32(0xe5901000), /* ldr        r1, [r0]                 */
-		htole32(0xe58f100c), /* str        r1, [pc, #12]            */
-		htole32(0xe2800004), /* add        r0, r0, #4               */
-		htole32(0xe58f0000), /* str        r0, [pc]                 */
-		htole32(0xe12fff1e), /* bx         lr                       */
-		htole32(addr),
-		/* value goes here */
-	};
-	/* scratch buffer setup: transfers ARM code and also sets the addr */
-	aw_fel_write(usb, arm_code, soc_info->scratch_addr, sizeof(arm_code));
-	while (count-- > 0) {
-		/*
-		 * Since the scratch code auto-increments addr, we can simply
-		 * execute it repeatedly for sequential "readl"s; retrieving
-		 * one uint32_t each time.
-		 */
-		aw_fel_execute(usb, soc_info->scratch_addr);
-		aw_fel_read(usb, soc_info->scratch_addr + 28, &val, sizeof(val));
-		*dst++ = le32toh(val);
+	if (count == 0) return;
+	if (count > LCODE_MAX_WORDS) {
+		fprintf(stderr,
+			"ERROR: Max. word count exceeded, truncating aw_fel_readl_n() transfer\n");
+		count = LCODE_MAX_WORDS;
 	}
+	soc_info_t *soc_info = aw_fel_get_soc_info(usb);
+
+	assert(LCODE_MAX_WORDS < 256); /* protect against corruption of ARM code */
+	uint32_t arm_code[] = {
+		htole32(0xe59f0020), /* ldr  r0, [pc, #32] ; ldr r0,[read_addr]  */
+		htole32(0xe28f1024), /* add  r1, pc, #36   ; adr r1, read_data   */
+		htole32(0xe59f201c), /* ldr  r2, [pc, #28] ; ldr r2,[read_count] */
+		htole32(0xe3520000 + LCODE_MAX_WORDS), /* cmp	r2, #LCODE_MAX_WORDS */
+		htole32(0xc3a02000 + LCODE_MAX_WORDS), /* movgt	r2, #LCODE_MAX_WORDS */
+		/* read_loop: */
+		htole32(0xe2522001), /* subs r2, r2, #1    ; r2 -= 1             */
+		htole32(0x412fff1e), /* bxmi lr            ; return if (r2 < 0)  */
+		htole32(0xe4903004), /* ldr  r3, [r0], #4  ; load and post-inc   */
+		htole32(0xe4813004), /* str  r3, [r1], #4  ; store and post-inc  */
+		htole32(0xeafffffa), /* b    read_loop                           */
+		htole32(addr),       /* read_addr */
+		htole32(count)       /* read_count */
+		/* read_data (buffer) follows, i.e. values go here */
+	};
+	assert(sizeof(arm_code) == LCODE_ARM_SIZE);
+
+	/* scratch buffer setup: transfers ARM code, including addr and count */
+	aw_fel_write(usb, arm_code, soc_info->scratch_addr, sizeof(arm_code));
+	/* execute code, read back the result */
+	aw_fel_execute(usb, soc_info->scratch_addr);
+	uint32_t buffer[count];
+	aw_fel_read(usb, soc_info->scratch_addr + LCODE_ARM_SIZE,
+		    buffer, sizeof(buffer));
+	/* extract values to destination buffer */
+	uint32_t *val = buffer;
+	while (count-- > 0)
+		*dst++ = le32toh(*val++);
 }
 
 /* "readl" of a single value */
@@ -530,31 +554,45 @@ uint32_t aw_fel_readl(libusb_device_handle *usb, uint32_t addr)
 void aw_fel_writel_n(libusb_device_handle *usb, uint32_t addr,
 		     uint32_t *src, size_t count)
 {
-	if (count == 0) return; /* on zero count, do not access *src at all */
-
-	soc_info_t *soc_info = aw_fel_get_soc_info(usb);
-	uint32_t arm_code[] = {
-		htole32(0xe59f0010), /* ldr        r0, [pc, #16]            */
-		htole32(0xe59f1010), /* ldr        r1, [pc, #16]            */
-		htole32(0xe5801000), /* str        r1, [r0]                 */
-		htole32(0xe2800004), /* add        r0, r0, #4               */
-		htole32(0xe58f0000), /* str        r0, [pc]                 */
-		htole32(0xe12fff1e), /* bx         lr                       */
-		htole32(addr),
-		htole32(*src++)
-	};
-	/* scratch buffer setup: transfers ARM code, addr and first value */
-	aw_fel_write(usb, arm_code, soc_info->scratch_addr, sizeof(arm_code));
-	aw_fel_execute(usb, soc_info->scratch_addr); /* stores first value */
-	while (--count > 0) {
-		/*
-		 * Subsequent transfers only need to set up the next value
-		 * to store (since the scratch code auto-increments addr).
-		 */
-		uint32_t val = htole32(*src++);
-		aw_fel_write(usb, &val, soc_info->scratch_addr + 28, sizeof(val));
-		aw_fel_execute(usb, soc_info->scratch_addr);
+	if (count == 0) return;
+	if (count > LCODE_MAX_WORDS) {
+		fprintf(stderr,
+			"ERROR: Max. word count exceeded, truncating aw_fel_writel_n() transfer\n");
+		count = LCODE_MAX_WORDS;
 	}
+	soc_info_t *soc_info = aw_fel_get_soc_info(usb);
+
+	assert(LCODE_MAX_WORDS < 256); /* protect against corruption of ARM code */
+	/*
+	 * We need a fixed array size to allow for (partial) initialization,
+	 * so we'll claim the maximum total number of words (0x100) here.
+	 */
+	uint32_t arm_code[LCODE_MAX_TOTAL] = {
+		htole32(0xe59f0020), /* ldr  r0, [pc, #32] ; ldr r0,[write_addr] */
+		htole32(0xe28f1024), /* add  r1, pc, #36   ; adr r1, write_data  */
+		htole32(0xe59f201c), /* ldr  r2, [pc, #28] ; ldr r2,[write_count]*/
+		htole32(0xe3520000 + LCODE_MAX_WORDS), /* cmp	r2, #LCODE_MAX_WORDS */
+		htole32(0xc3a02000 + LCODE_MAX_WORDS), /* movgt	r2, #LCODE_MAX_WORDS */
+		/* write_loop: */
+		htole32(0xe2522001), /* subs r2, r2, #1    ; r2 -= 1             */
+		htole32(0x412fff1e), /* bxmi lr            ; return if (r2 < 0)  */
+		htole32(0xe4913004), /* ldr  r3, [r1], #4  ; load and post-inc   */
+		htole32(0xe4803004), /* str  r3, [r0], #4  ; store and post-inc  */
+		htole32(0xeafffffa), /* b    write_loop                          */
+		htole32(addr),       /* write_addr */
+		htole32(count)       /* write_count */
+		/* write_data (buffer) follows, i.e. values taken from here */
+	};
+
+	/* copy values from source buffer */
+	size_t i;
+	for (i = 0; i < count; i++)
+		arm_code[LCODE_ARM_WORDS + i] = htole32(*src++);
+	/* scratch buffer setup: transfers ARM code and data */
+	aw_fel_write(usb, arm_code, soc_info->scratch_addr,
+	             (LCODE_ARM_WORDS + count) * sizeof(uint32_t));
+	/* execute, and we're done */
+	aw_fel_execute(usb, soc_info->scratch_addr);
 }
 
 /* "writel" of a single value */
