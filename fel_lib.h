@@ -36,6 +36,15 @@ typedef struct {
 	soc_info_t *soc_info;
 } feldev_handle;
 
+/* list_fel_devices() will return an array of this type */
+typedef struct {
+	int busnum, devnum;
+	struct aw_fel_version soc_version;
+	soc_name_t soc_name;
+	soc_info_t *soc_info;
+	uint32_t SID[4];
+} feldev_list_entry;
+
 /* FEL device management */
 
 void feldev_init(void);
@@ -44,6 +53,8 @@ void feldev_done(feldev_handle *dev);
 feldev_handle *feldev_open(int busnum, int devnum,
 			   uint16_t vendor_id, uint16_t product_id);
 void feldev_close(feldev_handle *dev);
+
+feldev_list_entry *list_fel_devices(size_t *count);
 
 /* FEL functions */
 

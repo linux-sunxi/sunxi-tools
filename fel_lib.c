@@ -548,3 +548,68 @@ void feldev_done(feldev_handle *dev)
 	free(dev);
 	if (fel_lib_initialized) libusb_exit(NULL);
 }
+
+/*
+ * Enumerate (all) FEL devices. Allocates a list (array of feldev_list_entry)
+ * and optionally returns the number of elements via "count". You may
+ * alternatively detect the end of the list by checking the entry's soc_version
+ * for a zero ID.
+ * It's your responsibility to call free() on the result later.
+ */
+feldev_list_entry *list_fel_devices(size_t *count)
+{
+	feldev_list_entry *list, *entry;
+	ssize_t rc, i;
+	libusb_context *ctx;
+	libusb_device **usb;
+	struct libusb_device_descriptor desc;
+	feldev_handle *dev;
+	size_t devices = 0;
+
+	libusb_init(&ctx);
+	rc = libusb_get_device_list(ctx, &usb);
+	if (rc < 0)
+		usb_error(rc, "libusb_get_device_list()", 1);
+
+	/*
+	 * Size our array to hold entries for every USB device,
+	 * plus an empty one at the end (for list termination).
+	 */
+	list = calloc(rc + 1, sizeof(feldev_list_entry));
+	if (!list) {
+		fprintf(stderr, "list_fel_devices() FAILED to allocate list memory.\n");
+		exit(1);
+	}
+
+	for (i = 0; i < rc; i++) {
+		libusb_get_device_descriptor(usb[i], &desc);
+		if (desc.idVendor != AW_USB_VENDOR_ID
+		    || desc.idProduct != AW_USB_PRODUCT_ID)
+		continue; /* not an Allwinner FEL device */
+
+		entry = list + devices; /* pointer to current feldev_list_entry */
+		devices += 1;
+
+		entry->busnum = libusb_get_bus_number(usb[i]);
+		entry->devnum = libusb_get_device_address(usb[i]);
+		dev = feldev_open(entry->busnum, entry->devnum,
+				  AW_USB_VENDOR_ID, AW_USB_PRODUCT_ID);
+
+		/* copy relevant fields */
+		entry->soc_version = dev->soc_version;
+		entry->soc_info = dev->soc_info;
+		strncpy(entry->soc_name, dev->soc_name, sizeof(soc_name_t));
+
+		/* retrieve SID bits */
+		if (dev->soc_info->sid_addr)
+			aw_fel_readl_n(dev, dev->soc_info->sid_addr, entry->SID, 4);
+
+		feldev_close(dev);
+		free(dev);
+	}
+	libusb_free_device_list(usb, true);
+	libusb_exit(ctx);
+
+	if (count) *count = devices;
+	return list;
+}
