@@ -34,6 +34,12 @@ struct aw_fel_version {
 } __attribute__((packed));
 
 /*
+ * Buffer for a SoC name string. We want at least 6 + 1 characters, to store
+ * the hexadecimal ID "0xABCD" for unknown SoCs, plus the terminating NUL.
+ */
+typedef char soc_name_t[8];
+
+/*
  * The 'sram_swap_buffers' structure is used to describe information about
  * pairwise memory regions in SRAM, the content of which needs to be exchanged
  * before calling the U-Boot SPL code and then exchanged again before returning
@@ -69,6 +75,7 @@ typedef struct {
  */
 typedef struct {
 	uint32_t           soc_id;       /* ID of the SoC */
+	const char         *name;        /* human-readable SoC name string */
 	uint32_t           spl_addr;     /* SPL load address */
 	uint32_t           scratch_addr; /* A safe place to upload & run code */
 	uint32_t           thunk_addr;   /* Address of the thunk code */
@@ -81,6 +88,7 @@ typedef struct {
 } soc_info_t;
 
 
+void get_soc_name_from_id(soc_name_t buffer, uint32_t soc_id);
 soc_info_t *get_soc_info_from_id(uint32_t soc_id);
 soc_info_t *get_soc_info_from_version(struct aw_fel_version *buf);
 

@@ -516,6 +516,7 @@ feldev_handle *feldev_open(int busnum, int devnum,
 
 	/* retrieve BROM version and SoC information */
 	aw_fel_get_version(result, &result->soc_version);
+	get_soc_name_from_id(result->soc_name, result->soc_version.soc_id);
 	result->soc_info = get_soc_info_from_version(&result->soc_version);
 
 	return result;

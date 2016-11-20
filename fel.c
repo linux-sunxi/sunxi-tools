@@ -86,22 +86,10 @@ int get_image_type(const uint8_t *buf, size_t len)
 void aw_fel_print_version(feldev_handle *dev)
 {
 	struct aw_fel_version buf = dev->soc_version;
+	const char *soc_name = dev->soc_name;
 
-	const char *soc_name="unknown";
-	switch (buf.soc_id) {
-	case 0x1623: soc_name="A10"; break;
-	case 0x1625: soc_name="A13"; break;
-	case 0x1633: soc_name="A31"; break;
-	case 0x1651: soc_name="A20"; break;
-	case 0x1650: soc_name="A23"; break;
-	case 0x1689: soc_name="A64"; break;
-	case 0x1639: soc_name="A80"; break;
-	case 0x1667: soc_name="A33"; break;
-	case 0x1673: soc_name="A83T"; break;
-	case 0x1680: soc_name="H3"; break;
-	case 0x1701: soc_name="R40"; break;
-	case 0x1718: soc_name="H5"; break;
-	}
+	if (soc_name[0] == '0') /* hexadecimal ID -> unknown SoC */
+		soc_name = "unknown";
 
 	printf("%.8s soc=%08x(%s) %08x ver=%04x %02x %02x scratchpad=%08x %08x %08x\n",
 		buf.signature, buf.soc_id, soc_name, buf.unknown_0a,
@@ -314,8 +302,8 @@ void aw_fel_print_sid(feldev_handle *dev)
 		for (i = 0; i <= 3; i++)
 			printf("%08x%c", key[i], i < 3 ? ':' : '\n');
 	} else {
-		printf("SID registers for your SoC (id=%04X) are unknown or inaccessible.\n",
-			soc_info->soc_id);
+		printf("SID registers for your SoC (%s) are unknown or inaccessible.\n",
+			dev->soc_name);
 	}
 }
 
@@ -894,8 +882,8 @@ void aw_rmr_request(feldev_handle *dev, uint32_t entry_point, bool aarch64)
 	soc_info_t *soc_info = dev->soc_info;
 	if (!soc_info->rvbar_reg) {
 		fprintf(stderr, "ERROR: Can't issue RMR request!\n"
-			"RVBAR is not supported or unknown for your SoC (id=%04X).\n",
-			soc_info->soc_id);
+			"RVBAR is not supported or unknown for your SoC (%s).\n",
+			dev->soc_name);
 		return;
 	}
 

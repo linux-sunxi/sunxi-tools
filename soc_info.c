@@ -23,6 +23,7 @@
 #include "soc_info.h"
 
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 
 /*
@@ -97,6 +98,7 @@ sram_swap_buffers a80_sram_swap_buffers[] = {
 soc_info_t soc_info_table[] = {
 	{
 		.soc_id       = 0x1623, /* Allwinner A10 */
+		.name         = "A10",
 		.scratch_addr = 0x1000,
 		.thunk_addr   = 0xA200, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
@@ -104,6 +106,7 @@ soc_info_t soc_info_table[] = {
 		.sid_addr     = 0x01C23800,
 	},{
 		.soc_id       = 0x1625, /* Allwinner A10s, A13, R8 */
+		.name         = "A13",
 		.scratch_addr = 0x1000,
 		.thunk_addr   = 0xA200, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
@@ -111,29 +114,34 @@ soc_info_t soc_info_table[] = {
 		.sid_addr     = 0x01C23800,
 	},{
 		.soc_id       = 0x1651, /* Allwinner A20 */
+		.name         = "A20",
 		.scratch_addr = 0x1000,
 		.thunk_addr   = 0xA200, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.sid_addr     = 0x01C23800,
 	},{
 		.soc_id       = 0x1650, /* Allwinner A23 */
+		.name         = "A23",
 		.scratch_addr = 0x1000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = ar100_abusing_sram_swap_buffers,
 		.sid_addr     = 0x01C23800,
 	},{
 		.soc_id       = 0x1633, /* Allwinner A31 */
+		.name         = "A31",
 		.scratch_addr = 0x1000,
 		.thunk_addr   = 0x22E00, .thunk_size = 0x200,
 		.swap_buffers = a31_sram_swap_buffers,
 	},{
 		.soc_id       = 0x1667, /* Allwinner A33, R16 */
+		.name         = "A33",
 		.scratch_addr = 0x1000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = ar100_abusing_sram_swap_buffers,
 		.sid_addr     = 0x01C23800,
 	},{
 		.soc_id       = 0x1689, /* Allwinner A64 */
+		.name         = "A64",
 		.spl_addr     = 0x10000,
 		.scratch_addr = 0x11000,
 		.thunk_addr   = 0x1A200, .thunk_size = 0x200,
@@ -142,6 +150,7 @@ soc_info_t soc_info_table[] = {
 		.rvbar_reg    = 0x017000A0,
 	},{
 		.soc_id       = 0x1639, /* Allwinner A80 */
+		.name         = "A80",
 		.spl_addr     = 0x10000,
 		.scratch_addr = 0x11000,
 		.thunk_addr   = 0x23400, .thunk_size = 0x200,
@@ -149,12 +158,14 @@ soc_info_t soc_info_table[] = {
 		.sid_addr     = 0x01c0e200,
 	},{
 		.soc_id       = 0x1673, /* Allwinner A83T */
+		.name         = "A83T",
 		.scratch_addr = 0x1000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = ar100_abusing_sram_swap_buffers,
 		.sid_addr     = 0x01C14200,
 	},{
 		.soc_id       = 0x1680, /* Allwinner H3, H2+ */
+		.name         = "H3",
 		.scratch_addr = 0x1000,
 		.mmu_tt_addr  = 0x8000,
 		.thunk_addr   = 0xA200, .thunk_size = 0x200,
@@ -162,6 +173,7 @@ soc_info_t soc_info_table[] = {
 		.sid_addr     = 0x01C14200,
 	},{
 		.soc_id       = 0x1718, /* Allwinner H5 */
+		.name         = "H5",
 		.spl_addr     = 0x10000,
 		.scratch_addr = 0x11000,
 		.thunk_addr   = 0x1A200, .thunk_size = 0x200,
@@ -170,6 +182,7 @@ soc_info_t soc_info_table[] = {
 		.rvbar_reg    = 0x017000A0,
 	},{
 		.soc_id       = 0x1701, /* Allwinner R40 */
+		.name         = "R40",
 		.scratch_addr = 0x1000,
 		.thunk_addr   = 0xA200, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
@@ -224,4 +237,19 @@ soc_info_t *get_soc_info_from_id(uint32_t soc_id)
 soc_info_t *get_soc_info_from_version(struct aw_fel_version *buf)
 {
 	return get_soc_info_from_id(buf->soc_id);
+}
+
+void get_soc_name_from_id(soc_name_t buffer, uint32_t soc_id)
+{
+	int i;
+	for (i = 0; soc_info_table[i].swap_buffers; i++)
+		if (soc_info_table[i].soc_id == soc_id
+		    && soc_info_table[i].name != NULL) {
+			strncpy(buffer, soc_info_table[i].name,
+			        sizeof(soc_name_t) - 1);
+			return;
+		}
+
+	/* unknown SoC (or name string missing), use the hexadecimal ID */
+	snprintf(buffer, sizeof(soc_name_t) - 1, "0x%04X", soc_id);
 }

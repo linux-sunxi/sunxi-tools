@@ -32,6 +32,7 @@ typedef struct _felusb_handle felusb_handle; /* opaque data type */
 typedef struct {
 	felusb_handle *usb;
 	struct aw_fel_version soc_version;
+	soc_name_t soc_name;
 	soc_info_t *soc_info;
 } feldev_handle;
 
