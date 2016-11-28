@@ -41,22 +41,29 @@
 #	define __LITTLE_ENDIAN LITTLE_ENDIAN
 #	define __PDP_ENDIAN    PDP_ENDIAN
 
-#elif defined(__OpenBSD__) || defined(__FreeBSD__)
+#elif defined(__OpenBSD__) ||  defined(__NetBSD__) || defined(__FreeBSD__) || defined(__DragonFly__)
 
 #	include <sys/endian.h>
 
-#elif defined(__NetBSD__) || defined(__DragonFly__)
-
-#	include <sys/endian.h>
-
+/* For functions still missing, try to substitute 'historic' OpenBSD names */
+#ifndef be16toh
 #	define be16toh(x) betoh16(x)
+#endif
+#ifndef le16toh
 #	define le16toh(x) letoh16(x)
-
+#endif
+#ifndef be32toh
 #	define be32toh(x) betoh32(x)
+#endif
+#ifndef le32toh
 #	define le32toh(x) letoh32(x)
-
+#endif
+#ifndef be64toh
 #	define be64toh(x) betoh64(x)
+#endif
+#ifndef le64toh
 #	define le64toh(x) letoh64(x)
+#endif
 
 #elif defined(__WINDOWS__)
 
