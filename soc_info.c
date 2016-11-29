@@ -146,6 +146,7 @@ soc_info_t soc_info_table[] = {
 		.scratch_addr = 0x11000,
 		.thunk_addr   = 0x23400, .thunk_size = 0x200,
 		.swap_buffers = a80_sram_swap_buffers,
+		.sid_addr     = 0x01c0e200,
 	},{
 		.soc_id       = 0x1673, /* Allwinner A83T */
 		.scratch_addr = 0x1000,
