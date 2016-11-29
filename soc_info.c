@@ -168,6 +168,12 @@ soc_info_t soc_info_table[] = {
 		.sid_addr     = 0x01C14200,
 		.rvbar_reg    = 0x017000A0,
 	},{
+		.soc_id       = 0x1701, /* Allwinner R40 */
+		.scratch_addr = 0x1000,
+		.thunk_addr   = 0xA200, .thunk_size = 0x200,
+		.swap_buffers = a10_a13_a20_sram_swap_buffers,
+		.sid_addr     = 0x01C1B200,
+	},{
 		.swap_buffers = NULL /* End of the table */
 	}
 };

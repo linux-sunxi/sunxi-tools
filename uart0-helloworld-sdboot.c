@@ -256,6 +256,7 @@ void soc_detection_init(void)
 #define soc_is_a64()	(soc_id == 0x1689)
 #define soc_is_h3()	(soc_id == 0x1680)
 #define soc_is_h5()	(soc_id == 0x1718)
+#define soc_is_r40()	(soc_id == 0x1701)
 
 /* A10s and A13 share the same ID, so we need a little more effort on those */
 
@@ -303,7 +304,7 @@ void clock_init_uart(void)
 
 void gpio_init(void)
 {
-	if (soc_is_a10() || soc_is_a20()) {
+	if (soc_is_a10() || soc_is_a20() || soc_is_r40()) {
 		sunxi_gpio_set_cfgpin(SUNXI_GPB(22), SUN4I_GPB_UART0);
 		sunxi_gpio_set_cfgpin(SUNXI_GPB(23), SUN4I_GPB_UART0);
 		sunxi_gpio_set_pull(SUNXI_GPB(23), SUNXI_GPIO_PULL_UP);
@@ -446,6 +447,8 @@ int main(void)
 		uart0_puts("Allwinner H3!\n");
 	else if (soc_is_h5())
 		uart0_puts("Allwinner H5!\n");
+	else if (soc_is_r40())
+		uart0_puts("Allwinner R40!\n");
 	else
 		uart0_puts("unknown Allwinner SoC!\n");
 
