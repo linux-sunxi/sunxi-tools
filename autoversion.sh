@@ -4,7 +4,7 @@
 # output (on stdout) can easily be redirected to a file.
 #
 
-LATEST_RELEASE="v1.4.1"
+LATEST_RELEASE="v1.4.2"
 
 if VER=`git describe --tags --dirty --always`; then
 	echo "Setting version information: ${VER}" >&2
