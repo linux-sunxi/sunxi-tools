@@ -30,10 +30,18 @@ compatiblity shortcut to call `sunxi-fexc` to compile a `.fex` file
 into the binary form used by the legacy 3.4 kernel ("linux&#8209;sunxi").
 
 ### sunxi-fel
-script interface for talking to the FEL USB handler built in to
-the CPU. You activate [FEL mode] by pushing the _uboot_ / _recovery_
-button at poweron. See http://linux-sunxi.org/FEL/USBBoot for
-a detailed usage guide.
+script interface for USB communication with the FEL handler built in to
+the CPU. You usually activate [FEL mode] by pushing the _uboot_ / _recovery_
+button at poweron, or by having your device "fail over" to FEL when no other
+boot option is available. See http://linux-sunxi.org/FEL/USBBoot for a detailed
+usage guide.
+
+When called with no arguments, _sunxi-fel_ will display a short usage summary.
+
+_Note:_ Unless you select a specific device using the `--dev` or `--sid`
+options, the tool will access the first Allwinner device (in FEL mode) that it
+finds. You can print a list of all FEL devices currently connected/detected
+with `./sunxi-fel --list`.
 
 ### fel-gpio
 Simple wrapper (script) around `fel-pio` and `sunxi-fel`
