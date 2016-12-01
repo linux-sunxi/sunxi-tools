@@ -963,19 +963,65 @@ static unsigned int file_upload(feldev_handle *dev, size_t count,
 	return i; /* return number of files that were processed */
 }
 
+static void felusb_list_devices(void)
+{
+	size_t devices; /* FEL device count */
+	feldev_list_entry *list, *entry;
+
+	list = list_fel_devices(&devices);
+	for (entry = list; entry->soc_version.soc_id; entry++) {
+		printf("USB device %03d:%03d   Allwinner %-8s",
+			entry->busnum, entry->devnum, entry->soc_name);
+		/* output SID only if non-zero */
+		if (entry->SID[0] | entry->SID[1] | entry->SID[2] | entry->SID[3])
+			printf("%08x:%08x:%08x:%08x",
+			       entry->SID[0], entry->SID[1], entry->SID[2], entry->SID[3]);
+		putchar('\n');
+	}
+	free(list);
+
+	if (verbose && devices == 0)
+		fprintf(stderr, "No Allwinner devices in FEL mode detected.\n");
+
+	feldev_done(NULL);
+	exit(devices > 0 ? EXIT_SUCCESS : EXIT_FAILURE);
+}
+
+static void select_by_sid(const char *sid_arg, int *busnum, int *devnum)
+{
+	char sid[36];
+	feldev_list_entry *list, *entry;
+
+	list = list_fel_devices(NULL);
+	for (entry = list; entry->soc_version.soc_id; entry++) {
+		snprintf(sid, sizeof(sid), "%08x:%08x:%08x:%08x",
+			entry->SID[0], entry->SID[1], entry->SID[2], entry->SID[3]);
+		if (strcmp(sid, sid_arg) == 0) {
+			*busnum = entry->busnum;
+			*devnum = entry->devnum;
+			break;
+		}
+	}
+	free(list);
+}
+
 int main(int argc, char **argv)
 {
 	bool uboot_autostart = false; /* flag for "uboot" command = U-Boot autostart */
 	bool pflag_active = false; /* -p switch, causing "write" to output progress */
+	bool device_list = false; /* -l switch, prints device list and exits */
 	feldev_handle *handle;
 	int busnum = -1, devnum = -1;
+	char *sid_arg = NULL;
 
 	if (argc <= 1) {
 		puts("sunxi-fel " VERSION "\n");
 		printf("Usage: %s [options] command arguments... [command...]\n"
 			"	-v, --verbose			Verbose logging\n"
 			"	-p, --progress			\"write\" transfers show a progress bar\n"
+			"	-l, --list			Enumerate all (USB) FEL devices and exit\n"
 			"	-d, --dev bus:devnum		Use specific USB bus and device number\n"
+			"	    --sid SID			Select device by SID key (exact match)\n"
 			"\n"
 			"	spl file			Load and execute U-Boot SPL\n"
 			"		If file additionally contains a main U-Boot binary\n"
@@ -1019,6 +1065,9 @@ int main(int argc, char **argv)
 			verbose = true;
 		else if (strcmp(argv[1], "--progress") == 0 || strcmp(argv[1], "-p") == 0)
 			pflag_active = true;
+		else if (strcmp(argv[1], "--list") == 0 || strcmp(argv[1], "-l") == 0
+			 || strcmp(argv[1], "list") == 0)
+			device_list = true;
 		else if (strncmp(argv[1], "--dev", 5) == 0 || strncmp(argv[1], "-d", 2) == 0) {
 			char *dev_arg = argv[1];
 			dev_arg += strspn(dev_arg, "-dev="); /* skip option chars, ignore '=' */
@@ -1033,10 +1082,28 @@ int main(int argc, char **argv)
 				exit(1);
 			}
 			pr_info("Selecting USB Bus %03d Device %03d\n", busnum, devnum);
+		}
+		else if (strcmp(argv[1], "--sid") == 0 && argc > 2) {
+			sid_arg = argv[2];
+			argc -= 1;
+			argv += 1;
 		} else
 			break; /* no valid (prefix) option detected, exit loop */
 		argc -= 1;
 		argv += 1;
+	}
+
+	if (device_list)
+		felusb_list_devices(); /* and exit program afterwards */
+	if (sid_arg) {
+		/* try to set busnum and devnum according to "--sid" option */
+		select_by_sid(sid_arg, &busnum, &devnum);
+		if (busnum <= 0 || devnum <= 0) {
+			fprintf(stderr, "No matching FEL device found for SID '%s'\n",
+				sid_arg);
+			exit(1);
+		}
+		pr_info("Selecting FEL device %03d:%03d by SID\n", busnum, devnum);
 	}
 
 	handle = feldev_open(busnum, devnum, AW_USB_VENDOR_ID, AW_USB_PRODUCT_ID);
