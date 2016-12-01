@@ -24,7 +24,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /*
  * The FEL code from BROM in A10/A13/A20 sets up two stacks for itself. One
@@ -217,12 +216,11 @@ soc_info_t generic_soc_info = {
 
 soc_info_t *get_soc_info_from_id(uint32_t soc_id)
 {
-	soc_info_t *result = NULL;
-	int i;
+	soc_info_t *soc, *result = NULL;
 
-	for (i = 0; soc_info_table[i].swap_buffers; i++)
-		if (soc_info_table[i].soc_id == soc_id) {
-			result = &soc_info_table[i];
+	for (soc = soc_info_table; soc->swap_buffers; soc++)
+		if (soc->soc_id == soc_id) {
+			result = soc;
 			break;
 		}
 
@@ -241,12 +239,10 @@ soc_info_t *get_soc_info_from_version(struct aw_fel_version *buf)
 
 void get_soc_name_from_id(soc_name_t buffer, uint32_t soc_id)
 {
-	int i;
-	for (i = 0; soc_info_table[i].swap_buffers; i++)
-		if (soc_info_table[i].soc_id == soc_id
-		    && soc_info_table[i].name != NULL) {
-			strncpy(buffer, soc_info_table[i].name,
-			        sizeof(soc_name_t) - 1);
+	soc_info_t *soc;
+	for (soc = soc_info_table; soc->swap_buffers; soc++)
+		if (soc->soc_id == soc_id && soc->name != NULL) {
+			strncpy(buffer, soc->name, sizeof(soc_name_t) - 1);
 			return;
 		}
 
