@@ -963,10 +963,35 @@ static unsigned int file_upload(feldev_handle *dev, size_t count,
 	return i; /* return number of files that were processed */
 }
 
+static void felusb_list_devices(void)
+{
+	size_t devices; /* FEL device count */
+	feldev_list_entry *list, *entry;
+
+	list = list_fel_devices(&devices);
+	for (entry = list; entry->soc_version.soc_id; entry++) {
+		printf("USB device %03d:%03d   Allwinner %-8s",
+			entry->busnum, entry->devnum, entry->soc_name);
+		/* output SID only if non-zero */
+		if (entry->SID[0] | entry->SID[1] | entry->SID[2] | entry->SID[3])
+			printf("%08x:%08x:%08x:%08x",
+			       entry->SID[0], entry->SID[1], entry->SID[2], entry->SID[3]);
+		putchar('\n');
+	}
+	free(list);
+
+	if (verbose && devices == 0)
+		fprintf(stderr, "No Allwinner devices in FEL mode detected.\n");
+
+	feldev_done(NULL);
+	exit(devices > 0 ? EXIT_SUCCESS : EXIT_FAILURE);
+}
+
 int main(int argc, char **argv)
 {
 	bool uboot_autostart = false; /* flag for "uboot" command = U-Boot autostart */
 	bool pflag_active = false; /* -p switch, causing "write" to output progress */
+	bool device_list = false; /* -l switch, prints device list and exits */
 	feldev_handle *handle;
 	int busnum = -1, devnum = -1;
 
@@ -975,6 +1000,7 @@ int main(int argc, char **argv)
 		printf("Usage: %s [options] command arguments... [command...]\n"
 			"	-v, --verbose			Verbose logging\n"
 			"	-p, --progress			\"write\" transfers show a progress bar\n"
+			"	-l, --list			Enumerate all (USB) FEL devices and exit\n"
 			"	-d, --dev bus:devnum		Use specific USB bus and device number\n"
 			"\n"
 			"	spl file			Load and execute U-Boot SPL\n"
@@ -1019,6 +1045,9 @@ int main(int argc, char **argv)
 			verbose = true;
 		else if (strcmp(argv[1], "--progress") == 0 || strcmp(argv[1], "-p") == 0)
 			pflag_active = true;
+		else if (strcmp(argv[1], "--list") == 0 || strcmp(argv[1], "-l") == 0
+			 || strcmp(argv[1], "list") == 0)
+			device_list = true;
 		else if (strncmp(argv[1], "--dev", 5) == 0 || strncmp(argv[1], "-d", 2) == 0) {
 			char *dev_arg = argv[1];
 			dev_arg += strspn(dev_arg, "-dev="); /* skip option chars, ignore '=' */
@@ -1038,6 +1067,9 @@ int main(int argc, char **argv)
 		argc -= 1;
 		argv += 1;
 	}
+
+	if (device_list)
+		felusb_list_devices(); /* and exit program afterwards */
 
 	handle = feldev_open(busnum, devnum, AW_USB_VENDOR_ID, AW_USB_PRODUCT_ID);
 
