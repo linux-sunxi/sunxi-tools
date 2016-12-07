@@ -27,11 +27,11 @@
 #include "script.h"
 #include "script_bin.h"
 
-#define pr_info(...)	errf("fexc-bin: " __VA_ARGS__)
-#define pr_err(...)	errf("E: fexc-bin: " __VA_ARGS__)
+#define pr_info(...)	pr_error("fexc-bin: " __VA_ARGS__)
+#define pr_err(...)	pr_error("E: fexc-bin: " __VA_ARGS__)
 
 #ifdef DEBUG
-#define pr_debug(...)	errf("D: fexc-bin: " __VA_ARGS__)
+#define pr_debug(...)	pr_error("D: fexc-bin: " __VA_ARGS__)
 #else
 #define pr_debug(...)
 #endif

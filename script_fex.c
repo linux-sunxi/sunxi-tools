@@ -27,11 +27,11 @@
 
 #define MAX_LINE	255
 
-#define pr_info(...)	errf("fexc-fex: " __VA_ARGS__)
-#define pr_err(...)	errf("E: fexc-fex: " __VA_ARGS__)
+#define pr_info(...)	pr_error("fexc-fex: " __VA_ARGS__)
+#define pr_err(...)	pr_error("E: fexc-fex: " __VA_ARGS__)
 
 #ifdef DEBUG
-#define pr_debug(...)	errf("D: fexc-fex: " __VA_ARGS__)
+#define pr_debug(...)	pr_error("D: fexc-fex: " __VA_ARGS__)
 #else
 #define pr_debug(...)
 #endif
@@ -204,8 +204,8 @@ int script_parse_fex(FILE *in, const char *filename, struct script *script)
 			continue; /* empty */
 		if (*s == ':') {
 			/* see https://github.com/linux-sunxi/sunxi-boards/issues/50 */
-			errf("Warning: %s:%zu: invalid line, suspecting typo/malformed comment.\n",
-			     filename, line);
+			pr_error("Warning: %s:%zu: invalid line, suspecting typo/malformed comment.\n",
+				 filename, line);
 			continue; /* ignore this line */
 		}
 		if (*s == '[') {
@@ -221,11 +221,11 @@ int script_parse_fex(FILE *in, const char *filename, struct script *script)
 
 				perror("malloc");
 			} else if (*p) {
-				errf("E: %s:%zu: invalid character at %zu.\n",
-				     filename, line, p-buffer+1);
+				pr_error("E: %s:%zu: invalid character at %zu.\n",
+					 filename, line, p-buffer+1);
 			} else {
-				errf("E: %s:%zu: incomplete section declaration.\n",
-				     filename, line);
+				pr_error("E: %s:%zu: incomplete section declaration.\n",
+					 filename, line);
 			}
 			ok = 0;
 		} else {
@@ -234,8 +234,8 @@ int script_parse_fex(FILE *in, const char *filename, struct script *script)
 			char *mark, *p = s;
 
 			if (!last_section) {
-				errf("E: %s:%zu: data must follow a section.\n",
-				     filename, line);
+				pr_error("E: %s:%zu: data must follow a section.\n",
+					 filename, line);
 				goto parse_error;
 			};
 
@@ -291,8 +291,8 @@ int script_parse_fex(FILE *in, const char *filename, struct script *script)
 					if (end == p)
 						goto invalid_char_at_p;
 					else if (v<0 || v>255) {
-						errf("E: %s:%zu: port out of range at %zu (%ld).\n",
-						     filename, line, p-buffer+1, v);
+						pr_error("E: %s:%zu: port out of range at %zu (%ld).\n",
+							 filename, line, p-buffer+1, v);
 					} else {
 						int data[] = {-1,-1,-1,-1};
 						int port_num = v;
@@ -306,8 +306,8 @@ int script_parse_fex(FILE *in, const char *filename, struct script *script)
 								if (end == p) {
 									;
 								} else if (v<0 || v>INT32_MAX) {
-									errf("E: %s:%zu: value out of range at %zu (%ld).\n",
-									     filename, line, p-buffer+1, v);
+									pr_error("E: %s:%zu: value out of range at %zu (%ld).\n",
+										 filename, line, p-buffer+1, v);
 									goto parse_error;
 								} else if (*end != '>') {
 									p = end;
@@ -340,8 +340,8 @@ int script_parse_fex(FILE *in, const char *filename, struct script *script)
 				if (p != pe) {
 					goto invalid_char_at_p;
 				} else if (v > UINT32_MAX) {
-					errf("E: %s:%zu: value out of range %lld.\n",
-					     filename, line, v);
+					pr_error("E: %s:%zu: value out of range %lld.\n",
+						 filename, line, v);
 				} else if (script_single_entry_new(last_section, key, v)) {
 					pr_debug("%s.%s = %lld\n",
 						 last_section->name, key, v);
@@ -349,8 +349,8 @@ int script_parse_fex(FILE *in, const char *filename, struct script *script)
 				}
 			} else {
 				/* goto invalid_char_at_p; */
-				errf("Warning: %s:%zu: unquoted value '%s', assuming string\n",
-				     filename, line, p);
+				pr_error("Warning: %s:%zu: unquoted value '%s', assuming string\n",
+					 filename, line, p);
 				if (script_string_entry_new(last_section, key, pe-p, p)) {
 					pr_debug("%s.%s = \"%s\"\n",
 						 last_section->name, key, p);
@@ -358,12 +358,12 @@ int script_parse_fex(FILE *in, const char *filename, struct script *script)
 				}
 				perror("malloc");
 			}
-			errf("E: %s:%zu: parse error at %zu.\n",
-			     filename, line, p-buffer+1);
+			pr_error("E: %s:%zu: parse error at %zu.\n",
+				 filename, line, p-buffer+1);
 			goto parse_error;
 invalid_char_at_p:
-			errf("E: %s:%zu: invalid character at %zu.\n",
-			     filename, line, p-buffer+1);
+			pr_error("E: %s:%zu: invalid character at %zu.\n",
+				 filename, line, p-buffer+1);
 parse_error:
 			ok = 0;
 		}

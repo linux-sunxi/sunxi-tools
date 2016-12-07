@@ -108,13 +108,11 @@ double aw_write_buffer(feldev_handle *dev, void *buf, uint32_t offset,
 	/* safeguard against overwriting an already loaded U-Boot binary */
 	if (uboot_size > 0 && offset <= uboot_entry + uboot_size
 			   && offset + len >= uboot_entry)
-	{
-		fprintf(stderr, "ERROR: Attempt to overwrite U-Boot! "
-			"Request 0x%08X-0x%08X overlaps 0x%08X-0x%08X.\n",
-			offset, (uint32_t)(offset + len),
-			uboot_entry, uboot_entry + uboot_size);
-		exit(1);
-	}
+		pr_fatal("ERROR: Attempt to overwrite U-Boot! "
+			 "Request 0x%08X-0x%08X overlaps 0x%08X-0x%08X.\n",
+			 offset, (uint32_t)(offset + len),
+			 uboot_entry, uboot_entry + uboot_size);
+
 	double start = gettime();
 	aw_fel_write_buffer(dev, buf, offset, len, progress);
 	return gettime() - start;
@@ -147,15 +145,12 @@ void hexdump(void *data, uint32_t offset, size_t size)
 unsigned int file_size(const char *filename)
 {
 	struct stat st;
-	if (stat(filename, &st) != 0) {
-		fprintf(stderr, "stat() error on file \"%s\": %s\n", filename,
-			strerror(errno));
-		exit(1);
-	}
-	if (!S_ISREG(st.st_mode)) {
-		fprintf(stderr, "error: \"%s\" is not a regular file\n", filename);
-		exit(1);
-	}
+	if (stat(filename, &st) != 0)
+		pr_fatal("stat() error on file \"%s\": %s\n", filename,
+			 strerror(errno));
+	if (!S_ISREG(st.st_mode))
+		pr_fatal("error: \"%s\" is not a regular file\n", filename);
+
 	return st.st_size;
 }
 
@@ -460,10 +455,8 @@ uint32_t *aw_backup_and_disable_mmu(feldev_handle *dev,
 
 	/* Basically, ignore M/Z/I/V/UNK bits and expect no TEX remap */
 	sctlr = aw_get_sctlr(dev, soc_info);
-	if ((sctlr & ~((0x7 << 11) | (1 << 6) | 1)) != 0x00C50038) {
-		fprintf(stderr, "Unexpected SCTLR (%08X)\n", sctlr);
-		exit(1);
-	}
+	if ((sctlr & ~((0x7 << 11) | (1 << 6) | 1)) != 0x00C50038)
+		pr_fatal("Unexpected SCTLR (%08X)\n", sctlr);
 
 	if (!(sctlr & 1)) {
 		pr_info("MMU is not enabled by BROM\n");
@@ -471,22 +464,16 @@ uint32_t *aw_backup_and_disable_mmu(feldev_handle *dev,
 	}
 
 	dacr = aw_get_dacr(dev, soc_info);
-	if (dacr != 0x55555555) {
-		fprintf(stderr, "Unexpected DACR (%08X)\n", dacr);
-		exit(1);
-	}
+	if (dacr != 0x55555555)
+		pr_fatal("Unexpected DACR (%08X)\n", dacr);
 
 	ttbcr = aw_get_ttbcr(dev, soc_info);
-	if (ttbcr != 0x00000000) {
-		fprintf(stderr, "Unexpected TTBCR (%08X)\n", ttbcr);
-		exit(1);
-	}
+	if (ttbcr != 0x00000000)
+		pr_fatal("Unexpected TTBCR (%08X)\n", ttbcr);
 
 	ttbr0 = aw_get_ttbr0(dev, soc_info);
-	if (ttbr0 & 0x3FFF) {
-		fprintf(stderr, "Unexpected TTBR0 (%08X)\n", ttbr0);
-		exit(1);
-	}
+	if (ttbr0 & 0x3FFF)
+		pr_fatal("Unexpected TTBR0 (%08X)\n", ttbr0);
 
 	tt = malloc(16 * 1024);
 	pr_info("Reading the MMU translation table from 0x%08X\n", ttbr0);
@@ -496,14 +483,10 @@ uint32_t *aw_backup_and_disable_mmu(feldev_handle *dev,
 
 	/* Basic sanity checks to be sure that this is a valid table */
 	for (i = 0; i < 4096; i++) {
-		if (((tt[i] >> 1) & 1) != 1 || ((tt[i] >> 18) & 1) != 0) {
-			fprintf(stderr, "MMU: not a section descriptor\n");
-			exit(1);
-		}
-		if ((tt[i] >> 20) != i) {
-			fprintf(stderr, "MMU: not a direct mapping\n");
-			exit(1);
-		}
+		if (((tt[i] >> 1) & 1) != 1 || ((tt[i] >> 18) & 1) != 0)
+			pr_fatal("MMU: not a section descriptor\n");
+		if ((tt[i] >> 20) != i)
+			pr_fatal("MMU: not a direct mapping\n");
 	}
 
 	pr_info("Disabling I-cache, MMU and branch prediction...");
@@ -587,32 +570,23 @@ void aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t len)
 	uint32_t cur_addr = soc_info->spl_addr;
 	uint32_t *tt = NULL;
 
-	if (!soc_info || !soc_info->swap_buffers) {
-		fprintf(stderr, "SPL: Unsupported SoC type\n");
-		exit(1);
-	}
-
-	if (len < 32 || memcmp(buf + 4, "eGON.BT0", 8) != 0) {
-		fprintf(stderr, "SPL: eGON header is not found\n");
-		exit(1);
-	}
+	if (!soc_info || !soc_info->swap_buffers)
+		pr_fatal("SPL: Unsupported SoC type\n");
+	if (len < 32 || memcmp(buf + 4, "eGON.BT0", 8) != 0)
+		pr_fatal("SPL: eGON header is not found\n");
 
 	spl_checksum = 2 * le32toh(buf32[3]) - 0x5F0A6C39;
 	spl_len = le32toh(buf32[4]);
 
-	if (spl_len > len || (spl_len % 4) != 0) {
-		fprintf(stderr, "SPL: bad length in the eGON header\n");
-		exit(1);
-	}
+	if (spl_len > len || (spl_len % 4) != 0)
+		pr_fatal("SPL: bad length in the eGON header\n");
 
 	len = spl_len;
 	for (i = 0; i < len / 4; i++)
 		spl_checksum -= le32toh(buf32[i]);
 
-	if (spl_checksum != 0) {
-		fprintf(stderr, "SPL: checksum check failed\n");
-		exit(1);
-	}
+	if (spl_checksum != 0)
+		pr_fatal("SPL: checksum check failed\n");
 
 	if (soc_info->needs_l2en) {
 		pr_info("Enabling the L2 cache\n");
@@ -624,12 +598,10 @@ void aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t len)
 
 	tt = aw_backup_and_disable_mmu(dev, soc_info);
 	if (!tt && soc_info->mmu_tt_addr) {
-		if (soc_info->mmu_tt_addr & 0x3FFF) {
-			fprintf(stderr, "SPL: 'mmu_tt_addr' must be 16K aligned\n");
-			exit(1);
-		}
+		if (soc_info->mmu_tt_addr & 0x3FFF)
+			pr_fatal("SPL: 'mmu_tt_addr' must be 16K aligned\n");
 		pr_info("Generating the new MMU translation table at 0x%08X\n",
-		        soc_info->mmu_tt_addr);
+			soc_info->mmu_tt_addr);
 		/*
 		 * These settings are used by the BROM in A10/A13/A20 and
 		 * we replicate them here when enabling the MMU. The DACR
@@ -675,11 +647,9 @@ void aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t len)
 	if (soc_info->thunk_addr < spl_len_limit)
 		spl_len_limit = soc_info->thunk_addr;
 
-	if (spl_len > spl_len_limit) {
-		fprintf(stderr, "SPL: too large (need %d, have %d)\n",
-			(int)spl_len, (int)spl_len_limit);
-		exit(1);
-	}
+	if (spl_len > spl_len_limit)
+		pr_fatal("SPL: too large (need %u, have %u)\n",
+			 spl_len, spl_len_limit);
 
 	/* Write the remaining part of the SPL */
 	if (len > 0)
@@ -688,11 +658,9 @@ void aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t len)
 	thunk_size = sizeof(fel_to_spl_thunk) + sizeof(soc_info->spl_addr) +
 		     (i + 1) * sizeof(*swap_buffers);
 
-	if (thunk_size > soc_info->thunk_size) {
-		fprintf(stderr, "SPL: bad thunk size (need %d, have %d)\n",
-			(int)sizeof(fel_to_spl_thunk), soc_info->thunk_size);
-		exit(1);
-	}
+	if (thunk_size > soc_info->thunk_size)
+		pr_fatal("SPL: bad thunk size (need %d, have %d)\n",
+			 (int)sizeof(fel_to_spl_thunk), soc_info->thunk_size);
 
 	thunk_buf = malloc(thunk_size);
 	memcpy(thunk_buf, fel_to_spl_thunk, sizeof(fel_to_spl_thunk));
@@ -716,11 +684,8 @@ void aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t len)
 
 	/* Read back the result and check if everything was fine */
 	aw_fel_read(dev, soc_info->spl_addr + 4, header_signature, 8);
-	if (strcmp(header_signature, "eGON.FEL") != 0) {
-		fprintf(stderr, "SPL: failure code '%s'\n",
-			header_signature);
-		exit(1);
-	}
+	if (strcmp(header_signature, "eGON.FEL") != 0)
+		pr_fatal("SPL: failure code '%s'\n", header_signature);
 
 	/* re-enable the MMU if it was enabled by BROM */
 	if (tt != NULL)
@@ -745,29 +710,27 @@ void aw_fel_write_uboot_image(feldev_handle *dev, uint8_t *buf, size_t len)
 	if (image_type <= IH_TYPE_INVALID) {
 		switch (image_type) {
 		case IH_TYPE_INVALID:
-			fprintf(stderr, "Invalid U-Boot image: bad size or signature\n");
+			pr_error("Invalid U-Boot image: bad size or signature\n");
 			break;
 		case IH_TYPE_ARCH_MISMATCH:
-			fprintf(stderr, "Invalid U-Boot image: wrong architecture\n");
+			pr_error("Invalid U-Boot image: wrong architecture\n");
 			break;
 		default:
-			fprintf(stderr, "Invalid U-Boot image: error code %d\n",
-				image_type);
+			pr_error("Invalid U-Boot image: error code %d\n",
+				 image_type);
 		}
 		exit(1);
 	}
-	if (image_type != IH_TYPE_FIRMWARE) {
-		fprintf(stderr, "U-Boot image type mismatch: "
-			"expected IH_TYPE_FIRMWARE, got %02X\n", image_type);
-		exit(1);
-	}
+	if (image_type != IH_TYPE_FIRMWARE)
+		pr_fatal("U-Boot image type mismatch: "
+			 "expected IH_TYPE_FIRMWARE, got %02X\n", image_type);
+
 	uint32_t data_size = be32toh(buf32[3]); /* Image Data Size */
 	uint32_t load_addr = be32toh(buf32[4]); /* Data Load Address */
-	if (data_size != len - HEADER_SIZE) {
-		fprintf(stderr, "U-Boot image data size mismatch: "
-			"expected %zu, got %u\n", len - HEADER_SIZE, data_size);
-		exit(1);
-	}
+	if (data_size != len - HEADER_SIZE)
+		pr_fatal("U-Boot image data size mismatch: "
+			 "expected %zu, got %u\n", len - HEADER_SIZE, data_size);
+
 	/* TODO: Verify image data integrity using the checksum field ih_dcrc,
 	 * available from be32toh(buf32[6])
 	 *
@@ -828,17 +791,17 @@ bool have_sunxi_spl(feldev_handle *dev, uint32_t spl_addr)
 		return false; /* signature mismatch, no "sunxi" SPL */
 
 	if (spl_signature[3] < SPL_MIN_VERSION) {
-		fprintf(stderr, "sunxi SPL version mismatch: "
-			"found 0x%02X < required minimum 0x%02X\n",
-			spl_signature[3], SPL_MIN_VERSION);
-		fprintf(stderr, "You need to update your U-Boot (mksunxiboot) to a more recent version.\n");
+		pr_error("sunxi SPL version mismatch: "
+			 "found 0x%02X < required minimum 0x%02X\n",
+			 spl_signature[3], SPL_MIN_VERSION);
+		pr_error("You need to update your U-Boot (mksunxiboot) to a more recent version.\n");
 		return false;
 	}
 	if (spl_signature[3] > SPL_MAX_VERSION) {
-		fprintf(stderr, "sunxi SPL version mismatch: "
-			"found 0x%02X > maximum supported 0x%02X\n",
-			spl_signature[3], SPL_MAX_VERSION);
-		fprintf(stderr, "You need a more recent version of this (sunxi-tools) fel utility.\n");
+		pr_error("sunxi SPL version mismatch: "
+			 "found 0x%02X > maximum supported 0x%02X\n",
+			 spl_signature[3], SPL_MAX_VERSION);
+		pr_error("You need a more recent version of this (sunxi-tools) fel utility.\n");
 		return false;
 	}
 	return true; /* sunxi SPL and suitable version */
@@ -881,9 +844,9 @@ void aw_rmr_request(feldev_handle *dev, uint32_t entry_point, bool aarch64)
 {
 	soc_info_t *soc_info = dev->soc_info;
 	if (!soc_info->rvbar_reg) {
-		fprintf(stderr, "ERROR: Can't issue RMR request!\n"
-			"RVBAR is not supported or unknown for your SoC (%s).\n",
-			dev->soc_name);
+		pr_error("ERROR: Can't issue RMR request!\n"
+			 "RVBAR is not supported or unknown for your SoC (%s).\n",
+			 dev->soc_name);
 		return;
 	}
 
@@ -930,11 +893,9 @@ static bool is_uEnv(void *buffer, size_t size)
 static unsigned int file_upload(feldev_handle *dev, size_t count,
 				size_t argc, char **argv, progress_cb_t callback)
 {
-	if (argc < count * 2) {
-		fprintf(stderr, "error: too few arguments for uploading %zu files\n",
-			count);
-		exit(1);
-	}
+	if (argc < count * 2)
+		pr_fatal("error: too few arguments for uploading %zu files\n",
+			 count);
 
 	/* get all file sizes, keeping track of total bytes */
 	size_t size = 0;
@@ -981,7 +942,7 @@ static void felusb_list_devices(void)
 	free(list);
 
 	if (verbose && devices == 0)
-		fprintf(stderr, "No Allwinner devices in FEL mode detected.\n");
+		pr_error("No Allwinner devices in FEL mode detected.\n");
 
 	feldev_done(NULL);
 	exit(devices > 0 ? EXIT_SUCCESS : EXIT_FAILURE);
@@ -1077,10 +1038,8 @@ int main(int argc, char **argv)
 				argv += 1;
 			}
 			if (sscanf(dev_arg, "%d:%d", &busnum, &devnum) != 2
-			    || busnum <= 0 || devnum <= 0) {
-				fprintf(stderr, "ERROR: Expected 'bus:devnum', got '%s'.\n", dev_arg);
-				exit(1);
-			}
+			    || busnum <= 0 || devnum <= 0)
+				pr_fatal("ERROR: Expected 'bus:devnum', got '%s'.\n", dev_arg);
 			pr_info("Selecting USB Bus %03d Device %03d\n", busnum, devnum);
 		}
 		else if (strcmp(argv[1], "--sid") == 0 && argc > 2) {
@@ -1098,11 +1057,9 @@ int main(int argc, char **argv)
 	if (sid_arg) {
 		/* try to set busnum and devnum according to "--sid" option */
 		select_by_sid(sid_arg, &busnum, &devnum);
-		if (busnum <= 0 || devnum <= 0) {
-			fprintf(stderr, "No matching FEL device found for SID '%s'\n",
-				sid_arg);
-			exit(1);
-		}
+		if (busnum <= 0 || devnum <= 0)
+			pr_fatal("No matching FEL device found for SID '%s'\n",
+				 sid_arg);
 		pr_info("Selecting FEL device %03d:%03d by SID\n", busnum, devnum);
 	}
 

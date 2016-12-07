@@ -23,11 +23,11 @@
 #include "script.h"
 #include "script_uboot.h"
 
-#define pr_info(...)	errf("fexc-uboot: " __VA_ARGS__)
-#define pr_err(...)	errf("E: fexc-uboot: " __VA_ARGS__)
+#define pr_info(...)	pr_error("fexc-uboot: " __VA_ARGS__)
+#define pr_err(...)	pr_error("E: fexc-uboot: " __VA_ARGS__)
 
 #ifdef DEBUG
-#define pr_debug(...)	errf("D: fexc-uboot: " __VA_ARGS__)
+#define pr_debug(...)	pr_error("D: fexc-uboot: " __VA_ARGS__)
 #else
 #define pr_debug(...)
 #endif

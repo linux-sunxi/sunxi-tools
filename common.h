@@ -39,7 +39,10 @@
 #define ARRAY_SIZE(A)		(sizeof(A)/sizeof((A)[0]))
 #endif
 
-/** shortcut to printf to stderr */
-#define errf(...)	fprintf(stderr, __VA_ARGS__)
+/** shortcut to "printf to stderr" */
+#define pr_error(...)	fprintf(stderr, __VA_ARGS__)
+/** like pr_error(), but also exit program */
+#define pr_fatal(...) \
+	do { pr_error(__VA_ARGS__); exit(EXIT_FAILURE); } while (0);
 
 #endif /* _SUNXI_TOOLS_COMMON_H */
