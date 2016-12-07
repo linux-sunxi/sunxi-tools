@@ -26,22 +26,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+#include <time.h>
 #include <sys/stat.h>
 
 static bool verbose = false; /* If set, makes the 'fel' tool more talkative */
 static uint32_t uboot_entry = 0; /* entry point (address) of U-Boot */
 static uint32_t uboot_size  = 0; /* size of U-Boot binary */
 
-static void pr_info(const char *fmt, ...)
-{
-	va_list arglist;
-	if (verbose) {
-		va_start(arglist, fmt);
-		vprintf(fmt, arglist);
-		va_end(arglist);
-	}
-}
+/* printf-style output, but only if "verbose" flag is active */
+#define pr_info(...) \
+	do { if (verbose) printf(__VA_ARGS__); } while (0);
 
 /* Constants taken from ${U-BOOT}/include/image.h */
 #define IH_MAGIC	0x27051956	/* Image Magic Number	*/
@@ -169,8 +163,7 @@ int save_file(const char *name, void *data, size_t size)
 
 void *load_file(const char *name, size_t *size)
 {
-	size_t bufsize = 8192;
-	size_t offset = 0;
+	size_t offset = 0, bufsize = 8192;
 	char *buf = malloc(bufsize);
 	FILE *in;
 	if (strcmp(name, "-") == 0)
@@ -183,13 +176,17 @@ void *load_file(const char *name, size_t *size)
 	}
 	
 	while (true) {
-		ssize_t len = bufsize - offset;
-		ssize_t n = fread(buf+offset, 1, len, in);
+		size_t len = bufsize - offset;
+		size_t n = fread(buf+offset, 1, len, in);
 		offset += n;
 		if (n < len)
 			break;
-		bufsize <<= 1;
+		bufsize *= 2;
 		buf = realloc(buf, bufsize);
+		if (!buf) {
+			perror("Failed to resize load_file() buffer");
+			exit(1);
+		}
 	}
 	if (size) 
 		*size = offset;
@@ -230,12 +227,10 @@ uint32_t aw_read_arm_cp_reg(feldev_handle *dev, soc_info_t *soc_info,
 			    uint32_t crm, uint32_t opc2)
 {
 	uint32_t val = 0;
-	uint32_t opcode = 0xEE000000 | (1 << 20) | (1 << 4) |
-			  ((opc1 & 7) << 21)    |
-			  ((crn & 15) << 16)    |
-			  ((coproc & 15) << 8)  |
-			  ((opc2 & 7) << 5)     |
-			  (crm & 15);
+	uint32_t opcode = 0xEE000000 | (1 << 20) | (1 << 4)
+			  | ((opc1 & 0x7) << 21) | ((crn & 0xF) << 16)
+			  | ((coproc & 0xF) << 8) | ((opc2 & 0x7) << 5)
+			  | (crm & 0xF);
 	uint32_t arm_code[] = {
 		htole32(opcode),     /* mrc  coproc, opc1, r0, crn, crm, opc2 */
 		htole32(0xe58f0000), /* str  r0, [pc]                         */
@@ -251,12 +246,10 @@ void aw_write_arm_cp_reg(feldev_handle *dev, soc_info_t *soc_info,
 			 uint32_t coproc, uint32_t opc1, uint32_t crn,
 			 uint32_t crm, uint32_t opc2, uint32_t val)
 {
-	uint32_t opcode = 0xEE000000 | (0 << 20) | (1 << 4) |
-			  ((opc1 & 7) << 21)                |
-			  ((crn & 15) << 16)                |
-			  ((coproc & 15) << 8)              |
-			  ((opc2 & 7) << 5)                 |
-			  (crm & 15);
+	uint32_t opcode = 0xEE000000 | (0 << 20) | (1 << 4)
+			  | ((opc1 & 0x7) << 21) | ((crn & 0xF) << 16)
+			  | ((coproc & 0xF) << 8) | ((opc2 & 7) << 5)
+			  | (crm & 0xF);
 	uint32_t arm_code[] = {
 		htole32(0xe59f000c), /* ldr  r0, [pc, #12]                    */
 		htole32(opcode),     /* mcr  coproc, opc1, r0, crn, crm, opc2 */
@@ -435,8 +428,7 @@ uint32_t *aw_backup_and_disable_mmu(feldev_handle *dev,
 		/* Disable I-cache, MMU and branch prediction */
 		htole32(0xee110f10), /* mrc        15, 0, r0, cr1, cr0, {0}  */
 		htole32(0xe3c00001), /* bic        r0, r0, #1                */
-		htole32(0xe3c00a01), /* bic        r0, r0, #4096             */
-		htole32(0xe3c00b02), /* bic        r0, r0, #2048             */
+		htole32(0xe3c00b06), /* bic        r0, r0, #0x1800           */
 		htole32(0xee010f10), /* mcr        15, 0, r0, cr1, cr0, {0}  */
 		/* Return back to FEL */
 		htole32(0xe12fff1e), /* bx         lr                        */
@@ -515,8 +507,7 @@ void aw_restore_and_enable_mmu(feldev_handle *dev,
 		/* Enable I-cache, MMU and branch prediction */
 		htole32(0xee110f10), /* mrc        15, 0, r0, cr1, cr0, {0}  */
 		htole32(0xe3800001), /* orr        r0, r0, #1                */
-		htole32(0xe3800a01), /* orr        r0, r0, #4096             */
-		htole32(0xe3800b02), /* orr        r0, r0, #2048             */
+		htole32(0xe3800b06), /* orr        r0, r0, #0x1800           */
 		htole32(0xee010f10), /* mcr        15, 0, r0, cr1, cr0, {0}  */
 		/* Return back to FEL */
 		htole32(0xe12fff1e), /* bx         lr                        */
@@ -680,7 +671,8 @@ void aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t len)
 	free(thunk_buf);
 
 	/* TODO: Try to find and fix the bug, which needs this workaround */
-	usleep(250000);
+	struct timespec req = { .tv_nsec = 250000000 }; /* 250ms */
+	nanosleep(&req, NULL);
 
 	/* Read back the result and check if everything was fine */
 	aw_fel_read(dev, soc_info->spl_addr + 4, header_signature, 8);

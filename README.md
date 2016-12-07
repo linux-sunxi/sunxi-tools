@@ -27,7 +27,7 @@ the boards.
 
 ### fex2bin
 compatiblity shortcut to call `sunxi-fexc` to compile a `.fex` file
-into the binary form used by the legacy 3.4 kernel ("linux&#8209;sunxi").
+into the binary form used by the legacy 3.4 kernel ("linux-sunxi").
 
 ### sunxi-fel
 script interface for USB communication with the FEL handler built in to
