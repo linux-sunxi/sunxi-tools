@@ -41,7 +41,7 @@ When called with no arguments, _sunxi-fel_ will display a short usage summary.
 _Note:_ Unless you select a specific device using the `--dev` or `--sid`
 options, the tool will access the first Allwinner device (in FEL mode) that it
 finds. You can print a list of all FEL devices currently connected/detected
-with `./sunxi-fel --list`.
+with `./sunxi-fel --list --verbose`.
 
 ### fel-gpio
 Simple wrapper (script) around `fel-pio` and `sunxi-fel`
