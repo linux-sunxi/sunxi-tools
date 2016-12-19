@@ -84,6 +84,7 @@ typedef struct {
 	uint32_t           mmu_tt_addr;  /* MMU translation table address */
 	uint32_t           sid_addr;     /* base address for SID_KEY[0-3] registers */
 	uint32_t           rvbar_reg;    /* MMIO address of RVBARADDR0_L register */
+	bool               sid_fix;      /* Workaround H3 SID problem */
 	sram_swap_buffers *swap_buffers;
 } soc_info_t;
 
