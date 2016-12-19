@@ -85,6 +85,7 @@ typedef struct {
 	uint32_t           sid_base;     /* base address for SID registers */
 	uint32_t           sid_offset;   /* offset for SID_KEY[0-3], "root key" */
 	uint32_t           rvbar_reg;    /* MMIO address of RVBARADDR0_L register */
+	bool               sid_fix;      /* Use SID workaround (read via register) */
 	sram_swap_buffers *swap_buffers;
 } soc_info_t;
 

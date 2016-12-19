@@ -174,6 +174,7 @@ soc_info_t soc_info_table[] = {
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.sid_base     = 0x01C14000,
 		.sid_offset   = 0x200,
+		.sid_fix      = true,
 	},{
 		.soc_id       = 0x1681, /* Allwinner V3s */
 		.name         = "V3s",

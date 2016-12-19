@@ -276,12 +276,46 @@ void fel_writel(feldev_handle *dev, uint32_t addr, uint32_t val)
 	fel_writel_n(dev, addr, &val, 1);
 }
 
+#define EFUSE_PRCTL 0x40
+#define EFUSE_RDKEY 0x60
+
+#define EFUSE_OP_LOCK 0xAC
+
+uint32_t aw_fel_efuse_read(feldev_handle *dev, uint32_t offset)
+{
+	soc_info_t *soc_info = dev->soc_info;
+	uint32_t reg_val;
+
+	reg_val = fel_readl(dev, soc_info->sid_base + EFUSE_PRCTL);
+	reg_val &= ~(((0x1ff) << 16) | 0x3);
+	reg_val |= (offset << 16);
+	fel_writel(dev, soc_info->sid_base + EFUSE_PRCTL, reg_val);
+
+	reg_val &= ~(((0xff) << 8) | 0x3);
+	reg_val |= (EFUSE_OP_LOCK << 8) | 0x2;
+	fel_writel(dev, soc_info->sid_base + EFUSE_PRCTL, reg_val);
+
+	while (fel_readl(dev, soc_info->sid_base + EFUSE_PRCTL) & 0x2);
+
+	reg_val &= ~(((0x1ff) << 16) | ((0xff) << 8) | 0x3);
+	fel_writel(dev, soc_info->sid_base + EFUSE_PRCTL, reg_val);
+
+	return fel_readl(dev, soc_info->sid_base + EFUSE_RDKEY);
+}
+
 void aw_fel_print_sid(feldev_handle *dev)
 {
 	soc_info_t *soc_info = dev->soc_info;
 	if (soc_info->sid_base) {
 		uint32_t sid_addr = soc_info->sid_base + soc_info->sid_offset;
 		pr_info("SID key (e-fuses) at 0x%08X\n", sid_addr);
+
+		if (soc_info->sid_fix) {
+			pr_info("SID key needs fix due to silicon bug.\n");
+			for (uint32_t i = 0; i < 0x10; i+=4) {
+				aw_fel_efuse_read(dev, i);
+			}
+		}
 
 		uint32_t key[4];
 		fel_readl_n(dev, sid_addr, key, 4);
