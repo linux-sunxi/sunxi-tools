@@ -231,6 +231,34 @@ int gpio_direction_output(unsigned gpio, int value)
 
 #define VER_REG			(AW_SRAMCTRL_BASE + 0x24)
 #define SUN4I_SID_BASE		0x01C23800
+#define SUN8I_SIDC_BASE		0x01C14000
+
+#define SIDC_PRCTL 0x40
+#define SIDC_RDKEY 0x60
+
+#define SIDC_OP_LOCK 0xAC
+
+u32 sun8i_efuse_read(u32 offset)
+{
+	u32 reg_val;
+
+	reg_val = readl(SUN8I_SIDC_BASE + SIDC_PRCTL);
+	reg_val &= ~(((0x1ff) << 16) | 0x3);
+	reg_val |= (offset << 16);
+	writel(reg_val, SUN8I_SIDC_BASE + SIDC_PRCTL);
+
+	reg_val &= ~(((0xff) << 8) | 0x3);
+	reg_val |= (SIDC_OP_LOCK << 8) | 0x2;
+	writel(reg_val, SUN8I_SIDC_BASE + SIDC_PRCTL);
+
+	while (readl(SUN8I_SIDC_BASE + SIDC_PRCTL) & 0x2);
+
+	reg_val &= ~(((0x1ff) << 16) | ((0xff) << 8) | 0x3);
+	writel(reg_val, SUN8I_SIDC_BASE + SIDC_PRCTL);
+
+	reg_val = readl(SUN8I_SIDC_BASE + SIDC_RDKEY);
+	return reg_val;
+}
 
 static u32 soc_id;
 
@@ -254,7 +282,6 @@ void soc_detection_init(void)
 #define soc_is_a31()	(soc_id == 0x1633)
 #define soc_is_a80()	(soc_id == 0x1639)
 #define soc_is_a64()	(soc_id == 0x1689)
-#define soc_is_h3()	(soc_id == 0x1680)
 #define soc_is_h5()	(soc_id == 0x1718)
 #define soc_is_r40()	(soc_id == 0x1701)
 
@@ -270,6 +297,20 @@ int soc_is_a13(void)
 {
 	return soc_id == 0x1625 &&
 	       (readl(SUN4I_SID_BASE + 8) & 0xf000) != 0x7000;
+}
+
+int soc_is_h2_plus(void)
+{
+	return soc_id == 0x1680 && (
+	       (sun8i_efuse_read(0) & 0xff) == 0x42 ||
+	       (sun8i_efuse_read(0) & 0xff) == 0x83);
+}
+
+int soc_is_h3(void)
+{
+	return soc_id == 0x1680 &&
+	       (sun8i_efuse_read(0) & 0xff) != 0x42 &&
+	       (sun8i_efuse_read(0) & 0xff) != 0x83;
 }
 
 /*****************************************************************************
@@ -328,7 +369,7 @@ void gpio_init(void)
 		sunxi_gpio_set_cfgpin(SUNXI_GPB(8), SUN50I_A64_GPB_UART0);
 		sunxi_gpio_set_cfgpin(SUNXI_GPB(9), SUN50I_A64_GPB_UART0);
 		sunxi_gpio_set_pull(SUNXI_GPB(9), SUNXI_GPIO_PULL_UP);
-	} else if (soc_is_h3()) {
+	} else if (soc_is_h3() || soc_is_h2_plus()) {
 		sunxi_gpio_set_cfgpin(SUNXI_GPA(4), SUN8I_H3_GPA_UART0);
 		sunxi_gpio_set_cfgpin(SUNXI_GPA(5), SUN8I_H3_GPA_UART0);
 		sunxi_gpio_set_pull(SUNXI_GPA(5), SUNXI_GPIO_PULL_UP);
@@ -443,6 +484,8 @@ int main(void)
 		uart0_puts("Allwinner A31/A31s!\n");
 	else if (soc_is_a64())
 		uart0_puts("Allwinner A64!\n");
+	else if (soc_is_h2_plus())
+		uart0_puts("Allwinner H2+!\n");
 	else if (soc_is_h3())
 		uart0_puts("Allwinner H3!\n");
 	else if (soc_is_h5())
