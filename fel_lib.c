@@ -368,6 +368,73 @@ void fel_writel_n(feldev_handle *dev, uint32_t addr, uint32_t *src, size_t count
 	}
 }
 
+/*
+ * Memory access to the SID (root) keys proved to be unreliable for certain
+ * SoCs. This function uses an alternative, register-based approach to retrieve
+ * the values.
+ */
+static void fel_get_sid_registers(feldev_handle *dev, uint32_t *result)
+{
+	uint32_t arm_code[] = {
+		htole32(0xe59f0040), /*    0:  ldr   r0, [pc, #64]           */
+		htole32(0xe3a01000), /*    4:  mov   r1, #0                  */
+		htole32(0xe28f303c), /*    8:  add   r3, pc, #60             */
+		/* <sid_read_loop>: */
+		htole32(0xe1a02801), /*    c:  lsl   r2, r1, #16             */
+		htole32(0xe3822b2b), /*   10:  orr   r2, r2, #44032          */
+		htole32(0xe3822002), /*   14:  orr   r2, r2, #2              */
+		htole32(0xe5802040), /*   18:  str   r2, [r0, #64]           */
+		/* <sid_read_wait>: */
+		htole32(0xe5902040), /*   1c:  ldr   r2, [r0, #64]           */
+		htole32(0xe3120002), /*   20:  tst   r2, #2                  */
+		htole32(0x1afffffc), /*   24:  bne   1c <sid_read_wait>      */
+		htole32(0xe5902060), /*   28:  ldr   r2, [r0, #96]           */
+		htole32(0xe7832001), /*   2c:  str   r2, [r3, r1]            */
+		htole32(0xe2811004), /*   30:  add   r1, r1, #4              */
+		htole32(0xe3510010), /*   34:  cmp   r1, #16                 */
+		htole32(0x3afffff3), /*   38:  bcc   c <sid_read_loop>       */
+		htole32(0xe3a02000), /*   3c:  mov   r2, #0                  */
+		htole32(0xe5802040), /*   40:  str   r2, [r0, #64]           */
+		htole32(0xe12fff1e), /*   44:  bx    lr                      */
+		htole32(dev->soc_info->sid_base), /* SID base addr */
+		/* retrieved SID values go here */
+	};
+	/* write and execute code */
+	aw_fel_write(dev, arm_code, dev->soc_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(dev, dev->soc_info->scratch_addr);
+	/* read back the result */
+	aw_fel_read(dev, dev->soc_info->scratch_addr + sizeof(arm_code),
+		    result, 4 * sizeof(uint32_t));
+	for (unsigned i = 0; i < 4; i++)
+		result[i] = le32toh(result[i]);
+}
+
+/* Read the SID "root" key (128 bits). You need to pass the device handle,
+ * a pointer to a result array capable of receiving at least four 32-bit words,
+ * and a flag specifying if the register-access workaround should be enforced.
+ * Return value indicates whether the result is expected to be usable:
+ * The function will return `false` (and zero the result) if it cannot access
+ * the SID registers.
+ */
+bool fel_get_sid_root_key(feldev_handle *dev, uint32_t *result,
+			  bool force_workaround)
+{
+	if (!dev->soc_info->sid_base) {
+		/* SID unavailable */
+		for (unsigned i = 0; i < 4; i++) result[i] = 0;
+		return false;
+	}
+
+	if (dev->soc_info->sid_fix || force_workaround)
+		/* Work around SID issues by using ARM thunk code */
+		fel_get_sid_registers(dev, result);
+	else
+		/* Read SID directly from memory */
+		fel_readl_n(dev, dev->soc_info->sid_base
+			       + dev->soc_info->sid_offset, result, 4);
+	return true;
+}
+
 /* general functions, "FEL device" management */
 
 static int feldev_get_endpoint(feldev_handle *dev)
@@ -601,10 +668,7 @@ feldev_list_entry *list_fel_devices(size_t *count)
 		strncpy(entry->soc_name, dev->soc_name, sizeof(soc_name_t));
 
 		/* retrieve SID bits */
-		if (dev->soc_info->sid_base)
-			aw_fel_readl_n(dev,
-				dev->soc_info->sid_base + dev->soc_info->sid_offset,
-				entry->SID, 4);
+		fel_get_root_key(dev, entry->SID, false);
 
 		feldev_close(dev);
 		free(dev);
