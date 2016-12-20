@@ -276,58 +276,29 @@ void fel_writel(feldev_handle *dev, uint32_t addr, uint32_t val)
 	fel_writel_n(dev, addr, &val, 1);
 }
 
-#define EFUSE_PRCTL 0x40
-#define EFUSE_RDKEY 0x60
-
-#define EFUSE_OP_LOCK 0xAC
-
-uint32_t aw_fel_efuse_read(feldev_handle *dev, uint32_t offset)
+void aw_fel_print_sid(feldev_handle *dev, bool force_workaround)
 {
+	uint32_t key[4];
 	soc_info_t *soc_info = dev->soc_info;
-	uint32_t reg_val;
 
-	reg_val = fel_readl(dev, soc_info->sid_base + EFUSE_PRCTL);
-	reg_val &= ~(((0x1ff) << 16) | 0x3);
-	reg_val |= (offset << 16);
-	fel_writel(dev, soc_info->sid_base + EFUSE_PRCTL, reg_val);
-
-	reg_val &= ~(((0xff) << 8) | 0x3);
-	reg_val |= (EFUSE_OP_LOCK << 8) | 0x2;
-	fel_writel(dev, soc_info->sid_base + EFUSE_PRCTL, reg_val);
-
-	while (fel_readl(dev, soc_info->sid_base + EFUSE_PRCTL) & 0x2);
-
-	reg_val &= ~(((0x1ff) << 16) | ((0xff) << 8) | 0x3);
-	fel_writel(dev, soc_info->sid_base + EFUSE_PRCTL, reg_val);
-
-	return fel_readl(dev, soc_info->sid_base + EFUSE_RDKEY);
-}
-
-void aw_fel_print_sid(feldev_handle *dev)
-{
-	soc_info_t *soc_info = dev->soc_info;
-	if (soc_info->sid_base) {
-		uint32_t sid_addr = soc_info->sid_base + soc_info->sid_offset;
-		pr_info("SID key (e-fuses) at 0x%08X\n", sid_addr);
-
-		if (soc_info->sid_fix) {
-			pr_info("SID key needs fix due to silicon bug.\n");
-			for (uint32_t i = 0; i < 0x10; i+=4) {
-				aw_fel_efuse_read(dev, i);
-			}
-		}
-
-		uint32_t key[4];
-		fel_readl_n(dev, sid_addr, key, 4);
-
-		unsigned int i;
-		/* output SID in "xxxxxxxx:xxxxxxxx:xxxxxxxx:xxxxxxxx" format */
-		for (i = 0; i <= 3; i++)
-			printf("%08x%c", key[i], i < 3 ? ':' : '\n');
-	} else {
+	if (!soc_info->sid_base) {
 		printf("SID registers for your SoC (%s) are unknown or inaccessible.\n",
 			dev->soc_name);
+		return;
 	}
+
+	if (soc_info->sid_fix || force_workaround) {
+		pr_info("Read SID key via registers, base = 0x%08X\n",
+			soc_info->sid_base);
+	} else {
+		pr_info("SID key (e-fuses) at 0x%08X\n",
+			soc_info->sid_base + soc_info->sid_offset);
+	}
+	fel_get_sid_root_key(dev, key, force_workaround);
+
+	/* output SID in "xxxxxxxx:xxxxxxxx:xxxxxxxx:xxxxxxxx" format */
+	for (unsigned i = 0; i <= 3; i++)
+		printf("%08x%c", key[i], i < 3 ? ':' : '\n');
 }
 
 void aw_enable_l2_cache(feldev_handle *dev, soc_info_t *soc_info)
@@ -1136,7 +1107,9 @@ int main(int argc, char **argv)
 		} else if (strncmp(argv[1], "ver", 3) == 0) {
 			aw_fel_print_version(handle);
 		} else if (strcmp(argv[1], "sid") == 0) {
-			aw_fel_print_sid(handle);
+			aw_fel_print_sid(handle, false);
+		} else if (strcmp(argv[1], "sid-registers") == 0) {
+			aw_fel_print_sid(handle, true); /* enforce register access */
 		} else if (strcmp(argv[1], "write") == 0 && argc > 3) {
 			skip += 2 * file_upload(handle, 1, argc - 2, argv + 2,
 					pflag_active ? progress_bar : NULL);

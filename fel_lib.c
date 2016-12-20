@@ -668,7 +668,7 @@ feldev_list_entry *list_fel_devices(size_t *count)
 		strncpy(entry->soc_name, dev->soc_name, sizeof(soc_name_t));
 
 		/* retrieve SID bits */
-		fel_get_root_key(dev, entry->SID, false);
+		fel_get_sid_root_key(dev, entry->SID, false);
 
 		feldev_close(dev);
 		free(dev);
