@@ -16,6 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+# Windows predefines OS in the environment (to "Windows_NT"), otherwise use uname
+OS ?= $(shell uname)
+
 CC ?= gcc
 DEFAULT_CFLAGS := -std=c99
 DEFAULT_CFLAGS += -Wall -Wextra -Wno-unused-result
@@ -26,7 +29,7 @@ DEFAULT_CFLAGS += -D_POSIX_C_SOURCE=200112L
 DEFAULT_CFLAGS += -D_BSD_SOURCE
 # glibc 2.20+ also requires _DEFAULT_SOURCE
 DEFAULT_CFLAGS += -D_DEFAULT_SOURCE
-ifeq (NetBSD,$(OS))
+ifeq ($(OS),NetBSD)
 # add explicit _NETBSD_SOURCE, see https://github.com/linux-sunxi/sunxi-tools/pull/22
 DEFAULT_CFLAGS += -D_NETBSD_SOURCE
 endif
