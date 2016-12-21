@@ -1044,6 +1044,19 @@ int main(int argc, char **argv)
 		argv += 1;
 	}
 
+	/*
+	 * If any option-style arguments remain (starting with '-') we know that
+	 * we won't recognize them later (at best yielding "Invalid command").
+	 * However this would only happen _AFTER_ trying to open a FEL device,
+	 * which might fail with "Allwinner USB FEL device not found". To avoid
+	 * confusing the user, bail out here - with a more descriptive message.
+	 */
+	int i;
+	for (i = 1; i < argc; i++)
+		if (*argv[i] == '-')
+			pr_fatal("Invalid option %s\n", argv[i]);
+
+	/* Process options that don't require a FEL device handle */
 	if (device_list)
 		felusb_list_devices(); /* and exit program afterwards */
 	if (sid_arg) {
@@ -1055,8 +1068,13 @@ int main(int argc, char **argv)
 		pr_info("Selecting FEL device %03d:%03d by SID\n", busnum, devnum);
 	}
 
+	/*
+	 * Open FEL device - either specified by busnum:devnum, or
+	 * the first one matching the given USB vendor/procduct ID.
+	 */
 	handle = feldev_open(busnum, devnum, AW_USB_VENDOR_ID, AW_USB_PRODUCT_ID);
 
+	/* Handle command-style arguments, in order of appearance */
 	while (argc > 1 ) {
 		int skip = 1;
 
@@ -1138,8 +1156,7 @@ int main(int argc, char **argv)
 				printf("Warning: \"uboot\" command failed to detect image! Can't execute U-Boot.\n");
 			skip=2;
 		} else {
-			fprintf(stderr,"Invalid command %s\n", argv[1]);
-			exit(1);
+			pr_fatal("Invalid command %s\n", argv[1]);
 		}
 		argc-=skip;
 		argv+=skip;
