@@ -171,6 +171,14 @@ soc_info_t soc_info_table[] = {
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.sid_addr     = 0x01C14200,
 	},{
+		.soc_id       = 0x1681, /* Allwinner V3s */
+		.name         = "V3s",
+		.scratch_addr = 0x1000,
+		.mmu_tt_addr  = 0x8000,
+		.thunk_addr   = 0xA200, .thunk_size = 0x200,
+		.swap_buffers = a10_a13_a20_sram_swap_buffers,
+		.sid_addr     = 0x01C23800,
+	},{
 		.soc_id       = 0x1718, /* Allwinner H5 */
 		.name         = "H5",
 		.spl_addr     = 0x10000,
