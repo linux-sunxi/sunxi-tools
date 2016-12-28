@@ -170,6 +170,7 @@ soc_info_t soc_info_table[] = {
 		.thunk_addr   = 0xA200, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.sid_addr     = 0x01C14200,
+		.sid_fix      = true,
 	},{
 		.soc_id       = 0x1681, /* Allwinner V3s */
 		.name         = "V3s",
