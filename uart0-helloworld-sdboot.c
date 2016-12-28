@@ -232,32 +232,27 @@ int gpio_direction_output(unsigned gpio, int value)
 
 #define VER_REG			(AW_SRAMCTRL_BASE + 0x24)
 #define SUN4I_SID_BASE		0x01C23800
-#define SUN8I_SIDC_BASE		0x01C14000
+#define SUN8I_SID_BASE		0x01C14000
 
-#define SIDC_PRCTL 0x40
-#define SIDC_RDKEY 0x60
+#define SID_PRCTL	0x40	/* SID program/read control register */
+#define SID_RDKEY	0x60	/* SID read key value register */
 
-#define SIDC_OP_LOCK 0xAC
+#define SID_OP_LOCK	0xAC	/* Efuse operation lock value */
+#define SID_READ_START	(1 << 1) /* bit 1 of SID_PRCTL, Software Read Start */
 
-u32 sun8i_efuse_read(u32 offset)
+u32 sid_read_key(u32 sid_base, u32 offset)
 {
 	u32 reg_val;
 
-	reg_val = readl(SUN8I_SIDC_BASE + SIDC_PRCTL);
-	reg_val &= ~(((0x1ff) << 16) | 0x3);
-	reg_val |= (offset << 16);
-	writel(reg_val, SUN8I_SIDC_BASE + SIDC_PRCTL);
+	reg_val = (offset & 0x1FF) << 16; /* PG_INDEX value */
+	reg_val |= (SID_OP_LOCK << 8) | SID_READ_START; /* request read access */
+	writel(reg_val, sid_base + SID_PRCTL);
 
-	reg_val &= ~(((0xff) << 8) | 0x3);
-	reg_val |= (SIDC_OP_LOCK << 8) | 0x2;
-	writel(reg_val, SUN8I_SIDC_BASE + SIDC_PRCTL);
+	while (readl(sid_base + SID_PRCTL) & SID_READ_START) ; /* wait while busy */
 
-	while (readl(SUN8I_SIDC_BASE + SIDC_PRCTL) & 0x2);
+	reg_val = readl(sid_base + SID_RDKEY); /* read SID key value */
+	writel(0, sid_base + SID_PRCTL); /* clear SID_PRCTL (removing SID_OP_LOCK) */
 
-	reg_val &= ~(((0x1ff) << 16) | ((0xff) << 8) | 0x3);
-	writel(reg_val, SUN8I_SIDC_BASE + SIDC_PRCTL);
-
-	reg_val = readl(SUN8I_SIDC_BASE + SIDC_RDKEY);
 	return reg_val;
 }
 
@@ -301,18 +296,26 @@ int soc_is_a13(void)
 	       (readl(SUN4I_SID_BASE + 8) & 0xf000) != 0x7000;
 }
 
+/* H2+ and H3 share the same ID, we can differentiate them by SID_RKEY0 */
+
 int soc_is_h2_plus(void)
 {
-	return soc_id == 0x1680 && (
-	       (sun8i_efuse_read(0) & 0xff) == 0x42 ||
-	       (sun8i_efuse_read(0) & 0xff) == 0x83);
+	if (soc_id != 0x1680) return 0;
+
+	u32 sid0 = sid_read_key(SUN8I_SID_BASE, 0);
+	return (sid0 & 0xff) == 0x42 || (sid0 & 0xff) == 0x83;
 }
 
 int soc_is_h3(void)
 {
-	return soc_id == 0x1680 &&
-	       (sun8i_efuse_read(0) & 0xff) != 0x42 &&
-	       (sun8i_efuse_read(0) & 0xff) != 0x83;
+	if (soc_id != 0x1680) return 0;
+
+	u32 sid0 = sid_read_key(SUN8I_SID_BASE, 0);
+	/*
+	 * Note: according to Allwinner sources, H3 is expected
+	 * to show up as 0x00, 0x81 or ("H3D") 0x58 here.
+	 */
+	return (sid0 & 0xff) != 0x42 && (sid0 & 0xff) != 0x83;
 }
 
 /*****************************************************************************
