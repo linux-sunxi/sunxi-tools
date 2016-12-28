@@ -138,6 +138,7 @@ enum sunxi_gpio_number {
 #define SUN5I_GPB_UART0         (2)
 #define SUN6I_GPH_UART0         (2)
 #define SUN8I_H3_GPA_UART0      (2)
+#define SUN8I_V3S_GPB_UART0	(3)
 #define SUN50I_H5_GPA_UART0     (2)
 #define SUN50I_A64_GPB_UART0    (4)
 #define SUNXI_GPF_UART0         (4)
@@ -257,6 +258,7 @@ void soc_detection_init(void)
 #define soc_is_h3()	(soc_id == 0x1680)
 #define soc_is_h5()	(soc_id == 0x1718)
 #define soc_is_r40()	(soc_id == 0x1701)
+#define soc_is_v3s()	(soc_id == 0x1681)
 
 /* A10s and A13 share the same ID, so we need a little more effort on those */
 
@@ -336,6 +338,10 @@ void gpio_init(void)
 		sunxi_gpio_set_cfgpin(SUNXI_GPA(4), SUN50I_H5_GPA_UART0);
 		sunxi_gpio_set_cfgpin(SUNXI_GPA(5), SUN50I_H5_GPA_UART0);
 		sunxi_gpio_set_pull(SUNXI_GPA(5), SUNXI_GPIO_PULL_UP);
+	} else if (soc_is_v3s()) {
+		sunxi_gpio_set_cfgpin(SUNXI_GPB(8), SUN8I_V3S_GPB_UART0);
+		sunxi_gpio_set_cfgpin(SUNXI_GPB(9), SUN8I_V3S_GPB_UART0);
+		sunxi_gpio_set_pull(SUNXI_GPB(9), SUNXI_GPIO_PULL_UP);
 	} else {
 		/* Unknown SoC */
 		while (1) {}
@@ -449,6 +455,8 @@ int main(void)
 		uart0_puts("Allwinner H5!\n");
 	else if (soc_is_r40())
 		uart0_puts("Allwinner R40!\n");
+	else if (soc_is_v3s())
+		uart0_puts("Allwinner V3s!\n");
 	else
 		uart0_puts("unknown Allwinner SoC!\n");
 
