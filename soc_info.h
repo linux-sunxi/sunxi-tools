@@ -82,8 +82,10 @@ typedef struct {
 	uint32_t           thunk_size;   /* Maximal size of the thunk code */
 	bool               needs_l2en;   /* Set the L2EN bit */
 	uint32_t           mmu_tt_addr;  /* MMU translation table address */
-	uint32_t           sid_addr;     /* base address for SID_KEY[0-3] registers */
+	uint32_t           sid_base;     /* base address for SID registers */
+	uint32_t           sid_offset;   /* offset for SID_KEY[0-3], "root key" */
 	uint32_t           rvbar_reg;    /* MMIO address of RVBARADDR0_L register */
+	bool               sid_fix;      /* Use SID workaround (read via register) */
 	sram_swap_buffers *swap_buffers;
 } soc_info_t;
 

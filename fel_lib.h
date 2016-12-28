@@ -67,4 +67,8 @@ void aw_fel_execute(feldev_handle *dev, uint32_t offset);
 void fel_readl_n(feldev_handle *dev, uint32_t addr, uint32_t *dst, size_t count);
 void fel_writel_n(feldev_handle *dev, uint32_t addr, uint32_t *src, size_t count);
 
+/* retrieve SID root key */
+bool fel_get_sid_root_key(feldev_handle *dev, uint32_t *result,
+			  bool force_workaround);
+
 #endif /* _SUNXI_TOOLS_FEL_LIB_H */
