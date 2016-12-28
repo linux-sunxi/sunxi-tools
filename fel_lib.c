@@ -601,8 +601,10 @@ feldev_list_entry *list_fel_devices(size_t *count)
 		strncpy(entry->soc_name, dev->soc_name, sizeof(soc_name_t));
 
 		/* retrieve SID bits */
-		if (dev->soc_info->sid_addr)
-			aw_fel_readl_n(dev, dev->soc_info->sid_addr, entry->SID, 4);
+		if (dev->soc_info->sid_base)
+			aw_fel_readl_n(dev,
+				dev->soc_info->sid_base + dev->soc_info->sid_offset,
+				entry->SID, 4);
 
 		feldev_close(dev);
 		free(dev);

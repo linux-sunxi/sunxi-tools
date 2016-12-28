@@ -279,11 +279,12 @@ void fel_writel(feldev_handle *dev, uint32_t addr, uint32_t val)
 void aw_fel_print_sid(feldev_handle *dev)
 {
 	soc_info_t *soc_info = dev->soc_info;
-	if (soc_info->sid_addr) {
-		pr_info("SID key (e-fuses) at 0x%08X\n", soc_info->sid_addr);
+	if (soc_info->sid_base) {
+		uint32_t sid_addr = soc_info->sid_base + soc_info->sid_offset;
+		pr_info("SID key (e-fuses) at 0x%08X\n", sid_addr);
 
 		uint32_t key[4];
-		fel_readl_n(dev, soc_info->sid_addr, key, 4);
+		fel_readl_n(dev, sid_addr, key, 4);
 
 		unsigned int i;
 		/* output SID in "xxxxxxxx:xxxxxxxx:xxxxxxxx:xxxxxxxx" format */
