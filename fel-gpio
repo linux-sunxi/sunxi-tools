@@ -20,26 +20,24 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-pio_to_sram=0x2000
-sram_to_pio=0x2004
+pio_base=0x01c20800
+pio_size=0x228
+sram_addr=0x3000
 
-if [ -f fel-pio.bin ]; then
-	./sunxi-fel write 0x2000 fel-pio.bin
-else
-	./sunxi-fel write 0x2000 bin/fel-pio.bin
-fi
-
-./sunxi-fel exec $pio_to_sram
-./sunxi-fel read 0x3000 0x228 pio.reg
+# read PIO
+./sunxi-fel memmove $sram_addr $pio_base $pio_size
+./sunxi-fel read $sram_addr $pio_size pio.reg
 ./sunxi-pio -i pio.reg print > pio.old
 cat pio.old | fgrep -v '<0><0><0><0>'
 
 while read cmd; do
 	./sunxi-pio -i pio.reg -o pio.reg $cmd
-	./sunxi-fel write 0x3000 pio.reg
-	./sunxi-fel exe 0x2004
-	./sunxi-fel exe 0x2000
-	./sunxi-fel read 0x3000 0x228 pio.reg
+	# write PIO
+	./sunxi-fel write $sram_addr pio.reg
+	./sunxi-fel memmove $pio_base $sram_addr $pio_size
+	# (re-)read PIO
+	./sunxi-fel memmove $sram_addr $pio_base $pio_size
+	./sunxi-fel read $sram_addr $pio_size pio.reg
 	./sunxi-pio -i pio.reg print > pio.new
 	diff -U0 pio.old pio.new || true
 	mv -f pio.new pio.old

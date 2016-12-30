@@ -44,7 +44,7 @@ finds. You can print a list of all FEL devices currently connected/detected
 with `./sunxi-fel --list --verbose`.
 
 ### fel-gpio
-Simple wrapper (script) around `fel-pio` and `sunxi-fel`
+Simple wrapper (script) around `sunxi-pio` and `sunxi-fel`
 to allow GPIO manipulations via FEL
 
 ### fel-sdboot
@@ -58,11 +58,8 @@ Allwinner devices and can be used for testing. Additionally, it may
 serve as a template/example for developing simple bare metal code
 (LED blinking and other similar GPIO related things).
 
-### fel-pio
-ARM native helper (binary) for `fel-gpio`
-
 ### sunxi-pio
-Manipulate PIO register dumps
+Manipulate PIO registers/dumps
 
 ### sunxi-nand-part
 Tool for manipulating Allwinner NAND partition tables
