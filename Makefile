@@ -131,7 +131,7 @@ PROGRESS := progress.c progress.h
 SOC_INFO := soc_info.c soc_info.h
 FEL_LIB  := fel_lib.c fel_lib.h
 
-sunxi-fel: fel.c fel-to-spl-thunk.h $(PROGRESS) $(SOC_INFO) $(FEL_LIB)
+sunxi-fel: fel.c thunks/fel-to-spl-thunk.h $(PROGRESS) $(SOC_INFO) $(FEL_LIB)
 	$(CC) $(HOST_CFLAGS) $(LIBUSB_CFLAGS) $(LDFLAGS) -o $@ $(filter %.c,$^) $(LIBS) $(LIBUSB_LIBS)
 
 sunxi-nand-part: nand-part-main.c nand-part.c nand-part-a10.h nand-part-a20.h
