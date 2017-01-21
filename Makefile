@@ -50,7 +50,7 @@ MISC_TOOLS = phoenix_info sunxi-nand-image-builder
 
 # ARM binaries and images
 # Note: To use this target, set/adjust CROSS_COMPILE and MKSUNXIBOOT if needed
-BINFILES = fel-pio.bin jtag-loop.sunxi fel-sdboot.sunxi uart0-helloworld-sdboot.sunxi
+BINFILES = jtag-loop.sunxi fel-sdboot.sunxi uart0-helloworld-sdboot.sunxi
 
 CROSS_COMPILE ?= arm-none-eabi-
 CROSS_CC ?= $(CROSS_COMPILE)gcc
@@ -148,18 +148,10 @@ phoenix_info: phoenix_info.c
 %.sunxi: %.bin
 	$(MKSUNXIBOOT) $< $@
 
-fel-pio.bin: fel-pio.elf fel-pio.nm
-
 ARM_ELF_FLAGS = -Os -marm -fpic -Wall
 ARM_ELF_FLAGS += -fno-common -fno-builtin -ffreestanding -nostdinc -fno-strict-aliasing
 ARM_ELF_FLAGS += -mno-thumb-interwork -fno-stack-protector -fno-toplevel-reorder
 ARM_ELF_FLAGS += -Wstrict-prototypes -Wno-format-nonliteral -Wno-format-security
-
-fel-pio.elf: fel-pio.c fel-pio.lds
-	$(CROSS_CC) -g $(ARM_ELF_FLAGS) $< -nostdlib -o $@ -T fel-pio.lds
-
-fel-pio.nm: fel-pio.elf
-	$(CROSS_COMPILE)nm $< | grep -v " _" >$@
 
 jtag-loop.elf: jtag-loop.c jtag-loop.lds
 	$(CROSS_CC) -g $(ARM_ELF_FLAGS) $< -nostdlib -o $@ -T jtag-loop.lds -Wl,-N

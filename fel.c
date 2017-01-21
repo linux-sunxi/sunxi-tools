@@ -996,6 +996,7 @@ int main(int argc, char **argv)
 			"	dump address length		Binary memory dump\n"
 			"	exe[cute] address		Call function address\n"
 			"	reset64 address			RMR request for AArch64 warm boot\n"
+			"	memmove dest source size	Copy <size> bytes within device memory\n"
 			"	readl address			Read 32-bit value from device memory\n"
 			"	writel address value		Write 32-bit value to device memory\n"
 			"	read address length file	Write memory contents into file\n"
@@ -1090,6 +1091,11 @@ int main(int argc, char **argv)
 		} else if (strncmp(argv[1], "dump", 4) == 0 && argc > 3) {
 			aw_fel_dump(handle, strtoul(argv[2], NULL, 0), strtoul(argv[3], NULL, 0));
 			skip = 3;
+		} else if (strcmp(argv[1], "memmove") == 0 && argc > 4) {
+			/* three parameters: destination addr, source addr, byte count */
+			fel_memmove(handle, strtoul(argv[2], NULL, 0),
+				    strtoul(argv[3], NULL, 0), strtoul(argv[4], NULL, 0));
+			skip = 4;
 		} else if (strcmp(argv[1], "readl") == 0 && argc > 2) {
 			printf("0x%08x\n", fel_readl(handle, strtoul(argv[2], NULL, 0)));
 			skip = 2;

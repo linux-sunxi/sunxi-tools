@@ -369,6 +369,122 @@ void fel_writel_n(feldev_handle *dev, uint32_t addr, uint32_t *src, size_t count
 }
 
 /*
+ * move (arbitrary byte count) data between addresses within SoC memory
+ *
+ * These functions try to copy as many bytes as possible using 32-bit word
+ * transfers, and handle any unaligned bytes ('head' and 'tail') separately.
+ *
+ * This is useful for the same reasons that "readl"/"writel" were introduced:
+ * Byte-oriented transfers ("string" copy) might not give the expected results
+ * when accessing hardware registers, like e.g. the (G)PIO config/state.
+ *
+ * We have two different low-level functions, where the copy operation moves
+ * upwards or downwards respectively. This allows a non-destructive "memmove"
+ * wrapper to select the suitable one in case of memory overlap.
+ */
+
+static void fel_memcpy_up(feldev_handle *dev,
+			  uint32_t dst_addr, uint32_t src_addr, size_t size)
+{
+	if (size == 0) return;
+	/*
+	 * copy "upwards", increasing destination and source addresses
+	 */
+	uint32_t arm_code[] = {
+		htole32(0xe59f0054), /* ldr   r0, [pc, #84] ; ldr r0, [dst_addr] */
+		htole32(0xe59f1054), /* ldr   r1, [pc, #84] ; ldr r1, [src_addr] */
+		htole32(0xe59f2054), /* ldr   r2, [pc, #84] ; ldr r2, [size]     */
+		htole32(0xe0413000), /* sub   r3, r1, r0    ; r3 = r1 - r0       */
+		htole32(0xe3130003), /* tst   r3, #3        ; test lower bits    */
+		htole32(0x1a00000b), /* bne   copyup_tail   ; unaligned copying  */
+		/* copyup_head: */
+		htole32(0xe3110003), /* tst   r1, #3        ; word-aligned?      */
+		htole32(0x0a000004), /* beq   copyup_loop                        */
+		htole32(0xe4d13001), /* ldrb  r3, [r1], #1  ; load and post-inc  */
+		htole32(0xe4c03001), /* strb  r3, [r0], #1  ; store and post-inc */
+		htole32(0xe2522001), /* subs  r2, r2, #1    ; r2 -= 1            */
+		htole32(0x5afffff9), /* bpl   copyup_head   ; while (r2 >= 0)    */
+		htole32(0xe12fff1e), /* bx    lr            ; early return       */
+		/* copyup_loop: */
+		htole32(0xe2522004), /* subs  r2, r2, #4    ; r2 -= 4            */
+		htole32(0x54913004), /* ldrpl r3, [r1], #4  ; load and post-inc  */
+		htole32(0x54803004), /* strpl r3, [r0], #4  ; store and post-inc */
+		htole32(0x5afffffb), /* bpl   copyup_loop   ; while (r2 >= 0)    */
+		htole32(0xe2822004), /* add   r2, r2, #4    ; remaining bytes    */
+		/* copyup_tail: */
+		htole32(0xe2522001), /* subs  r2, r2, #1    ; r2 -= 1            */
+		htole32(0x412fff1e), /* bxmi  lr            ; return if (r2 < 0) */
+		htole32(0xe4d13001), /* ldrb  r3, [r1], #1  ; load and post-inc  */
+		htole32(0xe4c03001), /* strb  r3, [r0], #1  ; store and post-inc */
+		htole32(0xeafffffa), /* b     copyup_tail                        */
+
+		htole32(dst_addr), /* destination address */
+		htole32(src_addr), /* source address */
+		htole32(size),     /* size (= byte count) */
+	};
+	aw_fel_write(dev, arm_code, dev->soc_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(dev, dev->soc_info->scratch_addr);
+}
+
+static void fel_memcpy_down(feldev_handle *dev,
+			    uint32_t dst_addr, uint32_t src_addr, size_t size)
+{
+	if (size == 0) return;
+	/*
+	 * This ARM code makes use of decreasing values in r2
+	 * for memory indexing relative to the base addresses in r0 and r1.
+	 */
+	uint32_t arm_code[] = {
+		htole32(0xe59f0058), /* ldr   r0, [pc, #88] ; ldr r0, [dst_addr] */
+		htole32(0xe59f1058), /* ldr   r1, [pc, #88] ; ldr r1, [src_addr] */
+		htole32(0xe59f2058), /* ldr   r2, [pc, #88] ; ldr r2, [size]     */
+		htole32(0xe0403001), /* sub   r3, r0, r1    ; r3 = r0 - r1       */
+		htole32(0xe3130003), /* tst   r3, #3        ; test lower bits    */
+		htole32(0x1a00000c), /* bne   copydn_tail   ; unaligned copying  */
+		/* copydn_head: */
+		htole32(0xe0813002), /* add   r3, r1, r2    ; r3 = r1 + r2       */
+		htole32(0xe3130003), /* tst   r3, #3        ; word-aligned?      */
+		htole32(0x0a000004), /* beq   copydn_loop                        */
+		htole32(0xe2522001), /* subs  r2, r2, #1    ; r2 -= 1            */
+		htole32(0x412fff1e), /* bxmi  lr            ; early return       */
+		htole32(0xe7d13002), /* ldrb  r3, [r1, r2]  ; load byte          */
+		htole32(0xe7c03002), /* strb  r3, [r0, r2]  ; store byte         */
+		htole32(0xeafffff7), /* b     copydn_head                        */
+		/* copydn_loop: */
+		htole32(0xe2522004), /* subs  r2, r2, #4    ; r2 -= 4            */
+		htole32(0x57913002), /* ldrpl r3, [r1, r2]  ; load word          */
+		htole32(0x57803002), /* strpl r3, [r0, r2]  ; store word         */
+		htole32(0x5afffffb), /* bpl   copydn_loop   ; while (r2 >= 0)    */
+		htole32(0xe2822004), /* add   r2, r2, #4    ; remaining bytes    */
+		/* copydn_tail: */
+		htole32(0xe2522001), /* subs  r2, r2, #1    ; r2 -= 1            */
+		htole32(0x412fff1e), /* bxmi  lr            ; return if (r2 < 0) */
+		htole32(0xe7d13002), /* ldrb  r3, [r1, r2]  ; load byte          */
+		htole32(0xe7c03002), /* strb  r3, [r0, r2]  ; store byte         */
+		htole32(0xeafffffa), /* b     copydn_tail                        */
+
+		htole32(dst_addr), /* destination address */
+		htole32(src_addr), /* source address */
+		htole32(size),     /* size (= byte count) */
+	};
+	aw_fel_write(dev, arm_code, dev->soc_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(dev, dev->soc_info->scratch_addr);
+}
+
+void fel_memmove(feldev_handle *dev,
+		 uint32_t dst_addr, uint32_t src_addr, size_t size)
+{
+	/*
+	 * To ensure non-destructive operation, we need to select "downwards"
+	 * copying if the destination overlaps the source region.
+	 */
+	if (dst_addr >= src_addr && dst_addr < (src_addr + size))
+		fel_memcpy_down(dev, dst_addr, src_addr, size);
+	else
+		fel_memcpy_up(dev, dst_addr, src_addr, size);
+}
+
+/*
  * Memory access to the SID (root) keys proved to be unreliable for certain
  * SoCs. This function uses an alternative, register-based approach to retrieve
  * the values.

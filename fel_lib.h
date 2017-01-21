@@ -67,6 +67,9 @@ void aw_fel_execute(feldev_handle *dev, uint32_t offset);
 void fel_readl_n(feldev_handle *dev, uint32_t addr, uint32_t *dst, size_t count);
 void fel_writel_n(feldev_handle *dev, uint32_t addr, uint32_t *src, size_t count);
 
+void fel_memmove(feldev_handle *dev,
+		 uint32_t dst_addr, uint32_t src_addr, size_t size);
+
 /* retrieve SID root key */
 bool fel_get_sid_root_key(feldev_handle *dev, uint32_t *result,
 			  bool force_workaround);
