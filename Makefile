@@ -176,6 +176,11 @@ boot_head_sun5i.elf: boot_head.S boot_head.lds
 
 sunxi-bootinfo: bootinfo.c
 
+# "preprocessed" .h files for inclusion of ARM thunk code
+headers:
+	make -C thunks/ CROSS_COMPILE=$(CROSS_COMPILE)
+
+
 # target tools
 TARGET_CFLAGS = $(DEFAULT_CFLAGS) -static $(CFLAGS)
 sunxi-meminfo: meminfo.c
