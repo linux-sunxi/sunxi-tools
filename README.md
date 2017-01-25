@@ -112,8 +112,9 @@ and our default target (when simply using `make`).
 
 * `make target-tools`
 builds tools that are intended for the target (Allwinner SoC), using a
-cross-compiler. The toolchain prefix *CROSS_COMPILE* defaults to `arm-none-eabi-`,
-adjust it if needed.
+cross-compiler. The Makefile will try to auto-detect a suitable toolchain
+prefix, and falls back to `arm-none-eabi-` otherwise.
+If needed, you may override this by explicitly setting *CROSS_COMPILE*.
 <br>_Hint:_ When compiling 'natively' on the target platform you may
 simply use an empty toolchain prefix here (`make target-tools CROSS_COMPILE=`
 or `make all CROSS_COMPILE=`).

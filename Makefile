@@ -52,9 +52,12 @@ MISC_TOOLS = phoenix_info sunxi-nand-image-builder
 # Note: To use this target, set/adjust CROSS_COMPILE and MKSUNXIBOOT if needed
 BINFILES = jtag-loop.sunxi fel-sdboot.sunxi uart0-helloworld-sdboot.sunxi
 
-CROSS_COMPILE ?= arm-none-eabi-
-CROSS_CC ?= $(CROSS_COMPILE)gcc
 MKSUNXIBOOT ?= mksunxiboot
+PATH_DIRS := $(shell echo $$PATH | sed -e 's/:/ /g')
+# Try to guess a suitable default ARM cross toolchain
+CROSS_DEFAULT := arm-none-eabi-
+CROSS_COMPILE ?= $(or $(shell find $(PATH_DIRS) -executable -name 'arm*-gcc' -printf '%f\t' | cut -f 1 | sed -e 's/-gcc/-/'),$(CROSS_DEFAULT))
+CROSS_CC ?= $(CROSS_COMPILE)gcc
 
 DESTDIR ?=
 PREFIX  ?= /usr/local
