@@ -3,7 +3,10 @@
 #
 
 SPL_THUNK := fel-to-spl-thunk.h
-THUNKS := sid_read_root.h
+THUNKS := memcpy.h
+THUNKS += readl_writel.h
+THUNKS += rmr-thunk.h
+THUNKS += sid_read_root.h
 
 all: $(SPL_THUNK) $(THUNKS)
 # clean up object files afterwards
