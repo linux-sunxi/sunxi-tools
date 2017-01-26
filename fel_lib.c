@@ -485,6 +485,31 @@ void fel_memmove(feldev_handle *dev,
 }
 
 /*
+ * Bitwise manipulation of a 32-bit word at given address, via bit masks that
+ * specify which bits to clear and which to set.
+ */
+void fel_clrsetbits_le32(feldev_handle *dev,
+			 uint32_t addr, uint32_t clrbits, uint32_t setbits)
+{
+	uint32_t arm_code[] = {
+		htole32(0xe59f0018), /*    0:  ldr   r0, [addr]              */
+		htole32(0xe5901000), /*    4:  ldr   r1, [r0]                */
+		htole32(0xe59f2014), /*    8:  ldr   r2, [clrbits]           */
+		htole32(0xe1c11002), /*    c:  bic   r1, r1, r2              */
+		htole32(0xe59f2010), /*   10:  ldr   r2, [setbits]           */
+		htole32(0xe1811002), /*   14:  orr   r1, r1, r2              */
+		htole32(0xe5801000), /*   18:  str   r1, [r0]                */
+		htole32(0xe12fff1e), /*   1c:  bx    lr                      */
+
+		htole32(addr),    /* address */
+		htole32(clrbits), /* bits to clear */
+		htole32(setbits), /* bits to set */
+	};
+	aw_fel_write(dev, arm_code, dev->soc_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(dev, dev->soc_info->scratch_addr);
+}
+
+/*
  * Memory access to the SID (root) keys proved to be unreliable for certain
  * SoCs. This function uses an alternative, register-based approach to retrieve
  * the values.

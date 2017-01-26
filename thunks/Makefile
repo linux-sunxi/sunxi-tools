@@ -3,7 +3,8 @@
 #
 
 SPL_THUNK := fel-to-spl-thunk.h
-THUNKS := memcpy.h
+THUNKS := clrsetbits.h
+THUNKS += memcpy.h
 THUNKS += readl_writel.h
 THUNKS += rmr-thunk.h
 THUNKS += sid_read_root.h

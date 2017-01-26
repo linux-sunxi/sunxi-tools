@@ -70,6 +70,13 @@ void fel_writel_n(feldev_handle *dev, uint32_t addr, uint32_t *src, size_t count
 void fel_memmove(feldev_handle *dev,
 		 uint32_t dst_addr, uint32_t src_addr, size_t size);
 
+void fel_clrsetbits_le32(feldev_handle *dev,
+			 uint32_t addr, uint32_t clrbits, uint32_t setbits);
+#define fel_clrbits_le32(dev, addr, value) \
+	fel_clrsetbits_le32(dev, addr, value, 0)
+#define fel_setbits_le32(dev, addr, value) \
+	fel_clrsetbits_le32(dev, addr, 0, value)
+
 /* retrieve SID root key */
 bool fel_get_sid_root_key(feldev_handle *dev, uint32_t *result,
 			  bool force_workaround);
