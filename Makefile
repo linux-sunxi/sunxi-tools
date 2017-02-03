@@ -52,9 +52,12 @@ MISC_TOOLS = phoenix_info sunxi-nand-image-builder
 # Note: To use this target, set/adjust CROSS_COMPILE and MKSUNXIBOOT if needed
 BINFILES = jtag-loop.sunxi fel-sdboot.sunxi uart0-helloworld-sdboot.sunxi
 
-CROSS_COMPILE ?= arm-none-eabi-
-CROSS_CC ?= $(CROSS_COMPILE)gcc
 MKSUNXIBOOT ?= mksunxiboot
+PATH_DIRS := $(shell echo $$PATH | sed -e 's/:/ /g')
+# Try to guess a suitable default ARM cross toolchain
+CROSS_DEFAULT := arm-none-eabi-
+CROSS_COMPILE ?= $(or $(shell find $(PATH_DIRS) -executable -name 'arm*-gcc' -printf '%f\t' | cut -f 1 | sed -e 's/-gcc/-/'),$(CROSS_DEFAULT))
+CROSS_CC ?= $(CROSS_COMPILE)gcc
 
 DESTDIR ?=
 PREFIX  ?= /usr/local
@@ -128,7 +131,7 @@ PROGRESS := progress.c progress.h
 SOC_INFO := soc_info.c soc_info.h
 FEL_LIB  := fel_lib.c fel_lib.h
 
-sunxi-fel: fel.c fel-to-spl-thunk.h $(PROGRESS) $(SOC_INFO) $(FEL_LIB)
+sunxi-fel: fel.c thunks/fel-to-spl-thunk.h $(PROGRESS) $(SOC_INFO) $(FEL_LIB)
 	$(CC) $(HOST_CFLAGS) $(LIBUSB_CFLAGS) $(LDFLAGS) -o $@ $(filter %.c,$^) $(LIBS) $(LIBUSB_LIBS)
 
 sunxi-nand-part: nand-part-main.c nand-part.c nand-part-a10.h nand-part-a20.h
@@ -172,6 +175,11 @@ boot_head_sun5i.elf: boot_head.S boot_head.lds
 	$(CROSS_CC) -g $(ARM_ELF_FLAGS) $< -nostdlib -o $@ -T boot_head.lds -Wl,-N -DMACHID=0x102A
 
 sunxi-bootinfo: bootinfo.c
+
+# "preprocessed" .h files for inclusion of ARM thunk code
+headers:
+	make -C thunks/ CROSS_COMPILE=$(CROSS_COMPILE)
+
 
 # target tools
 TARGET_CFLAGS = $(DEFAULT_CFLAGS) -static $(CFLAGS)

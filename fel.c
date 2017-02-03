@@ -216,7 +216,7 @@ void aw_fel_fill(feldev_handle *dev, uint32_t offset, size_t size, unsigned char
 }
 
 static uint32_t fel_to_spl_thunk[] = {
-	#include "fel-to-spl-thunk.h"
+	#include "thunks/fel-to-spl-thunk.h"
 };
 
 #define	DRAM_BASE		0x40000000
