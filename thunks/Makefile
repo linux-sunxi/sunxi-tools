@@ -23,7 +23,7 @@ CROSS_COMPILE ?= $(shell find $(PATH_DIRS) -executable -name 'arm*-gcc' -printf 
 AS := $(CROSS_COMPILE)as
 OBJDUMP := $(CROSS_COMPILE)objdump
 
-AWK_O_TO_H := awk -f objdump_to_h.awk
+AWK_O_TO_H := LC_ALL=C awk -f objdump_to_h.awk
 
 # The SPL thunk requires a different output format. The "style" variable for
 # awk controls this, and causes the htole32() conversion to be omitted.
