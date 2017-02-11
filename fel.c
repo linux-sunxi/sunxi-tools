@@ -197,22 +197,28 @@ void *load_file(const char *name, size_t *size)
 
 void aw_fel_hexdump(feldev_handle *dev, uint32_t offset, size_t size)
 {
-	unsigned char buf[size];
-	aw_fel_read(dev, offset, buf, size);
-	hexdump(buf, offset, size);
+	if (size > 0) {
+		unsigned char buf[size];
+		aw_fel_read(dev, offset, buf, size);
+		hexdump(buf, offset, size);
+	}
 }
 
 void aw_fel_dump(feldev_handle *dev, uint32_t offset, size_t size)
 {
-	unsigned char buf[size];
-	aw_fel_read(dev, offset, buf, size);
-	fwrite(buf, size, 1, stdout);
+	if (size > 0) {
+		unsigned char buf[size];
+		aw_fel_read(dev, offset, buf, size);
+		fwrite(buf, size, 1, stdout);
+	}
 }
 void aw_fel_fill(feldev_handle *dev, uint32_t offset, size_t size, unsigned char value)
 {
-	unsigned char buf[size];
-	memset(buf, value, size);
-	aw_write_buffer(dev, buf, offset, size, false);
+	if (size > 0) {
+		unsigned char buf[size];
+		memset(buf, value, size);
+		aw_write_buffer(dev, buf, offset, size, false);
+	}
 }
 
 static uint32_t fel_to_spl_thunk[] = {
