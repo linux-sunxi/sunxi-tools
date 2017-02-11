@@ -17,8 +17,7 @@ all: $(SPL_THUNK) $(THUNKS)
 FORCE:
 
 # If not specified explicitly: try to guess a suitable ARM toolchain prefix
-PATH_DIRS := $(shell echo $$PATH | sed -e 's/:/ /g')
-CROSS_COMPILE ?= $(shell find $(PATH_DIRS) -executable -name 'arm*-gcc' -printf '%f\t' | cut -f 1 | sed -e 's/-gcc/-/')
+CROSS_COMPILE ?= $(shell ../find-arm-gcc.sh)
 
 AS := $(CROSS_COMPILE)as
 OBJDUMP := $(CROSS_COMPILE)objdump

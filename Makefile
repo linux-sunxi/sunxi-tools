@@ -56,8 +56,8 @@ MKSUNXIBOOT ?= mksunxiboot
 PATH_DIRS := $(shell echo $$PATH | sed -e 's/:/ /g')
 # Try to guess a suitable default ARM cross toolchain
 CROSS_DEFAULT := arm-none-eabi-
-CROSS_COMPILE ?= $(or $(shell find $(PATH_DIRS) -executable -name 'arm*-gcc' -printf '%f\t' 2>/dev/null | cut -f 1 | sed -e 's/-gcc/-/'),$(CROSS_DEFAULT))
-CROSS_CC ?= $(CROSS_COMPILE)gcc
+CROSS_COMPILE ?= $(or $(shell ./find-arm-gcc.sh),$(CROSS_DEFAULT))
+CROSS_CC := $(CROSS_COMPILE)gcc
 
 DESTDIR ?=
 PREFIX  ?= /usr/local
