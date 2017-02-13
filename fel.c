@@ -970,6 +970,52 @@ static void select_by_sid(const char *sid_arg, int *busnum, int *devnum)
 	free(list);
 }
 
+void usage(const char *cmd) {
+	puts("sunxi-fel " VERSION "\n");
+	printf("Usage: %s [options] command arguments... [command...]\n"
+		"	-h, --help			Print this usage summary and exit\n"
+		"	-v, --verbose			Verbose logging\n"
+		"	-p, --progress			\"write\" transfers show a progress bar\n"
+		"	-l, --list			Enumerate all (USB) FEL devices and exit\n"
+		"	-d, --dev bus:devnum		Use specific USB bus and device number\n"
+		"	    --sid SID			Select device by SID key (exact match)\n"
+		"\n"
+		"	spl file			Load and execute U-Boot SPL\n"
+		"		If file additionally contains a main U-Boot binary\n"
+		"		(u-boot-sunxi-with-spl.bin), this command also transfers that\n"
+		"		to memory (default address from image), but won't execute it.\n"
+		"\n"
+		"	uboot file-with-spl		like \"spl\", but actually starts U-Boot\n"
+		"		U-Boot execution will take place when the fel utility exits.\n"
+		"		This allows combining \"uboot\" with further \"write\" commands\n"
+		"		(to transfer other files needed for the boot).\n"
+		"\n"
+		"	hex[dump] address length	Dumps memory region in hex\n"
+		"	dump address length		Binary memory dump\n"
+		"	exe[cute] address		Call function address\n"
+		"	reset64 address			RMR request for AArch64 warm boot\n"
+		"	memmove dest source size	Copy <size> bytes within device memory\n"
+		"	readl address			Read 32-bit value from device memory\n"
+		"	writel address value		Write 32-bit value to device memory\n"
+		"	read address length file	Write memory contents into file\n"
+		"	write address file		Store file contents into memory\n"
+		"	write-with-progress addr file	\"write\" with progress bar\n"
+		"	write-with-gauge addr file	Output progress for \"dialog --gauge\"\n"
+		"	write-with-xgauge addr file	Extended gauge output (updates prompt)\n"
+		"	multi[write] # addr file ...	\"write-with-progress\" multiple files,\n"
+		"					sharing a common progress status\n"
+		"	multi[write]-with-gauge ...	like their \"write-with-*\" counterpart,\n"
+		"	multi[write]-with-xgauge ...	  but following the 'multi' syntax:\n"
+		"					  <#> addr file [addr file [...]]\n"
+		"	echo-gauge \"some text\"		Update prompt/caption for gauge output\n"
+		"	ver[sion]			Show BROM version\n"
+		"	sid				Retrieve and output 128-bit SID key\n"
+		"	clear address length		Clear memory\n"
+		"	fill address length value	Fill memory\n"
+		, cmd);
+	exit(0);
+}
+
 int main(int argc, char **argv)
 {
 	bool uboot_autostart = false; /* flag for "uboot" command = U-Boot autostart */
@@ -979,55 +1025,14 @@ int main(int argc, char **argv)
 	int busnum = -1, devnum = -1;
 	char *sid_arg = NULL;
 
-	if (argc <= 1) {
-		puts("sunxi-fel " VERSION "\n");
-		printf("Usage: %s [options] command arguments... [command...]\n"
-			"	-v, --verbose			Verbose logging\n"
-			"	-p, --progress			\"write\" transfers show a progress bar\n"
-			"	-l, --list			Enumerate all (USB) FEL devices and exit\n"
-			"	-d, --dev bus:devnum		Use specific USB bus and device number\n"
-			"	    --sid SID			Select device by SID key (exact match)\n"
-			"\n"
-			"	spl file			Load and execute U-Boot SPL\n"
-			"		If file additionally contains a main U-Boot binary\n"
-			"		(u-boot-sunxi-with-spl.bin), this command also transfers that\n"
-			"		to memory (default address from image), but won't execute it.\n"
-			"\n"
-			"	uboot file-with-spl		like \"spl\", but actually starts U-Boot\n"
-			"		U-Boot execution will take place when the fel utility exits.\n"
-			"		This allows combining \"uboot\" with further \"write\" commands\n"
-			"		(to transfer other files needed for the boot).\n"
-			"\n"
-			"	hex[dump] address length	Dumps memory region in hex\n"
-			"	dump address length		Binary memory dump\n"
-			"	exe[cute] address		Call function address\n"
-			"	reset64 address			RMR request for AArch64 warm boot\n"
-			"	memmove dest source size	Copy <size> bytes within device memory\n"
-			"	readl address			Read 32-bit value from device memory\n"
-			"	writel address value		Write 32-bit value to device memory\n"
-			"	read address length file	Write memory contents into file\n"
-			"	write address file		Store file contents into memory\n"
-			"	write-with-progress addr file	\"write\" with progress bar\n"
-			"	write-with-gauge addr file	Output progress for \"dialog --gauge\"\n"
-			"	write-with-xgauge addr file	Extended gauge output (updates prompt)\n"
-			"	multi[write] # addr file ...	\"write-with-progress\" multiple files,\n"
-			"					sharing a common progress status\n"
-			"	multi[write]-with-gauge ...	like their \"write-with-*\" counterpart,\n"
-			"	multi[write]-with-xgauge ...	  but following the 'multi' syntax:\n"
-			"					  <#> addr file [addr file [...]]\n"
-			"	echo-gauge \"some text\"		Update prompt/caption for gauge output\n"
-			"	ver[sion]			Show BROM version\n"
-			"	sid				Retrieve and output 128-bit SID key\n"
-			"	clear address length		Clear memory\n"
-			"	fill address length value	Fill memory\n"
-			, argv[0]
-		);
-		exit(0);
-	}
+	if (argc <= 1)
+		usage(argv[0]);
 
 	/* process all "prefix"-type arguments first */
 	while (argc > 1) {
-		if (strcmp(argv[1], "--verbose") == 0 || strcmp(argv[1], "-v") == 0)
+		if (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0)
+			usage(argv[0]);
+		else if (strcmp(argv[1], "--verbose") == 0 || strcmp(argv[1], "-v") == 0)
 			verbose = true;
 		else if (strcmp(argv[1], "--progress") == 0 || strcmp(argv[1], "-p") == 0)
 			pflag_active = true;
