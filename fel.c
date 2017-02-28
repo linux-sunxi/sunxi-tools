@@ -403,6 +403,39 @@ void aw_set_sctlr(feldev_handle *dev, soc_info_t *soc_info,
 }
 
 /*
+ * Issue a "smc #0" instruction. This brings a SoC booted in "secure boot"
+ * state from the default non-secure FEL into secure FEL.
+ * This crashes on devices using "non-secure boot", as the BROM does not
+ * provide a handler address in MVBAR. So we have a runtime check.
+ */
+void aw_apply_smc_workaround(feldev_handle *dev)
+{
+	soc_info_t *soc_info = dev->soc_info;
+	uint32_t val;
+	uint32_t arm_code[] = {
+		htole32(0xe1600070), /* smc	#0	*/
+		htole32(0xe12fff1e), /* bx	lr	*/
+	};
+
+	/* Return if the SoC does not need this workaround */
+	if (!soc_info->needs_smc_workaround_if_zero_word_at_addr)
+		return;
+
+	/* This has less overhead than fel_readl_n() and may be good enough */
+	aw_fel_read(dev, soc_info->needs_smc_workaround_if_zero_word_at_addr,
+	            &val, sizeof(val));
+
+	/* Return if the workaround is not needed or has been already applied */
+	if (val != 0)
+		return;
+
+	pr_info("Applying SMC workaround... ");
+	aw_fel_write(dev, arm_code, soc_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(dev, soc_info->scratch_addr);
+	pr_info(" done.\n");
+}
+
+/*
  * Reconstruct the same MMU translation table as used by the A20 BROM.
  * We are basically reverting the changes, introduced in newer SoC
  * variants. This works fine for the SoC variants with the memory
@@ -1091,6 +1124,9 @@ int main(int argc, char **argv)
 	 * the first one matching the given USB vendor/procduct ID.
 	 */
 	handle = feldev_open(busnum, devnum, AW_USB_VENDOR_ID, AW_USB_PRODUCT_ID);
+
+	/* Some SoCs need the SMC workaround to enter the secure boot mode */
+	aw_apply_smc_workaround(handle);
 
 	/* Handle command-style arguments, in order of appearance */
 	while (argc > 1 ) {

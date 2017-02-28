@@ -72,6 +72,22 @@ typedef struct {
  * spare space in SRAM to place the translation table there and specify it as
  * the 'mmu_tt_addr' field in the 'soc_sram_info' structure. The 'mmu_tt_addr'
  * address must be 16K aligned.
+ *
+ * If an SoC has the "secure boot" fuse burned, it will enter FEL mode in
+ * non-secure state, so with the SCR.NS bit set. Since in this mode the
+ * secure/non-secure state restrictions are actually observed, we suffer
+ * from several restrictions:
+ * - No access to the SID information (both via memory mapped and "register").
+ * - No access to secure SRAM (SRAM A2 on H3/A64/H5).
+ * - No access to the secure side of the GIC, so it can't be configured to
+ *   be accessible from non-secure world.
+ * - No RMR trigger on ARMv8 cores to bring the core into AArch64.
+ * However it has been found out that a simple "smc" call will immediately
+ * return from monitor mode, but with the NS bit cleared, so access to all
+ * secure peripherals is suddenly possible.
+ * The 'needs_smc_workaround_if_zero_word_at_addr' field can be used to
+ * have a check for this condition (reading from restricted addresses
+ * typically returns zero) and then activate the SMC workaround if needed.
  */
 typedef struct {
 	uint32_t           soc_id;       /* ID of the SoC */
@@ -86,6 +102,8 @@ typedef struct {
 	uint32_t           sid_offset;   /* offset for SID_KEY[0-3], "root key" */
 	uint32_t           rvbar_reg;    /* MMIO address of RVBARADDR0_L register */
 	bool               sid_fix;      /* Use SID workaround (read via register) */
+	/* Use SMC workaround (enter secure mode) if can't read from this address */
+	uint32_t           needs_smc_workaround_if_zero_word_at_addr;
 	sram_swap_buffers *swap_buffers;
 } soc_info_t;
 
