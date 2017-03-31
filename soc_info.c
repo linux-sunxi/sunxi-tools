@@ -148,6 +148,8 @@ soc_info_t soc_info_table[] = {
 		.sid_base     = 0x01C14000,
 		.sid_offset   = 0x200,
 		.rvbar_reg    = 0x017000A0,
+		/* Check L.NOP in the OpenRISC reset vector */
+		.needs_smc_workaround_if_zero_word_at_addr = 0x40004,
 	},{
 		.soc_id       = 0x1639, /* Allwinner A80 */
 		.name         = "A80",
@@ -175,6 +177,8 @@ soc_info_t soc_info_table[] = {
 		.sid_base     = 0x01C14000,
 		.sid_offset   = 0x200,
 		.sid_fix      = true,
+		/* Check L.NOP in the OpenRISC reset vector */
+		.needs_smc_workaround_if_zero_word_at_addr = 0x40004,
 	},{
 		.soc_id       = 0x1681, /* Allwinner V3s */
 		.name         = "V3s",
@@ -193,6 +197,8 @@ soc_info_t soc_info_table[] = {
 		.sid_base     = 0x01C14000,
 		.sid_offset   = 0x200,
 		.rvbar_reg    = 0x017000A0,
+		/* Check L.NOP in the OpenRISC reset vector */
+		.needs_smc_workaround_if_zero_word_at_addr = 0x40004,
 	},{
 		.soc_id       = 0x1701, /* Allwinner R40 */
 		.name         = "R40",
