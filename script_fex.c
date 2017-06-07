@@ -211,7 +211,7 @@ int script_parse_fex(FILE *in, const char *filename, struct script *script)
 		if (*s == '[') {
 			/* section */
 			char *p = ++s;
-			while (isalnum(*p) || *p == '_')
+			while (isalnum(*p) || *p == '_' || *p == '-' || *p == '/')
 				p++;
 
 			if (*p == ']' && *(p+1) == '\0') {
@@ -239,7 +239,7 @@ int script_parse_fex(FILE *in, const char *filename, struct script *script)
 				goto parse_error;
 			};
 
-			while (isalnum(*p) || *p == '_')
+			while (isalnum(*p) || *p == '_' || *p == '-')
 				p++;
 			mark = p;
 			p = skip_blank(p);
