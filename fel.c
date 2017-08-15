@@ -816,7 +816,7 @@ void aw_fel_process_spl_and_uboot(feldev_handle *dev, const char *filename)
  */
 #define SPL_SIGNATURE			"SPL" /* marks "sunxi" header */
 #define SPL_MIN_VERSION			1 /* minimum required version */
-#define SPL_MAX_VERSION			1 /* maximum supported version */
+#define SPL_MAX_VERSION			2 /* maximum supported version */
 bool have_sunxi_spl(feldev_handle *dev, uint32_t spl_addr)
 {
 	uint8_t spl_signature[4];
