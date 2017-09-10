@@ -39,11 +39,24 @@ typedef struct {
 } spi_flash_info_t;
 
 spi_flash_info_t spi_flash_info[] = {
-	{ 0xEF40,   0x6,   0xD8, 64 * 1024,   0x20, 4 * 1024,   0x02, 256,   "Winbond W25Qxx" },
+	{ .id = 0xEF40, .write_enable_cmd = 0x6,
+	  .large_erase_cmd = 0xD8, .large_erase_size = 64 * 1024,
+	  .small_erase_cmd = 0x20, .small_erase_size =  4 * 1024,
+	  .program_cmd = 0x02, .program_size = 256,
+	  .text_description = "Winbond W25Qxx" },
+	{ .id = 0xC220, .write_enable_cmd = 0x6,
+	  .large_erase_cmd = 0xD8, .large_erase_size = 64 * 1024,
+	  .small_erase_cmd = 0x20, .small_erase_size =  4 * 1024,
+	  .program_cmd = 0x02, .program_size = 256,
+	  .text_description = "Macronix MX25Lxxxx" },
 };
 
 spi_flash_info_t default_spi_flash_info = {
-	0x0000, 0x6, 0xD8, 64 * 1024, 0x20, 4 * 1024, 0x02, 256, "Unknown"
+	.id = 0x0000, .write_enable_cmd = 0x6,
+	.large_erase_cmd = 0xD8, .large_erase_size = 64 * 1024,
+	.small_erase_cmd = 0x20, .small_erase_size =  4 * 1024,
+	.program_cmd = 0x02, .program_size = 256,
+	.text_description = "Unknown",
 };
 
 /*****************************************************************************/
@@ -437,6 +450,9 @@ void aw_fel_spiflash_info(feldev_handle *dev)
 	switch (buf[3]) {
 	case 0xEF:
 		manufacturer = "Winbond";
+		break;
+	case 0xC2:
+		manufacturer = "Macronix";
 		break;
 	default:
 		manufacturer = "Unknown";
