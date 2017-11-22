@@ -94,6 +94,22 @@ sram_swap_buffers a80_sram_swap_buffers[] = {
 	{ .size = 0 }  /* End of the table */
 };
 
+/*
+ * H6 has 32KiB of SRAM A at 0x20000 and a large SRAM C at 0x28000. SRAM A
+ * and SRAM C reside in the address space back-to-back without any gaps, thus
+ * representing a singe large contiguous area. Everything is the same as on
+ * A10/A13/A20, but just shifted by 0x20000.
+ */
+sram_swap_buffers h6_sram_swap_buffers[] = {
+	/* 0x21C00-0x21FFF (IRQ stack) */
+	{ .buf1 = 0x21C00, .buf2 = 0x2A400, .size = 0x0400 },
+	/* 0x25C00-0x26FFF (Stack) */
+	{ .buf1 = 0x25C00, .buf2 = 0x2A800, .size = 0x1400 },
+	/* 0x27C00-0x27FFF (Something important) */
+	{ .buf1 = 0x27C00, .buf2 = 0x2BC00, .size = 0x0400 },
+	{ .size = 0 }  /* End of the table */
+};
+
 soc_info_t soc_info_table[] = {
 	{
 		.soc_id       = 0x1623, /* Allwinner A10 */
@@ -207,6 +223,16 @@ soc_info_t soc_info_table[] = {
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.sid_base     = 0x01C1B000,
 		.sid_offset   = 0x200,
+	},{
+		.soc_id       = 0x1728, /* Allwinner H6 */
+		.name         = "H6",
+		.spl_addr     = 0x20000,
+		.scratch_addr = 0x21000,
+		.thunk_addr   = 0x2A200, .thunk_size = 0x200,
+		.swap_buffers = h6_sram_swap_buffers,
+		.sid_base     = 0x03006000,
+		.sid_offset   = 0x200,
+		.rvbar_reg    = 0x09010040,
 	},{
 		.swap_buffers = NULL /* End of the table */
 	}
