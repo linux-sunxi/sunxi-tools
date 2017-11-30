@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <zlib.h>
 #include <sys/stat.h>
 
 static bool verbose = false; /* If set, makes the 'fel' tool more talkative */
@@ -48,8 +49,28 @@ static uint32_t uboot_size  = 0; /* size of U-Boot binary */
 /* Additional error codes, newly introduced for get_image_type() */
 #define IH_TYPE_ARCH_MISMATCH	-1
 
-#define HEADER_NAME_OFFSET	32	/* offset of name field	*/
-#define HEADER_SIZE		(HEADER_NAME_OFFSET + IH_NMLEN)
+/*
+ * Legacy format image U-Boot header,
+ * all data in network byte order (aka natural aka bigendian).
+ * Taken from ${U-BOOT}/include/image.h
+ */
+typedef struct image_header {
+	uint32_t	ih_magic;	/* Image Header Magic Number	*/
+	uint32_t	ih_hcrc;	/* Image Header CRC Checksum	*/
+	uint32_t	ih_time;	/* Image Creation Timestamp	*/
+	uint32_t	ih_size;	/* Image Data Size		*/
+	uint32_t	ih_load;	/* Data	 Load  Address		*/
+	uint32_t	ih_ep;		/* Entry Point Address		*/
+	uint32_t	ih_dcrc;	/* Image Data CRC Checksum	*/
+	uint8_t		ih_os;		/* Operating System		*/
+	uint8_t		ih_arch;	/* CPU architecture		*/
+	uint8_t		ih_type;	/* Image Type			*/
+	uint8_t		ih_comp;	/* Compression Type		*/
+	uint8_t		ih_name[IH_NMLEN];	/* Image Name		*/
+} image_header_t;
+
+#define HEADER_NAME_OFFSET	offsetof(image_header_t, ih_name)
+#define HEADER_SIZE		sizeof(image_header_t)
 
 /*
  * Utility function to determine the image type from a mkimage-compatible
@@ -63,18 +84,19 @@ static uint32_t uboot_size  = 0; /* size of U-Boot binary */
  */
 int get_image_type(const uint8_t *buf, size_t len)
 {
-	uint32_t *buf32 = (uint32_t *)buf;
+	image_header_t *hdr = (image_header_t *)buf;
 
 	if (len <= HEADER_SIZE) /* insufficient length/size */
 		return IH_TYPE_INVALID;
-	if (be32toh(buf32[0]) != IH_MAGIC) /* signature mismatch */
+
+	if (be32toh(hdr->ih_magic) != IH_MAGIC) /* signature mismatch */
 		return IH_TYPE_INVALID;
 	/* For sunxi, we always expect ARM architecture here */
-	if (buf[29] != IH_ARCH_ARM)
+	if (hdr->ih_arch != IH_ARCH_ARM)
 		return IH_TYPE_ARCH_MISMATCH;
 
 	/* assume a valid header, and return ih_type */
-	return buf[30];
+	return hdr->ih_type;
 }
 
 void aw_fel_print_version(feldev_handle *dev)
@@ -740,7 +762,16 @@ void aw_fel_write_uboot_image(feldev_handle *dev, uint8_t *buf, size_t len)
 	if (len <= HEADER_SIZE)
 		return; /* Insufficient size (no actual data), just bail out */
 
-	uint32_t *buf32 = (uint32_t *)buf;
+	image_header_t hdr = *(image_header_t *)buf;
+
+	uint32_t hcrc = be32toh(hdr.ih_hcrc);
+
+	/* The CRC is calculated on the whole header but the CRC itself */
+	hdr.ih_hcrc = 0;
+	uint32_t computed_hcrc = crc32(0, (const uint8_t *) &hdr, HEADER_SIZE);
+	if (hcrc != computed_hcrc)
+		pr_fatal("U-Boot header CRC mismatch: expected %x, got %x\n",
+			 hcrc, computed_hcrc);
 
 	/* Check for a valid mkimage header */
 	int image_type = get_image_type(buf, len);
@@ -762,23 +793,18 @@ void aw_fel_write_uboot_image(feldev_handle *dev, uint8_t *buf, size_t len)
 		pr_fatal("U-Boot image type mismatch: "
 			 "expected IH_TYPE_FIRMWARE, got %02X\n", image_type);
 
-	uint32_t data_size = be32toh(buf32[3]); /* Image Data Size */
-	uint32_t load_addr = be32toh(buf32[4]); /* Data Load Address */
-	if (data_size != len - HEADER_SIZE)
-		pr_fatal("U-Boot image data size mismatch: "
-			 "expected %zu, got %u\n", len - HEADER_SIZE, data_size);
+	uint32_t data_size = be32toh(hdr.ih_size); /* Image Data Size */
+	uint32_t load_addr = be32toh(hdr.ih_load); /* Data Load Address */
+	if (data_size > len - HEADER_SIZE)
+		pr_fatal("U-Boot image data trucated: "
+			 "expected %zu bytes, got %u\n",
+			 len - HEADER_SIZE, data_size);
 
-	/* TODO: Verify image data integrity using the checksum field ih_dcrc,
-	 * available from be32toh(buf32[6])
-	 *
-	 * However, this requires CRC routines that mimic their U-Boot
-	 * counterparts, namely image_check_dcrc() in ${U-BOOT}/common/image.c
-	 * and crc_wd() in ${U-BOOT}/lib/crc32.c
-	 *
-	 * It should be investigated if existing CRC routines in sunxi-tools
-	 * could be factored out and reused for this purpose - e.g. calc_crc32()
-	 * from nand-part-main.c
-	 */
+	uint32_t dcrc = be32toh(hdr.ih_dcrc);
+	uint32_t computed_dcrc = crc32(0, buf + HEADER_SIZE, data_size);
+	if (dcrc != computed_dcrc)
+		pr_fatal("U-Boot data CRC mismatch: expected %x, got %x\n",
+			 dcrc, computed_dcrc);
 
 	/* If we get here, we're "good to go" (i.e. actually write the data) */
 	pr_info("Writing image \"%.*s\", %u bytes @ 0x%08X.\n",

@@ -118,6 +118,11 @@ sunxi-fexc: fexc.h script.h script.c \
 LIBUSB = libusb-1.0
 LIBUSB_CFLAGS ?= `pkg-config --cflags $(LIBUSB)`
 LIBUSB_LIBS ?= `pkg-config --libs $(LIBUSB)`
+
+ZLIB = zlib
+ZLIB_CFLAGS ?= `pkg-config --cflags $(ZLIB)`
+ZLIB_LIBS ?= `pkg-config --libs $(ZLIB)`
+
 ifeq ($(OS),Windows_NT)
 	# Windows lacks mman.h / mmap()
 	DEFAULT_CFLAGS += -DNO_MMAP
@@ -132,7 +137,8 @@ SOC_INFO := soc_info.c soc_info.h
 FEL_LIB  := fel_lib.c fel_lib.h
 
 sunxi-fel: fel.c thunks/fel-to-spl-thunk.h $(PROGRESS) $(SOC_INFO) $(FEL_LIB)
-	$(CC) $(HOST_CFLAGS) $(LIBUSB_CFLAGS) $(LDFLAGS) -o $@ $(filter %.c,$^) $(LIBS) $(LIBUSB_LIBS)
+	$(CC) $(HOST_CFLAGS) $(LIBUSB_CFLAGS) $(ZLIB_CFLAGS) $(LDFLAGS) -o $@ \
+		$(filter %.c,$^) $(LIBS) $(LIBUSB_LIBS) $(ZLIB_LIBS)
 
 sunxi-nand-part: nand-part-main.c nand-part.c nand-part-a10.h nand-part-a20.h
 	$(CC) $(HOST_CFLAGS) -c -o nand-part-main.o nand-part-main.c
