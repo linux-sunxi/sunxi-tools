@@ -148,6 +148,8 @@ enum sunxi_gpio_number {
 #define SUNXI_GPIO_PULL_UP      (1)
 #define SUNXI_GPIO_PULL_DOWN    (2)
 
+static u32 pio_base;
+
 int sunxi_gpio_set_cfgpin(u32 pin, u32 val)
 {
 	u32 cfg;
@@ -155,7 +157,7 @@ int sunxi_gpio_set_cfgpin(u32 pin, u32 val)
 	u32 index = GPIO_CFG_INDEX(pin);
 	u32 offset = GPIO_CFG_OFFSET(pin);
 	struct sunxi_gpio *pio =
-		&((struct sunxi_gpio_reg *)SUNXI_PIO_BASE)->gpio_bank[bank];
+		&((struct sunxi_gpio_reg *)pio_base)->gpio_bank[bank];
 	cfg = readl(&pio->cfg[0] + index);
 	cfg &= ~(0xf << offset);
 	cfg |= val << offset;
@@ -170,7 +172,7 @@ int sunxi_gpio_set_pull(u32 pin, u32 val)
 	u32 index = GPIO_PULL_INDEX(pin);
 	u32 offset = GPIO_PULL_OFFSET(pin);
 	struct sunxi_gpio *pio =
-		&((struct sunxi_gpio_reg *)SUNXI_PIO_BASE)->gpio_bank[bank];
+		&((struct sunxi_gpio_reg *)pio_base)->gpio_bank[bank];
 	cfg = readl(&pio->pull[0] + index);
 	cfg &= ~(0x3 << offset);
 	cfg |= val << offset;
@@ -184,7 +186,7 @@ int sunxi_gpio_output(u32 pin, u32 val)
 	u32 bank = GPIO_BANK(pin);
 	u32 num = GPIO_NUM(pin);
 	struct sunxi_gpio *pio =
-		&((struct sunxi_gpio_reg *)SUNXI_PIO_BASE)->gpio_bank[bank];
+		&((struct sunxi_gpio_reg *)pio_base)->gpio_bank[bank];
 	dat = readl(&pio->dat);
 	if(val)
 		dat |= 1 << num;
@@ -200,7 +202,7 @@ int sunxi_gpio_input(u32 pin)
 	u32 bank = GPIO_BANK(pin);
 	u32 num = GPIO_NUM(pin);
 	struct sunxi_gpio *pio =
-		&((struct sunxi_gpio_reg *)SUNXI_PIO_BASE)->gpio_bank[bank];
+		&((struct sunxi_gpio_reg *)pio_base)->gpio_bank[bank];
 	dat = readl(&pio->dat);
 	dat >>= num;
 	return (dat & 0x1);
@@ -394,19 +396,21 @@ void gpio_init(void)
 
 /*****************************************************************************/
 
-#define UART0_RBR (SUNXI_UART0_BASE + 0x0)    /* receive buffer register */
-#define UART0_THR (SUNXI_UART0_BASE + 0x0)    /* transmit holding register */
-#define UART0_DLL (SUNXI_UART0_BASE + 0x0)    /* divisor latch low register */
+static u32 uart0_base;
 
-#define UART0_DLH (SUNXI_UART0_BASE + 0x4)    /* divisor latch high register */
-#define UART0_IER (SUNXI_UART0_BASE + 0x4)    /* interrupt enable reigster */
+#define UART0_RBR (uart0_base + 0x0)    /* receive buffer register */
+#define UART0_THR (uart0_base + 0x0)    /* transmit holding register */
+#define UART0_DLL (uart0_base + 0x0)    /* divisor latch low register */
 
-#define UART0_IIR (SUNXI_UART0_BASE + 0x8)    /* interrupt identity register */
-#define UART0_FCR (SUNXI_UART0_BASE + 0x8)    /* fifo control register */
+#define UART0_DLH (uart0_base + 0x4)    /* divisor latch high register */
+#define UART0_IER (uart0_base + 0x4)    /* interrupt enable reigster */
 
-#define UART0_LCR (SUNXI_UART0_BASE + 0xc)    /* line control register */
+#define UART0_IIR (uart0_base + 0x8)    /* interrupt identity register */
+#define UART0_FCR (uart0_base + 0x8)    /* fifo control register */
 
-#define UART0_LSR (SUNXI_UART0_BASE + 0x14)   /* line status register */
+#define UART0_LCR (uart0_base + 0xc)    /* line control register */
+
+#define UART0_LSR (uart0_base + 0x14)   /* line status register */
 
 #define BAUD_115200    (0xD) /* 24 * 1000 * 1000 / 16 / 115200 = 13 */
 #define NO_PARITY      (0)
@@ -474,9 +478,16 @@ int get_boot_device(void)
 	return BOOT_DEVICE_UNK;
 }
 
+void bases_init(void)
+{
+	pio_base = SUNXI_PIO_BASE;
+	uart0_base = SUNXI_UART0_BASE;
+}
+
 int main(void)
 {
 	soc_detection_init();
+	bases_init();
 	gpio_init();
 	uart0_init();
 
