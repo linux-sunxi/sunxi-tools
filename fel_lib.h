@@ -81,4 +81,7 @@ void fel_clrsetbits_le32(feldev_handle *dev,
 bool fel_get_sid_root_key(feldev_handle *dev, uint32_t *result,
 			  bool force_workaround);
 
+/* check for virtual machine (USB emulation) */
+const char *fel_check_vm(void);
+
 #endif /* _SUNXI_TOOLS_FEL_LIB_H */
