@@ -27,9 +27,20 @@ static thunk_t fel_to_spl_thunk_v7 = {
 	.size = sizeof(fel_to_spl_thunk_code_v7),
 };
 
+static uint32_t fel_to_spl_thunk_code_v5[] = {
+	#include "thunks/fel-to-spl-thunk-armv5.h"
+};
+
+static thunk_t fel_to_spl_thunk_v5 = {
+	.code = fel_to_spl_thunk_code_v5,
+	.size = sizeof(fel_to_spl_thunk_code_v5),
+};
+
 thunk_t *fel_to_spl_thunk(soc_info_t *soc_info)
 {
 	if (soc_info->arch_version >= 7)
 		return &fel_to_spl_thunk_v7;
+	if (soc_info->arch_version == 5)
+		return &fel_to_spl_thunk_v5;
 	return NULL;
 }
