@@ -66,6 +66,8 @@ typedef unsigned int u32;
 #define H6_CCM_BASE		0x03001000
 #define H6_SRAMCTRL_BASE	0x03000000
 
+#define F1C100S_UART0_BASE	0x01c25000
+
 #define R329_UART0_BASE		0x02500000
 #define R329_PIO_BASE		0x02000400
 #define R329_CCM_BASE		0x02001000
@@ -142,6 +144,7 @@ enum sunxi_gpio_number {
 /* GPIO pin function config */
 #define SUNXI_GPIO_INPUT        (0)
 #define SUNXI_GPIO_OUTPUT       (1)
+#define SUNIV_GPE_UART0		(5)
 #define SUN4I_GPB_UART0         (2)
 #define SUN5I_GPB_UART0         (2)
 #define SUN6I_GPH_UART0         (2)
@@ -309,6 +312,7 @@ void soc_detection_init(void)
 #define soc_is_a31()	(soc_id == 0x1633)
 #define soc_is_a80()	(soc_id == 0x1639)
 #define soc_is_a64()	(soc_id == 0x1689)
+#define soc_is_f1c100s()	(soc_id == 0x1663)
 #define soc_is_h5()	(soc_id == 0x1718)
 #define soc_is_h6()	(soc_id == 0x1728)
 #define soc_is_h616()	(soc_id == 0x1823)
@@ -374,6 +378,11 @@ int soc_is_h3(void)
 #define H6_UART_GATE_SHIFT	(0)
 #define H6_UART_RESET_SHIFT	(16)
 
+#define F1C100S_GATE2		(AW_CCM_BASE + 0x068)
+#define F1C100S_RESET2		(AW_CCM_BASE + 0x2D0)
+#define F1C100S_GATE2_UART_SHIFT	(20)
+#define F1C100S_RESET2_UART_SHIFT	(20)
+
 void clock_init_uart_legacy(void)
 {
 	/* Open the clock gate for UART0 */
@@ -390,6 +399,21 @@ void clock_init_uart_h6(void)
 	set_wbit(H6_UART_GATE_RESET, 1 << (H6_UART_RESET_SHIFT + CONFIG_CONS_INDEX - 1));
 }
 
+void clock_init_uart_f1c100s(void)
+{
+	/* PLL_PERIPH = 600MHz */
+	writel(0x80041800, 0x01c20028);
+	while(!(readl(0x01c20028) & 0x10000000))
+		;
+	/* AHB1 = 600MHz / 3 / 1 = 200MHz, APB1 = 200MHz / 2 = 100MHz */
+	writel(0x00003180, 0x01c20054);
+
+	/* Open the clock gate for UART0 */
+	set_wbit(F1C100S_GATE2, 1 << (F1C100S_GATE2_UART_SHIFT + CONFIG_CONS_INDEX - 1));
+	/* Deassert UART0 reset */
+	set_wbit(F1C100S_RESET2, 1 << (F1C100S_RESET2_UART_SHIFT + CONFIG_CONS_INDEX - 1));
+}
+
 void clock_init_uart_r329(void)
 {
 	/* Open the clock gate for UART0 */
@@ -400,7 +424,9 @@ void clock_init_uart_r329(void)
 
 void clock_init_uart(void)
 {
-	if (soc_is_h6() || soc_is_v831() || soc_is_h616())
+	if (soc_is_f1c100s())
+		clock_init_uart_f1c100s();
+	else if (soc_is_h6() || soc_is_v831() || soc_is_h616())
 		clock_init_uart_h6();
 	else if (soc_is_r329())
 		clock_init_uart_r329();
@@ -440,6 +466,10 @@ void gpio_init(void)
 		sunxi_gpio_set_cfgpin(SUNXI_GPB(8), SUN50I_A64_GPB_UART0);
 		sunxi_gpio_set_cfgpin(SUNXI_GPB(9), SUN50I_A64_GPB_UART0);
 		sunxi_gpio_set_pull(SUNXI_GPB(9), SUNXI_GPIO_PULL_UP);
+	} else if (soc_is_f1c100s()) {
+		sunxi_gpio_set_cfgpin(SUNXI_GPE(0), SUNIV_GPE_UART0);
+		sunxi_gpio_set_cfgpin(SUNXI_GPE(1), SUNIV_GPE_UART0);
+		sunxi_gpio_set_pull(SUNXI_GPE(1), SUNXI_GPIO_PULL_UP);
 	} else if (soc_is_h3() || soc_is_h2_plus()) {
 		sunxi_gpio_set_cfgpin(SUNXI_GPA(4), SUN8I_H3_GPA_UART0);
 		sunxi_gpio_set_cfgpin(SUNXI_GPA(5), SUN8I_H3_GPA_UART0);
@@ -493,6 +523,13 @@ static u32 uart0_base;
 #define UART0_LSR (uart0_base + 0x14)   /* line status register */
 
 #define BAUD_115200    (0xD) /* 24 * 1000 * 1000 / 16 / 115200 = 13 */
+/*
+ * Allwinner F1C100s have a different clock tree than ARMv7/v8 Allwinner
+ * SoCs, which has only one AHB clock and APB clock.
+ *
+ * The APB clock is configured to 100MHz in clock_init_uart_f1c100s().
+ */
+#define BAUD_115200_F1C100S	(0x36)
 #define NO_PARITY      (0)
 #define ONE_STOP_BIT   (0)
 #define DAT_LEN_8_BITS (3)
@@ -506,7 +543,10 @@ void uart0_init(void)
 	writel(0x80, UART0_LCR);
 	/* set baudrate */
 	writel(0, UART0_DLH);
-	writel(BAUD_115200, UART0_DLL);
+	if (soc_is_f1c100s())
+		writel(BAUD_115200_F1C100S, UART0_DLL);
+	else
+		writel(BAUD_115200, UART0_DLL);
 	/* set line control */
 	writel(LC_8_N_1, UART0_LCR);
 }
@@ -564,7 +604,11 @@ int get_boot_device(void)
 
 void bases_init(void)
 {
-	if (soc_is_h6() || soc_is_v831() || soc_is_h616()) {
+	if (soc_is_f1c100s()) {
+		pio_base = SUNXI_PIO_BASE;
+		uart0_base = F1C100S_UART0_BASE;
+	}
+	else if (soc_is_h6() || soc_is_v831() || soc_is_h616()) {
 		pio_base = H6_PIO_BASE;
 		uart0_base = H6_UART0_BASE;
 	} else if (soc_is_r329()) {
@@ -596,6 +640,8 @@ int main(void)
 		uart0_puts("Allwinner A31/A31s!\n");
 	else if (soc_is_a64())
 		uart0_puts("Allwinner A64!\n");
+	else if (soc_is_f1c100s())
+		uart0_puts("Allwinner F1C100s!\n");
 	else if (soc_is_h2_plus())
 		uart0_puts("Allwinner H2+!\n");
 	else if (soc_is_h3())
