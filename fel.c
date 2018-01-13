@@ -20,6 +20,7 @@
 #include "fel_lib.h"
 #include "fel-spiflash.h"
 #include "fit_image.h"
+#include "thunk.h"
 
 #include <assert.h>
 #include <ctype.h>
@@ -353,10 +354,6 @@ bool aw_fel_remotefunc_execute(feldev_handle *dev, uint32_t *result)
 	}
 	return true;
 }
-
-static uint32_t fel_to_spl_thunk[] = {
-	#include "thunks/fel-to-spl-thunk.h"
-};
 
 #define	DRAM_BASE		0x40000000
 #define	DRAM_SIZE		0x80000000
@@ -729,6 +726,7 @@ uint32_t aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t l
 	sram_swap_buffers *swap_buffers;
 	char header_signature[9] = { 0 };
 	size_t i, thunk_size;
+	thunk_t *thunk;
 	uint32_t *thunk_buf;
 	uint32_t sp, sp_irq;
 	uint32_t spl_checksum, spl_len, spl_len_limit;
@@ -740,6 +738,10 @@ uint32_t aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t l
 		pr_fatal("SPL: Unsupported SoC type\n");
 	if (len < 32 || memcmp(buf + 4, "eGON.BT0", 8) != 0)
 		pr_fatal("SPL: eGON header is not found\n");
+
+	thunk = fel_to_spl_thunk(soc_info);
+	if (!thunk)
+		pr_fatal("Failed to find thunk code for the SoC\n");
 
 	spl_checksum = 2 * le32toh(buf32[3]) - 0x5F0A6C39;
 	spl_len = le32toh(buf32[4]);
@@ -823,7 +825,7 @@ uint32_t aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t l
 	if (len > 0)
 		aw_fel_write(dev, buf, cur_addr, len);
 
-	thunk_size = sizeof(fel_to_spl_thunk) + sizeof(soc_info->spl_addr) +
+	thunk_size = thunk->size + sizeof(soc_info->spl_addr) +
 		     (i + 1) * sizeof(*swap_buffers);
 
 	if (thunk_size > soc_info->thunk_size)
@@ -831,10 +833,10 @@ uint32_t aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t l
 			 (int)sizeof(fel_to_spl_thunk), soc_info->thunk_size);
 
 	thunk_buf = malloc(thunk_size);
-	memcpy(thunk_buf, fel_to_spl_thunk, sizeof(fel_to_spl_thunk));
-	memcpy(thunk_buf + sizeof(fel_to_spl_thunk) / sizeof(uint32_t),
+	memcpy(thunk_buf, thunk->code, thunk->size);
+	memcpy(thunk_buf + thunk->size / sizeof(uint32_t),
 	       &soc_info->spl_addr, sizeof(soc_info->spl_addr));
-	memcpy(thunk_buf + sizeof(fel_to_spl_thunk) / sizeof(uint32_t) + 1,
+	memcpy(thunk_buf + thunk->size / sizeof(uint32_t) + 1,
 	       swap_buffers, (i + 1) * sizeof(*swap_buffers));
 
 	for (i = 0; i < thunk_size / sizeof(uint32_t); i++)
