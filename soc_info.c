@@ -169,6 +169,7 @@ soc_info_t soc_info_table[] = {
 	{
 		.soc_id       = 0x1623, /* Allwinner A10 */
 		.name         = "A10",
+		.arch_version = 7,
 		.scratch_addr = 0x1000,
 		.thunk_addr   = 0xA200, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
@@ -179,6 +180,7 @@ soc_info_t soc_info_table[] = {
 	},{
 		.soc_id       = 0x1625, /* Allwinner A10s, A13, R8 */
 		.name         = "A13",
+		.arch_version = 7,
 		.scratch_addr = 0x1000,
 		.thunk_addr   = 0xA200, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
@@ -189,6 +191,7 @@ soc_info_t soc_info_table[] = {
 	},{
 		.soc_id       = 0x1651, /* Allwinner A20 */
 		.name         = "A20",
+		.arch_version = 7,
 		.scratch_addr = 0x1000,
 		.thunk_addr   = 0xA200, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
@@ -198,6 +201,7 @@ soc_info_t soc_info_table[] = {
 	},{
 		.soc_id       = 0x1650, /* Allwinner A23 */
 		.name         = "A23",
+		.arch_version = 7,
 		.scratch_addr = 0x1000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = ar100_abusing_sram_swap_buffers,
@@ -207,6 +211,7 @@ soc_info_t soc_info_table[] = {
 	},{
 		.soc_id       = 0x1633, /* Allwinner A31 */
 		.name         = "A31",
+		.arch_version = 7,
 		.scratch_addr = 0x1000,
 		.thunk_addr   = 0x22E00, .thunk_size = 0x200,
 		.swap_buffers = a31_sram_swap_buffers,
@@ -215,6 +220,7 @@ soc_info_t soc_info_table[] = {
 	},{
 		.soc_id       = 0x1667, /* Allwinner A33, R16 */
 		.name         = "A33",
+		.arch_version = 7,
 		.scratch_addr = 0x1000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = ar100_abusing_sram_swap_buffers,
@@ -224,6 +230,7 @@ soc_info_t soc_info_table[] = {
 	},{
 		.soc_id       = 0x1689, /* Allwinner A64 */
 		.name         = "A64",
+		.arch_version = 8,
 		.spl_addr     = 0x10000,
 		.scratch_addr = 0x11000,
 		.thunk_addr   = 0x31200, .thunk_size = 0x200,
@@ -238,6 +245,7 @@ soc_info_t soc_info_table[] = {
 	},{
 		.soc_id       = 0x1639, /* Allwinner A80 */
 		.name         = "A80",
+		.arch_version = 7,
 		.spl_addr     = 0x10000,
 		.scratch_addr = 0x11000,
 		.thunk_addr   = 0x23400, .thunk_size = 0x200,
@@ -249,6 +257,7 @@ soc_info_t soc_info_table[] = {
 	},{
 		.soc_id       = 0x1673, /* Allwinner A83T */
 		.name         = "A83T",
+		.arch_version = 7,
 		.scratch_addr = 0x1000,
 		.mmu_tt_addr  = 0x44000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
@@ -260,6 +269,7 @@ soc_info_t soc_info_table[] = {
 	},{
 		.soc_id       = 0x1680, /* Allwinner H3, H2+ */
 		.name         = "H3",
+		.arch_version = 7,
 		.scratch_addr = 0x1000,
 		.mmu_tt_addr  = 0x8000,
 		.thunk_addr   = 0xA200, .thunk_size = 0x200,
@@ -274,6 +284,7 @@ soc_info_t soc_info_table[] = {
 	},{
 		.soc_id       = 0x1681, /* Allwinner V3s */
 		.name         = "V3s",
+		.arch_version = 7,
 		.scratch_addr = 0x1000,
 		.mmu_tt_addr  = 0x8000,
 		.thunk_addr   = 0xA200, .thunk_size = 0x200,
@@ -284,6 +295,7 @@ soc_info_t soc_info_table[] = {
 	},{
 		.soc_id       = 0x1718, /* Allwinner H5 */
 		.name         = "H5",
+		.arch_version = 8,
 		.spl_addr     = 0x10000,
 		.scratch_addr = 0x11000,
 		.thunk_addr   = 0x31200, .thunk_size = 0x200,
@@ -298,6 +310,7 @@ soc_info_t soc_info_table[] = {
 	},{
 		.soc_id       = 0x1701, /* Allwinner R40 */
 		.name         = "R40",
+		.arch_version = 7,
 		.scratch_addr = 0x1000,
 		.thunk_addr   = 0xA200, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
@@ -308,6 +321,7 @@ soc_info_t soc_info_table[] = {
 	},{
 		.soc_id       = 0x1728, /* Allwinner H6 */
 		.name         = "H6",
+		.arch_version = 8,
 		.spl_addr     = 0x20000,
 		.scratch_addr = 0x21000,
 		.thunk_addr   = 0x42200, .thunk_size = 0x200,

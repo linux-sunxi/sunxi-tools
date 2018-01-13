@@ -102,6 +102,7 @@ typedef struct {
 typedef struct {
 	uint32_t           soc_id;       /* ID of the SoC */
 	const char         *name;        /* human-readable SoC name string */
+	uint32_t           arch_version; /* ARM Architecture version */
 	uint32_t           spl_addr;     /* SPL load address */
 	uint32_t           scratch_addr; /* A safe place to upload & run code */
 	uint32_t           thunk_addr;   /* Address of the thunk code */
