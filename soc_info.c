@@ -58,6 +58,23 @@ sram_swap_buffers a31_sram_swap_buffers[] = {
 };
 
 /*
+ * The FEL code from BROM in F1C100s also uses SRAM A in a similar way
+ * with A10/A13/A20.
+ * Unfortunately the SRAM layout of F1C100s is not documented at all, so
+ * we can only try by r/w under FEL mode.
+ * The result is that there's a contingous SRAM zone from 0x8800 to 0xb5ff.
+ */
+sram_swap_buffers f1c100s_sram_swap_buffers[] = {
+	/* 0x1C00-0x1FFF (IRQ stack) */
+	{ .buf1 = 0x1C00, .buf2 = 0x9000, .size = 0x0400 },
+	/* 0x5C00-0x6FFF (Stack) */
+	{ .buf1 = 0x5C00, .buf2 = 0x9400, .size = 0x1400 },
+	/* 0x7C00-0x7FFF (Something important) */
+	{ .buf1 = 0x7C00, .buf2 = 0xa800, .size = 0x0400 },
+	{ .size = 0 }  /* End of the table */
+};
+
+/*
  * A64 has 32KiB of SRAM A at 0x10000 and a large SRAM C at 0x18000. SRAM A
  * and SRAM C reside in the address space back-to-back without any gaps, thus
  * representing a singe large contiguous area. The BROM FEL code memory areas
@@ -216,6 +233,16 @@ soc_info_t soc_info_table[] = {
 		.thunk_addr   = 0x22E00, .thunk_size = 0x200,
 		.swap_buffers = a31_sram_swap_buffers,
 		.sram_size    = 32 * 1024,
+		.watchdog     = &wd_h3_compat,
+	},{
+		.soc_id       = 0x1663, /* Allwinner F1C100s (all new sun3i?) */
+		.name         = "F1C100s",
+		.arch_version = 5,
+		.scratch_addr = 0x1000,
+		.thunk_addr   = 0xb400, .thunk_size = 0x200,
+		.swap_buffers = f1c100s_sram_swap_buffers,
+		.sram_size    = 40 * 1024,
+		/* No SID */
 		.watchdog     = &wd_h3_compat,
 	},{
 		.soc_id       = 0x1667, /* Allwinner A33, R16 */
