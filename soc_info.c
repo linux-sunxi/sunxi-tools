@@ -163,6 +163,7 @@ soc_info_t soc_info_table[] = {
 		.soc_id       = 0x1673, /* Allwinner A83T */
 		.name         = "A83T",
 		.scratch_addr = 0x1000,
+		.mmu_tt_addr  = 0x44000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = ar100_abusing_sram_swap_buffers,
 		.sid_base     = 0x01C14000,
