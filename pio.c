@@ -165,7 +165,7 @@ static void print(const char *buf)
 
 static const char *argv0;
 
-static void usage(int rc )
+static __attribute__((noreturn)) void usage(int rc )
 {
 	fputs("sunxi-pio " VERSION "\n\n", stderr);
 	fprintf(stderr, "usage: %s -m|-i input [-o output] pin..\n", argv0);
