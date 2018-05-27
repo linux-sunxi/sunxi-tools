@@ -310,6 +310,7 @@ show_usage:
 	switch (argc - optind) {
 	case 2:
 		filename[1] = argv[optind+1]; /* out */
+		/* fall-through */
 	case 1:
 		if (strcmp(argv[optind], "-") != 0)
 			filename[0] = argv[optind]; /* in */
