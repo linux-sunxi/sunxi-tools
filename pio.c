@@ -179,7 +179,7 @@ static void usage(int rc )
 	fprintf(stderr," Pxx*count			Oscillate GPIO output (mmap mode only)\n");
 	fprintf(stderr," Pxx?pull			Configure GPIO input\n");
 	fprintf(stderr," clean				Clean input pins\n");
-	fprintf(stderr, "\n	mode 0-7, 0=input, 1=ouput, 2-7 I/O function\n");
+	fprintf(stderr, "\n	mode 0-7, 0=input, 1=output, 2-7 I/O function\n");
 	fprintf(stderr, "	pull 0=none, 1=up, 2=down\n");
 	fprintf(stderr, "	drive 0-3, I/O drive level\n");
 
