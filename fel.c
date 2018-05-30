@@ -512,9 +512,9 @@ uint32_t *aw_backup_and_disable_mmu(feldev_handle *dev,
 	 * checks needs to be relaxed).
 	 */
 
-	/* Basically, ignore M/Z/I/V/UNK bits and expect no TEX remap */
+	/* Ignore M/A/UNK/SW/Z/I/V/RR bits and expect no TEX remap */
 	sctlr = aw_get_sctlr(dev, soc_info);
-	if ((sctlr & ~((0x7 << 11) | (1 << 6) | 1)) != 0x00C50038)
+	if ((sctlr & ~((0x1f << 10) | (1 << 6) | (3 << 0))) != 0x00C50038)
 		pr_fatal("Unexpected SCTLR (%08X)\n", sctlr);
 
 	if (!(sctlr & 1)) {
