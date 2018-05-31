@@ -512,9 +512,9 @@ uint32_t *aw_backup_and_disable_mmu(feldev_handle *dev,
 	 * checks needs to be relaxed).
 	 */
 
-	/* Basically, ignore M/Z/I/V/UNK bits and expect no TEX remap */
+	/* Ignore M/A/UNK/SW/Z/I/V/RR bits and expect no TEX remap */
 	sctlr = aw_get_sctlr(dev, soc_info);
-	if ((sctlr & ~((0x7 << 11) | (1 << 6) | 1)) != 0x00C50038)
+	if ((sctlr & ~((0x1f << 10) | (1 << 6) | (3 << 0))) != 0x00C50038)
 		pr_fatal("Unexpected SCTLR (%08X)\n", sctlr);
 
 	if (!(sctlr & 1)) {
@@ -841,8 +841,13 @@ void aw_fel_process_spl_and_uboot(feldev_handle *dev, const char *filename)
  * the result is "true".
  */
 #define SPL_SIGNATURE			"SPL" /* marks "sunxi" header */
-#define SPL_MIN_VERSION			1 /* minimum required version */
-#define SPL_MAX_VERSION			2 /* maximum supported version */
+#define SPL_MAJOR_BITS			3
+#define SPL_MINOR_BITS			5
+#define SPL_VERSION(maj, min)		\
+	((((maj) & ((1U << SPL_MAJOR_BITS) - 1)) << SPL_MINOR_BITS) | \
+	((min) & ((1U << SPL_MINOR_BITS) - 1)))
+#define SPL_MIN_VERSION			SPL_VERSION(0, 1)
+#define SPL_MAX_VERSION			SPL_VERSION(0, 31)
 bool have_sunxi_spl(feldev_handle *dev, uint32_t spl_addr)
 {
 	uint8_t spl_signature[4];
