@@ -19,6 +19,7 @@
 #include "portable_endian.h"
 #include "fel_lib.h"
 #include "fel-spiflash.h"
+#include "fit_image.h"
 
 #include <assert.h>
 #include <ctype.h>
@@ -31,7 +32,7 @@
 #include <zlib.h>
 #include <sys/stat.h>
 
-static bool verbose = false; /* If set, makes the 'fel' tool more talkative */
+bool verbose = false; /* If set, makes the 'fel' tool more talkative */
 static uint32_t uboot_entry = 0; /* entry point (address) of U-Boot */
 static uint32_t uboot_size  = 0; /* size of U-Boot binary */
 static bool enter_in_aarch64 = false;
@@ -893,8 +894,10 @@ static void aw_fel_write_uboot_image(feldev_handle *dev, uint8_t *buf,
 		exit(1);
 	}
 	if (image_type == IH_TYPE_FLATDT) {		/* FIT image */
-		pr_error("FIT image not yet supported.\n");
-		exit(1);
+		uboot_entry = load_fit_images(dev, buf, dt_name,
+					      &enter_in_aarch64);
+		uboot_size = 4;		/* dummy value to pass check below */
+		return;
 	}
 
 	if (image_type != IH_TYPE_FIRMWARE)
@@ -968,6 +971,7 @@ void aw_fel_process_spl_and_uboot(feldev_handle *dev, const char *filename)
 
 	/* write and execute the SPL from the buffer */
 	offset = aw_fel_write_and_execute_spl(dev, buf, size);
+
 	/* check for optional main U-Boot binary (and transfer it, if applicable) */
 	if (size > offset) {
 		/* U-Boot pads to at least 32KB */
