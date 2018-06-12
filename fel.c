@@ -865,7 +865,8 @@ uint32_t aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t l
  * address stored within the image header; and the function preserves the
  * U-Boot entry point (offset) and size values.
  */
-void aw_fel_write_uboot_image(feldev_handle *dev, uint8_t *buf, size_t len)
+static void aw_fel_write_uboot_image(feldev_handle *dev, uint8_t *buf,
+				     size_t len, const char *dt_name)
 {
 	if (len <= HEADER_SIZE)
 		return; /* Insufficient size (no actual data), just bail out */
@@ -924,6 +925,28 @@ void aw_fel_write_uboot_image(feldev_handle *dev, uint8_t *buf, size_t len)
 	uboot_size = data_size;
 }
 
+static const char *spl_get_dtb_name(uint8_t *spl_buf)
+{
+	uint32_t dt_offset;
+
+	if (memcmp(spl_buf + 4, "eGON.BT0", 8))
+		return NULL;
+
+	if (memcmp(spl_buf + 0x14, "SPL", 3))
+		return NULL;
+
+	if (spl_buf[0x17] < 0x2)			/* only since v0.2 */
+		return NULL;
+
+	memcpy(&dt_offset, spl_buf + 0x20, 4);
+	dt_offset = le32toh(dt_offset);
+
+	if (verbose)
+		printf("found DT name in SPL header: %s\n", spl_buf + dt_offset);
+
+	return (char *)spl_buf + dt_offset;
+}
+
 /*
  * This function handles the common part of both "spl" and "uboot" commands.
  */
@@ -933,6 +956,7 @@ void aw_fel_process_spl_and_uboot(feldev_handle *dev, const char *filename)
 	uint32_t offset;
 	/* load file into memory buffer */
 	uint8_t *buf = load_file(filename, &size);
+	const char *dt_name = spl_get_dtb_name(buf);
 
 	/* write and execute the SPL from the buffer */
 	offset = aw_fel_write_and_execute_spl(dev, buf, size);
@@ -941,7 +965,8 @@ void aw_fel_process_spl_and_uboot(feldev_handle *dev, const char *filename)
 		/* U-Boot pads to at least 32KB */
 		if (offset < SPL_MIN_OFFSET)
 			offset = SPL_MIN_OFFSET;
-		aw_fel_write_uboot_image(dev, buf + offset, size - offset);
+		aw_fel_write_uboot_image(dev, buf + offset, size - offset,
+					 dt_name);
 	}
 	free(buf);
 }
