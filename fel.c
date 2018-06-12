@@ -34,6 +34,7 @@
 static bool verbose = false; /* If set, makes the 'fel' tool more talkative */
 static uint32_t uboot_entry = 0; /* entry point (address) of U-Boot */
 static uint32_t uboot_size  = 0; /* size of U-Boot binary */
+static bool enter_in_aarch64 = false;
 
 /* printf-style output, but only if "verbose" flag is active */
 #define pr_info(...) \
@@ -1405,7 +1406,10 @@ int main(int argc, char **argv)
 	/* auto-start U-Boot if requested (by the "uboot" command) */
 	if (uboot_autostart) {
 		pr_info("Starting U-Boot (0x%08X).\n", uboot_entry);
-		aw_fel_execute(handle, uboot_entry);
+		if (enter_in_aarch64)
+			aw_rmr_request(handle, uboot_entry, true);
+		else
+			aw_fel_execute(handle, uboot_entry);
 	}
 
 	feldev_done(handle);
