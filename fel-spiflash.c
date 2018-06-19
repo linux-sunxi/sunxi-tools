@@ -76,6 +76,11 @@ void fel_writel(feldev_handle *dev, uint32_t addr, uint32_t val);
 #define SUN6I_BUS_SOFT_RST_REG0     (0x01C20000 + 0x2C0)
 #define SUN6I_SPI0_RST              (1 << 20)
 
+#define CCM_H6_SPI0_CLK             (0x03001000 + 0x940)
+#define CCM_H6_SPI_BGR_REG          (0x03001000 + 0x96C)
+#define CCM_H6_AHB_GATE_SPI0        (1U << 0)
+#define CCM_H6_SPI0_RST             (1U << 16)
+
 #define SUNXI_GPC_SPI0              (3)
 #define SUN50I_GPC_SPI0             (4)
 
@@ -185,6 +190,12 @@ static bool spi0_init(feldev_handle *dev)
 		gpio_set_cfgpin(dev, PC, 2, SUN50I_GPC_SPI0);
 		gpio_set_cfgpin(dev, PC, 3, SUN50I_GPC_SPI0);
 		break;
+	case 0x1728: /* Allwinner H6 */
+		gpio_set_cfgpin(dev, PC, 0, SUN50I_GPC_SPI0);
+		gpio_set_cfgpin(dev, PC, 2, SUN50I_GPC_SPI0);
+		gpio_set_cfgpin(dev, PC, 3, SUN50I_GPC_SPI0);
+		gpio_set_cfgpin(dev, PC, 5, SUN50I_GPC_SPI0);
+		break;
 	default: /* Unknown/Unsupported SoC */
 		printf("SPI support not implemented yet for %x (%s)!\n",
 		       soc_info->soc_id, soc_info->name);
@@ -198,22 +209,28 @@ static bool spi0_init(feldev_handle *dev)
 		return false;
 	}
 
-	if (spi_is_sun6i(dev)) {
+	if (is_h6(dev)) {	/* combined clock gate/reset register */
+		reg_val = readl(CCM_H6_SPI_BGR_REG);
+		reg_val |= CCM_H6_AHB_GATE_SPI0 | CCM_H6_SPI0_RST;
+		writel(reg_val, CCM_H6_SPI_BGR_REG);
+	} else if (spi_is_sun6i(dev)) {
 		/* Deassert SPI0 reset */
 		reg_val = readl(SUN6I_BUS_SOFT_RST_REG0);
 		reg_val |= SUN6I_SPI0_RST;
 		writel(reg_val, SUN6I_BUS_SOFT_RST_REG0);
 	}
 
-	reg_val = readl(CCM_AHB_GATING0);
-	reg_val |= CCM_AHB_GATE_SPI0;
-	writel(reg_val, CCM_AHB_GATING0);
+	if (!is_h6(dev)) {
+		reg_val = readl(CCM_AHB_GATING0);
+		reg_val |= CCM_AHB_GATE_SPI0;
+		writel(reg_val, CCM_AHB_GATING0);
+	}
 
 	/* divide by 4 */
 	writel(CCM_SPI0_CLK_DIV_BY_4, base + (spi_is_sun6i(dev) ?
 				      SUN6I_SPI0_CCTL : SUN4I_SPI0_CCTL));
 	/* Choose 24MHz from OSC24M and enable clock */
-	writel((1U << 31), CCM_SPI0_CLK);
+	writel((1U << 31), is_h6(dev) ? CCM_H6_SPI0_CLK : CCM_SPI0_CLK);
 
 	if (spi_is_sun6i(dev)) {
 		/* Enable SPI in the master mode and do a soft reset */

@@ -238,6 +238,7 @@ soc_info_t soc_info_table[] = {
 		.swap_buffers = h6_sram_swap_buffers,
 		.sid_base     = 0x03006000,
 		.sid_offset   = 0x200,
+		.spi0_base    = 0x05010000,
 		.rvbar_reg    = 0x09010040,
 		/* Check L.NOP in the OpenRISC reset vector */
 		.needs_smc_workaround_if_zero_word_at_addr = 0x100004,
