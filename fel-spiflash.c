@@ -109,17 +109,27 @@ void fel_writel(feldev_handle *dev, uint32_t addr, uint32_t val);
 #define CCM_SPI0_CLK_DIV_BY_4       (0x1001)
 #define CCM_SPI0_CLK_DIV_BY_6       (0x1002)
 
+static bool is_h6(feldev_handle *dev)
+{
+	soc_info_t *soc_info = dev->soc_info;
+
+	return soc_info->soc_id == 0x1728;
+}
+
 /*
  * Configure pin function on a GPIO port
  */
 static void gpio_set_cfgpin(feldev_handle *dev, int port_num, int pin_num,
 			    int val)
 {
-	uint32_t port_base = 0x01C20800 + port_num * 0x24;
-	uint32_t cfg_reg   = port_base + 4 * (pin_num / 8);
+	uint32_t port_base = port_num * 0x24;
+	uint32_t cfg_reg   = 4 * (pin_num / 8);
 	uint32_t pin_idx   = pin_num % 8;
-	uint32_t x = readl(cfg_reg);
-	x &= ~(0x7 << (pin_idx * 4));
+	uint32_t x;
+
+	cfg_reg += port_base + (is_h6(dev) ? 0x0300B000 : 0x01C20800);
+
+	x = readl(cfg_reg) & ~(0x7 << (pin_idx * 4));
 	x |= val << (pin_idx * 4);
 	writel(x, cfg_reg);
 }
