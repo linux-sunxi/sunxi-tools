@@ -81,4 +81,12 @@ void fel_clrsetbits_le32(feldev_handle *dev,
 bool fel_get_sid_root_key(feldev_handle *dev, uint32_t *result,
 			  bool force_workaround);
 
+bool aw_fel_remotefunc_prepare(feldev_handle *dev,
+			       size_t                stack_size,
+			       void                 *arm_code,
+			       size_t                arm_code_size,
+			       size_t                num_args,
+			       uint32_t             *args);
+bool aw_fel_remotefunc_execute(feldev_handle *dev, uint32_t *result);
+
 #endif /* _SUNXI_TOOLS_FEL_LIB_H */
