@@ -160,6 +160,12 @@ static bool spi0_init(feldev_handle *dev)
 		gpio_set_cfgpin(dev, PC, 2, SUNXI_GPC_SPI0);
 		gpio_set_cfgpin(dev, PC, 3, SUNXI_GPC_SPI0);
 		break;
+	case 0x1651: /* Allwinner A20 */
+		gpio_set_cfgpin(dev, PC, 0, SUNXI_GPC_SPI0);
+		gpio_set_cfgpin(dev, PC, 1, SUNXI_GPC_SPI0);
+		gpio_set_cfgpin(dev, PC, 2, SUNXI_GPC_SPI0);
+		gpio_set_cfgpin(dev, PC, 23, SUNXI_GPC_SPI0);
+		break;
 	case 0x1689: /* Allwinner A64 */
 		gpio_set_cfgpin(dev, PC, 0, SUN50I_GPC_SPI0);
 		gpio_set_cfgpin(dev, PC, 1, SUN50I_GPC_SPI0);
