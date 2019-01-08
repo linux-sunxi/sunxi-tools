@@ -144,8 +144,11 @@ static bool spi0_init(feldev_handle *dev)
 {
 	uint32_t reg_val;
 	soc_info_t *soc_info = dev->soc_info;
-	if (!soc_info)
+	if (!soc_info) {
+		printf("Unable to fetch device information. "
+		       "Possibly unknown device.\n");
 		return false;
+	}
 
 	/* Setup SPI0 pins muxing */
 	switch (soc_info->soc_id) {
@@ -164,6 +167,8 @@ static bool spi0_init(feldev_handle *dev)
 		gpio_set_cfgpin(dev, PC, 3, SUN50I_GPC_SPI0);
 		break;
 	default: /* Unknown/Unsupported SoC */
+		printf("SPI support not implemented yet for %x (%s)!\n",
+		       soc_info->soc_id, soc_info->name);
 		return false;
 	}
 
