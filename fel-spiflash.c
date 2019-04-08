@@ -75,6 +75,10 @@ void fel_writel(feldev_handle *dev, uint32_t addr, uint32_t val);
 #define CCM_AHB_GATE_SPI0           (1 << 20)
 #define SUN6I_BUS_SOFT_RST_REG0     (0x01C20000 + 0x2C0)
 #define SUN6I_SPI0_RST              (1 << 20)
+#define SUN50I_H6_SPI_GATING_REG    (0x03001000 + 0x96C)
+#define SUN50I_H6_SPI0_RST          (1 << 16)
+#define SUN50I_H6_SPI0_GATING_CLK   (1 << 0)
+#define SUN50I_H6_CCU_SPI0_CLK      (0x03001000 + 0x940)
 
 #define SUNXI_GPC_SPI0              (3)
 #define SUN50I_GPC_SPI0             (4)
@@ -105,9 +109,20 @@ void fel_writel(feldev_handle *dev, uint32_t addr, uint32_t val);
 #define SUN6I_SPI0_TXD              (0x01C68000 + 0x200)
 #define SUN6I_SPI0_RXD              (0x01C68000 + 0x300)
 
+#define SUN50I_H6_SPI0_CCTL         (0x05010000 + 0x24)
+#define SUN50I_H6_SPI0_GCR          (0x05010000 + 0x04)
+#define SUN50I_H6_SPI0_TCR          (0x05010000 + 0x08)
+#define SUN50I_H6_SPI0_FIFO_STA     (0x05010000 + 0x1C)
+#define SUN50I_H6_SPI0_MBC          (0x05010000 + 0x30)
+#define SUN50I_H6_SPI0_MTC          (0x05010000 + 0x34)
+#define SUN50I_H6_SPI0_BCC          (0x05010000 + 0x38)
+#define SUN50I_H6_SPI0_TXD          (0x05010000 + 0x200)
+#define SUN50I_H6_SPI0_RXD          (0x05010000 + 0x300)
+
 #define CCM_SPI0_CLK_DIV_BY_2       (0x1000)
 #define CCM_SPI0_CLK_DIV_BY_4       (0x1001)
 #define CCM_SPI0_CLK_DIV_BY_6       (0x1002)
+
 
 /*
  * Configure pin function on a GPIO port
@@ -115,7 +130,12 @@ void fel_writel(feldev_handle *dev, uint32_t addr, uint32_t val);
 static void gpio_set_cfgpin(feldev_handle *dev, int port_num, int pin_num,
 			    int val)
 {
-	uint32_t port_base = 0x01C20800 + port_num * 0x24;
+	soc_info_t *soc_info = dev->soc_info;
+	uint32_t pio_base = 0x01C20800;
+	if (soc_info->soc_id == 0x1728) { /* Allwinner H6 */
+		pio_base = 0x0300B000;
+	}
+	uint32_t port_base = pio_base + port_num * 0x24;
 	uint32_t cfg_reg   = port_base + 4 * (pin_num / 8);
 	uint32_t pin_idx   = pin_num % 8;
 	uint32_t x = readl(cfg_reg);
@@ -171,6 +191,11 @@ static bool spi0_init(feldev_handle *dev)
 		gpio_set_cfgpin(dev, PC, 1, SUN50I_GPC_SPI0);
 		gpio_set_cfgpin(dev, PC, 2, SUN50I_GPC_SPI0);
 		gpio_set_cfgpin(dev, PC, 3, SUN50I_GPC_SPI0);
+	case 0x1728: /* Allwinner H6 */
+		gpio_set_cfgpin(dev, PC, 0, SUN50I_GPC_SPI0);
+		gpio_set_cfgpin(dev, PC, 2, SUN50I_GPC_SPI0);
+		gpio_set_cfgpin(dev, PC, 3, SUN50I_GPC_SPI0);
+		gpio_set_cfgpin(dev, PC, 5, SUN50I_GPC_SPI0);
 		break;
 	default: /* Unknown/Unsupported SoC */
 		printf("SPI support not implemented yet for %x (%s)!\n",
@@ -178,32 +203,57 @@ static bool spi0_init(feldev_handle *dev)
 		return false;
 	}
 
-	reg_val = readl(CCM_AHB_GATING0);
-	reg_val |= CCM_AHB_GATE_SPI0;
-	writel(reg_val, CCM_AHB_GATING0);
+	if (soc_info->soc_id == 0x1728) { /* Allwinner H6 */
+		reg_val = readl(SUN50I_H6_SPI_GATING_REG);
+		reg_val |= SUN50I_H6_SPI0_GATING_CLK;
+		writel(reg_val, SUN50I_H6_SPI_GATING_REG);
 
-	/* 24MHz from OSC24M */
-	writel((1 << 31), CCM_SPI0_CLK);
-	/* divide by 4 */
-	writel(CCM_SPI0_CLK_DIV_BY_4, spi_is_sun6i(dev) ? SUN6I_SPI0_CCTL :
-							  SUN4I_SPI0_CCTL);
+		/* 24MHz from OSC24M */
+		writel((1 << 31), SUN50I_H6_CCU_SPI0_CLK);
+		/* divide by 4 */
+		writel(CCM_SPI0_CLK_DIV_BY_4, SUN50I_H6_SPI0_CCTL);
 
-	if (spi_is_sun6i(dev)) {
 		/* Deassert SPI0 reset */
-		reg_val = readl(SUN6I_BUS_SOFT_RST_REG0);
-		reg_val |= SUN6I_SPI0_RST;
-		writel(reg_val, SUN6I_BUS_SOFT_RST_REG0);
+		reg_val = readl(SUN50I_H6_SPI_GATING_REG);
+		reg_val |= SUN50I_H6_SPI0_RST;
+		writel(reg_val, SUN50I_H6_SPI_GATING_REG);
+
 		/* Enable SPI in the master mode and do a soft reset */
-		reg_val = readl(SUN6I_SPI0_GCR);
+		reg_val = readl(SUN50I_H6_SPI0_GCR);
 		reg_val |= (1 << 31) | 3;
-		writel(reg_val, SUN6I_SPI0_GCR);
+		writel(reg_val, SUN50I_H6_SPI0_GCR);
+
 		/* Wait for completion */
-		while (readl(SUN6I_SPI0_GCR) & (1 << 31)) {}
+		while (readl(SUN50I_H6_SPI0_GCR) & (1 << 31)) {}
+
 	} else {
-		reg_val = readl(SUN4I_SPI0_CTL);
-		reg_val |= SUN4I_CTL_MASTER;
-		reg_val |= SUN4I_CTL_ENABLE | SUN4I_CTL_TF_RST | SUN4I_CTL_RF_RST;
-		writel(reg_val, SUN4I_SPI0_CTL);
+		reg_val = readl(CCM_AHB_GATING0);
+		reg_val |= CCM_AHB_GATE_SPI0;
+		writel(reg_val, CCM_AHB_GATING0);
+
+		/* 24MHz from OSC24M */
+		writel((1 << 31), CCM_SPI0_CLK);
+		/* divide by 4 */
+		writel(CCM_SPI0_CLK_DIV_BY_4, spi_is_sun6i(dev) ? SUN6I_SPI0_CCTL :
+								  SUN4I_SPI0_CCTL);
+
+		if (spi_is_sun6i(dev)) {
+			/* Deassert SPI0 reset */
+			reg_val = readl(SUN6I_BUS_SOFT_RST_REG0);
+			reg_val |= SUN6I_SPI0_RST;
+			writel(reg_val, SUN6I_BUS_SOFT_RST_REG0);
+			/* Enable SPI in the master mode and do a soft reset */
+			reg_val = readl(SUN6I_SPI0_GCR);
+			reg_val |= (1 << 31) | 3;
+			writel(reg_val, SUN6I_SPI0_GCR);
+			/* Wait for completion */
+			while (readl(SUN6I_SPI0_GCR) & (1 << 31)) {}
+		} else {
+			reg_val = readl(SUN4I_SPI0_CTL);
+			reg_val |= SUN4I_CTL_MASTER;
+			reg_val |= SUN4I_CTL_ENABLE | SUN4I_CTL_TF_RST | SUN4I_CTL_RF_RST;
+			writel(reg_val, SUN4I_SPI0_CTL);
+		}
 	}
 
 	return true;
@@ -232,7 +282,19 @@ static void restore_sram(feldev_handle *dev, void *buf)
 
 static void prepare_spi_batch_data_transfer(feldev_handle *dev, uint32_t buf)
 {
-	if (spi_is_sun6i(dev)) {
+	soc_info_t *soc_info = dev->soc_info;
+	if (soc_info->soc_id == 0x1728) { /* Allwinner H6 */
+		aw_fel_remotefunc_prepare_spi_batch_data_transfer(dev,
+							    buf,
+							    SUN50I_H6_SPI0_TCR,
+							    SUN6I_TCR_XCH,
+							    SUN50I_H6_SPI0_FIFO_STA,
+							    SUN50I_H6_SPI0_TXD,
+							    SUN50I_H6_SPI0_RXD,
+							    SUN50I_H6_SPI0_MBC,
+							    SUN50I_H6_SPI0_MTC,
+							    SUN50I_H6_SPI0_BCC);
+	} else if (spi_is_sun6i(dev)) {
 		aw_fel_remotefunc_prepare_spi_batch_data_transfer(dev,
 							    buf,
 							    SUN6I_SPI0_TCR,
