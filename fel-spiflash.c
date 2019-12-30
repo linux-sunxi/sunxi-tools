@@ -136,6 +136,7 @@ static uint32_t spi_base(feldev_handle *dev)
 	case 0x1623: /* A10 */
 	case 0x1625: /* A13 */
 	case 0x1651: /* A20 */
+	case 0x1701: /* R40 */
 		return 0x01C05000;
 	case 0x1817: /* V831 */
 		return 0x05010000;
@@ -209,6 +210,7 @@ static bool spi0_init(feldev_handle *dev)
 		break;
 	case 0x1623: /* Allwinner A10 */
 	case 0x1651: /* Allwinner A20 */
+	case 0x1701: /* Allwinner R40 */
 		gpio_set_cfgpin(dev, PC, 0, SUNXI_GPC_SPI0);
 		gpio_set_cfgpin(dev, PC, 1, SUNXI_GPC_SPI0);
 		gpio_set_cfgpin(dev, PC, 2, SUNXI_GPC_SPI0);
