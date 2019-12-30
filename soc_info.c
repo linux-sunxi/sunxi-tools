@@ -228,6 +228,7 @@ soc_info_t soc_info_table[] = {
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.sid_base     = 0x01C1B000,
 		.sid_offset   = 0x200,
+		.spi0_base    = 0x01C05000,
 	},{
 		.soc_id       = 0x1728, /* Allwinner H6 */
 		.name         = "H6",
