@@ -87,23 +87,23 @@ void fel_writel(feldev_handle *dev, uint32_t addr, uint32_t val);
 
 #define SUN6I_TCR_XCH               (1U << 31)
 
-#define SUN4I_SPI0_CCTL             (0x01C05000 + 0x1C)
-#define SUN4I_SPI0_CTL              (0x01C05000 + 0x08)
-#define SUN4I_SPI0_RX               (0x01C05000 + 0x00)
-#define SUN4I_SPI0_TX               (0x01C05000 + 0x04)
-#define SUN4I_SPI0_FIFO_STA         (0x01C05000 + 0x28)
-#define SUN4I_SPI0_BC               (0x01C05000 + 0x20)
-#define SUN4I_SPI0_TC               (0x01C05000 + 0x24)
+#define SUN4I_SPI0_CCTL             0x1C
+#define SUN4I_SPI0_CTL              0x08
+#define SUN4I_SPI0_RX               0x00
+#define SUN4I_SPI0_TX               0x04
+#define SUN4I_SPI0_FIFO_STA         0x28
+#define SUN4I_SPI0_BC               0x20
+#define SUN4I_SPI0_TC               0x24
 
-#define SUN6I_SPI0_CCTL             (0x01C68000 + 0x24)
-#define SUN6I_SPI0_GCR              (0x01C68000 + 0x04)
-#define SUN6I_SPI0_TCR              (0x01C68000 + 0x08)
-#define SUN6I_SPI0_FIFO_STA         (0x01C68000 + 0x1C)
-#define SUN6I_SPI0_MBC              (0x01C68000 + 0x30)
-#define SUN6I_SPI0_MTC              (0x01C68000 + 0x34)
-#define SUN6I_SPI0_BCC              (0x01C68000 + 0x38)
-#define SUN6I_SPI0_TXD              (0x01C68000 + 0x200)
-#define SUN6I_SPI0_RXD              (0x01C68000 + 0x300)
+#define SUN6I_SPI0_CCTL             0x24
+#define SUN6I_SPI0_GCR              0x04
+#define SUN6I_SPI0_TCR              0x08
+#define SUN6I_SPI0_FIFO_STA         0x1C
+#define SUN6I_SPI0_MBC              0x30
+#define SUN6I_SPI0_MTC              0x34
+#define SUN6I_SPI0_BCC              0x38
+#define SUN6I_SPI0_TXD              0x200
+#define SUN6I_SPI0_RXD              0x300
 
 #define CCM_SPI0_CLK_DIV_BY_2       (0x1000)
 #define CCM_SPI0_CLK_DIV_BY_4       (0x1001)
@@ -153,7 +153,9 @@ static bool spi_is_sun6i(feldev_handle *dev)
 static bool spi0_init(feldev_handle *dev)
 {
 	uint32_t reg_val;
+	uint32_t base;
 	soc_info_t *soc_info = dev->soc_info;
+
 	if (!soc_info) {
 		printf("Unable to fetch device information. "
 		       "Possibly unknown device.\n");
@@ -188,6 +190,13 @@ static bool spi0_init(feldev_handle *dev)
 		return false;
 	}
 
+	base = soc_info->spi0_base;
+	if (!base) {
+		printf("Error: Missing SPI0 base address for SoC %x (%s)!\n",
+		       soc_info->soc_id, soc_info->name);
+		return false;
+	}
+
 	if (spi_is_sun6i(dev)) {
 		/* Deassert SPI0 reset */
 		reg_val = readl(SUN6I_BUS_SOFT_RST_REG0);
@@ -200,23 +209,24 @@ static bool spi0_init(feldev_handle *dev)
 	writel(reg_val, CCM_AHB_GATING0);
 
 	/* divide by 4 */
-	writel(CCM_SPI0_CLK_DIV_BY_4, spi_is_sun6i(dev) ? SUN6I_SPI0_CCTL :
-							  SUN4I_SPI0_CCTL);
+	writel(CCM_SPI0_CLK_DIV_BY_4, base + (spi_is_sun6i(dev) ?
+				      SUN6I_SPI0_CCTL : SUN4I_SPI0_CCTL));
 	/* Choose 24MHz from OSC24M and enable clock */
 	writel((1U << 31), CCM_SPI0_CLK);
 
 	if (spi_is_sun6i(dev)) {
 		/* Enable SPI in the master mode and do a soft reset */
-		reg_val = readl(SUN6I_SPI0_GCR);
+		reg_val = readl(base + SUN6I_SPI0_GCR);
 		reg_val |= (1U << 31) | 3;
-		writel(reg_val, SUN6I_SPI0_GCR);
+		writel(reg_val, base + SUN6I_SPI0_GCR);
 		/* Wait for completion */
-		while (readl(SUN6I_SPI0_GCR) & (1U << 31)) {}
+		while (readl(base + SUN6I_SPI0_GCR) & (1U << 31))
+			;
 	} else {
-		reg_val = readl(SUN4I_SPI0_CTL);
+		reg_val = readl(base + SUN4I_SPI0_CTL);
 		reg_val |= SUN4I_CTL_MASTER;
 		reg_val |= SUN4I_CTL_ENABLE | SUN4I_CTL_TF_RST | SUN4I_CTL_RF_RST;
-		writel(reg_val, SUN4I_SPI0_CTL);
+		writel(reg_val, base + SUN4I_SPI0_CTL);
 	}
 
 	return true;
@@ -245,28 +255,28 @@ static void restore_sram(feldev_handle *dev, void *buf)
 
 static void prepare_spi_batch_data_transfer(feldev_handle *dev, uint32_t buf)
 {
+	uint32_t base = dev->soc_info->spi0_base;
+
 	if (spi_is_sun6i(dev)) {
-		aw_fel_remotefunc_prepare_spi_batch_data_transfer(dev,
-							    buf,
-							    SUN6I_SPI0_TCR,
-							    SUN6I_TCR_XCH,
-							    SUN6I_SPI0_FIFO_STA,
-							    SUN6I_SPI0_TXD,
-							    SUN6I_SPI0_RXD,
-							    SUN6I_SPI0_MBC,
-							    SUN6I_SPI0_MTC,
-							    SUN6I_SPI0_BCC);
+		aw_fel_remotefunc_prepare_spi_batch_data_transfer(dev, buf,
+						base + SUN6I_SPI0_TCR,
+						SUN6I_TCR_XCH,
+						base + SUN6I_SPI0_FIFO_STA,
+						base + SUN6I_SPI0_TXD,
+						base + SUN6I_SPI0_RXD,
+						base + SUN6I_SPI0_MBC,
+						base + SUN6I_SPI0_MTC,
+						base + SUN6I_SPI0_BCC);
 	} else {
-		aw_fel_remotefunc_prepare_spi_batch_data_transfer(dev,
-							    buf,
-							    SUN4I_SPI0_CTL,
-							    SUN4I_CTL_XCH,
-							    SUN4I_SPI0_FIFO_STA,
-							    SUN4I_SPI0_TX,
-							    SUN4I_SPI0_RX,
-							    SUN4I_SPI0_BC,
-							    SUN4I_SPI0_TC,
-							    0);
+		aw_fel_remotefunc_prepare_spi_batch_data_transfer(dev, buf,
+						base + SUN4I_SPI0_CTL,
+						SUN4I_CTL_XCH,
+						base + SUN4I_SPI0_FIFO_STA,
+						base + SUN4I_SPI0_TX,
+						base + SUN4I_SPI0_RX,
+						base + SUN4I_SPI0_BC,
+						base + SUN4I_SPI0_TC,
+						0);
 	}
 }
 

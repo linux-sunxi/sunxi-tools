@@ -127,6 +127,7 @@ soc_info_t soc_info_table[] = {
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.needs_l2en   = true,
 		.sid_base     = 0x01C23800,
+		.spi0_base    = 0x01C68000,
 	},{
 		.soc_id       = 0x1651, /* Allwinner A20 */
 		.name         = "A20",
@@ -134,6 +135,7 @@ soc_info_t soc_info_table[] = {
 		.thunk_addr   = 0xA200, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.sid_base     = 0x01C23800,
+		.spi0_base    = 0x01C05000,
 	},{
 		.soc_id       = 0x1650, /* Allwinner A23 */
 		.name         = "A23",
@@ -163,6 +165,7 @@ soc_info_t soc_info_table[] = {
 		.swap_buffers = a64_sram_swap_buffers,
 		.sid_base     = 0x01C14000,
 		.sid_offset   = 0x200,
+		.spi0_base    = 0x01C68000,
 		.rvbar_reg    = 0x017000A0,
 		/* Check L.NOP in the OpenRISC reset vector */
 		.needs_smc_workaround_if_zero_word_at_addr = 0x40004,
@@ -192,6 +195,7 @@ soc_info_t soc_info_table[] = {
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.sid_base     = 0x01C14000,
 		.sid_offset   = 0x200,
+		.spi0_base    = 0x01C68000,
 		.sid_fix      = true,
 		/* Check L.NOP in the OpenRISC reset vector */
 		.needs_smc_workaround_if_zero_word_at_addr = 0x40004,
@@ -212,6 +216,7 @@ soc_info_t soc_info_table[] = {
 		.swap_buffers = a64_sram_swap_buffers,
 		.sid_base     = 0x01C14000,
 		.sid_offset   = 0x200,
+		.spi0_base    = 0x01C68000,
 		.rvbar_reg    = 0x017000A0,
 		/* Check L.NOP in the OpenRISC reset vector */
 		.needs_smc_workaround_if_zero_word_at_addr = 0x40004,

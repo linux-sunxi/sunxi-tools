@@ -100,6 +100,7 @@ typedef struct {
 	uint32_t           mmu_tt_addr;  /* MMU translation table address */
 	uint32_t           sid_base;     /* base address for SID registers */
 	uint32_t           sid_offset;   /* offset for SID_KEY[0-3], "root key" */
+	uint32_t           spi0_base;    /* base address for SPI0 block */
 	uint32_t           rvbar_reg;    /* MMIO address of RVBARADDR0_L register */
 	bool               sid_fix;      /* Use SID workaround (read via register) */
 	/* Use SMC workaround (enter secure mode) if can't read from this address */
