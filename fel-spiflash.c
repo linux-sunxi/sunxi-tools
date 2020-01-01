@@ -188,21 +188,24 @@ static bool spi0_init(feldev_handle *dev)
 		return false;
 	}
 
-	reg_val = readl(CCM_AHB_GATING0);
-	reg_val |= CCM_AHB_GATE_SPI0;
-	writel(reg_val, CCM_AHB_GATING0);
-
-	/* 24MHz from OSC24M */
-	writel((1 << 31), CCM_SPI0_CLK);
-	/* divide by 4 */
-	writel(CCM_SPI0_CLK_DIV_BY_4, spi_is_sun6i(dev) ? SUN6I_SPI0_CCTL :
-							  SUN4I_SPI0_CCTL);
-
 	if (spi_is_sun6i(dev)) {
 		/* Deassert SPI0 reset */
 		reg_val = readl(SUN6I_BUS_SOFT_RST_REG0);
 		reg_val |= SUN6I_SPI0_RST;
 		writel(reg_val, SUN6I_BUS_SOFT_RST_REG0);
+	}
+
+	reg_val = readl(CCM_AHB_GATING0);
+	reg_val |= CCM_AHB_GATE_SPI0;
+	writel(reg_val, CCM_AHB_GATING0);
+
+	/* divide by 4 */
+	writel(CCM_SPI0_CLK_DIV_BY_4, spi_is_sun6i(dev) ? SUN6I_SPI0_CCTL :
+							  SUN4I_SPI0_CCTL);
+	/* Choose 24MHz from OSC24M and enable clock */
+	writel((1U << 31), CCM_SPI0_CLK);
+
+	if (spi_is_sun6i(dev)) {
 		/* Enable SPI in the master mode and do a soft reset */
 		reg_val = readl(SUN6I_SPI0_GCR);
 		reg_val |= (1 << 31) | 3;
