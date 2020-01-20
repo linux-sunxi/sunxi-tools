@@ -85,7 +85,7 @@ void fel_writel(feldev_handle *dev, uint32_t addr, uint32_t val);
 #define SUN4I_CTL_RF_RST            (1 << 9)
 #define SUN4I_CTL_XCH               (1 << 10)
 
-#define SUN6I_TCR_XCH               (1 << 31)
+#define SUN6I_TCR_XCH               (1U << 31)
 
 #define SUN4I_SPI0_CCTL             (0x01C05000 + 0x1C)
 #define SUN4I_SPI0_CTL              (0x01C05000 + 0x08)
@@ -208,10 +208,10 @@ static bool spi0_init(feldev_handle *dev)
 	if (spi_is_sun6i(dev)) {
 		/* Enable SPI in the master mode and do a soft reset */
 		reg_val = readl(SUN6I_SPI0_GCR);
-		reg_val |= (1 << 31) | 3;
+		reg_val |= (1U << 31) | 3;
 		writel(reg_val, SUN6I_SPI0_GCR);
 		/* Wait for completion */
-		while (readl(SUN6I_SPI0_GCR) & (1 << 31)) {}
+		while (readl(SUN6I_SPI0_GCR) & (1U << 31)) {}
 	} else {
 		reg_val = readl(SUN4I_SPI0_CTL);
 		reg_val |= SUN4I_CTL_MASTER;
@@ -489,7 +489,7 @@ void aw_fel_spiflash_info(feldev_handle *dev)
 	}
 
 	printf("Manufacturer: %s (%02Xh), model: %02Xh, size: %d bytes.\n",
-	       manufacturer, buf[3], buf[4], (1 << buf[5]));
+	       manufacturer, buf[3], buf[4], (1U << buf[5]));
 }
 
 /*
