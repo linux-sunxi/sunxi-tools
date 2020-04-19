@@ -52,6 +52,16 @@ typedef struct {
 } sram_swap_buffers;
 
 /*
+ * Contains information on the watchdog peripheral, to enable reset
+ */
+typedef struct {
+	/* Register that needs to be written to */
+	uint32_t reg_mode;
+	/* Value to write to trigger a reset */
+	uint32_t reg_mode_value;
+} watchdog_info;
+
+/*
  * Each SoC variant may have its own list of memory buffers to be exchanged
  * and the information about the placement of the thunk code, which handles
  * the transition of execution from the BROM FEL code to the U-Boot SPL and
@@ -101,6 +111,7 @@ typedef struct {
 	uint32_t           sid_base;     /* base address for SID registers */
 	uint32_t           sid_offset;   /* offset for SID_KEY[0-3], "root key" */
 	uint32_t           rvbar_reg;    /* MMIO address of RVBARADDR0_L register */
+	const watchdog_info *watchdog;   /* Used for reset */
 	bool               sid_fix;      /* Use SID workaround (read via register) */
 	/* Use SMC workaround (enter secure mode) if can't read from this address */
 	uint32_t           needs_smc_workaround_if_zero_word_at_addr;

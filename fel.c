@@ -1055,6 +1055,20 @@ void aw_rmr_request(feldev_handle *dev, uint32_t entry_point, bool aarch64)
 	pr_info(" done.\n");
 }
 
+/* Use the watchdog to simply reboot.  Useful to get out of fel without
+ * power cycling or plugging.
+ */
+void aw_wd_reset(feldev_handle *dev)
+{
+	const watchdog_info *wd = dev->soc_info->watchdog;
+	if (!wd) {
+		pr_error("No watchdog information available (yet) for soc: %s\n", dev->soc_info->name);
+		return;
+	}
+	fel_writel(dev, wd->reg_mode, wd->reg_mode_value);
+	pr_info("Requested watchdog reset\n");
+}
+
 /* check buffer for magic "#=uEnv", indicating uEnv.txt compatible format */
 static bool is_uEnv(void *buffer, size_t size)
 {
@@ -1164,6 +1178,7 @@ void usage(const char *cmd) {
 		"	dump address length		Binary memory dump\n"
 		"	exe[cute] address		Call function address\n"
 		"	reset64 address			RMR request for AArch64 warm boot\n"
+		"	wdreset				Reboot via watchdog\n"
 		"	memmove dest source size	Copy <size> bytes within device memory\n"
 		"	readl address			Read 32-bit value from device memory\n"
 		"	writel address value		Write 32-bit value to device memory\n"
@@ -1296,6 +1311,8 @@ int main(int argc, char **argv)
 			/* Cancel U-Boot autostart, and stop processing args */
 			uboot_autostart = false;
 			break;
+		} else if (strcmp(argv[1], "wdreset") == 0) {
+			aw_wd_reset(handle);
 		} else if (strncmp(argv[1], "ver", 3) == 0) {
 			aw_fel_print_version(handle);
 		} else if (strcmp(argv[1], "sid") == 0) {
