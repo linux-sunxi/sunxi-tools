@@ -110,6 +110,16 @@ sram_swap_buffers h6_sram_swap_buffers[] = {
 	{ .size = 0 }  /* End of the table */
 };
 
+const watchdog_info wd_a10_compat = {
+	.reg_mode = 0x01C20C94,
+	.reg_mode_value = 3,
+};
+
+const watchdog_info wd_h3_compat = {
+	.reg_mode = 0x01C20Cb8,
+	.reg_mode_value = 1,
+};
+
 soc_info_t soc_info_table[] = {
 	{
 		.soc_id       = 0x1623, /* Allwinner A10 */
@@ -119,6 +129,7 @@ soc_info_t soc_info_table[] = {
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.needs_l2en   = true,
 		.sid_base     = 0x01C23800,
+		.watchdog     = &wd_a10_compat,
 	},{
 		.soc_id       = 0x1625, /* Allwinner A10s, A13, R8 */
 		.name         = "A13",
@@ -195,6 +206,7 @@ soc_info_t soc_info_table[] = {
 		.sid_fix      = true,
 		/* Check L.NOP in the OpenRISC reset vector */
 		.needs_smc_workaround_if_zero_word_at_addr = 0x40004,
+		.watchdog     = &wd_h3_compat,
 	},{
 		.soc_id       = 0x1681, /* Allwinner V3s */
 		.name         = "V3s",
@@ -215,6 +227,7 @@ soc_info_t soc_info_table[] = {
 		.rvbar_reg    = 0x017000A0,
 		/* Check L.NOP in the OpenRISC reset vector */
 		.needs_smc_workaround_if_zero_word_at_addr = 0x40004,
+		.watchdog     = &wd_h3_compat,
 	},{
 		.soc_id       = 0x1701, /* Allwinner R40 */
 		.name         = "R40",
