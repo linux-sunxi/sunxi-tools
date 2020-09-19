@@ -154,6 +154,7 @@ static bool spi0_init(feldev_handle *dev)
 	switch (soc_info->soc_id) {
 	case 0x1625: /* Allwinner A13 */
 	case 0x1680: /* Allwinner H3 */
+	case 0x1681: /* Allwinner V3s */
 	case 0x1718: /* Allwinner H5 */
 		gpio_set_cfgpin(dev, PC, 0, SUNXI_GPC_SPI0);
 		gpio_set_cfgpin(dev, PC, 1, SUNXI_GPC_SPI0);
