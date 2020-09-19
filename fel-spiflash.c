@@ -49,6 +49,11 @@ spi_flash_info_t spi_flash_info[] = {
 	  .small_erase_cmd = 0x20, .small_erase_size =  4 * 1024,
 	  .program_cmd = 0x02, .program_size = 256,
 	  .text_description = "Macronix MX25Lxxxx" },
+	{ .id = 0x1C70, .write_enable_cmd = 0x6,
+	  .large_erase_cmd = 0xD8, .large_erase_size = 64 * 1024,
+	  .small_erase_cmd = 0x20, .small_erase_size =  4 * 1024,
+	  .program_cmd = 0x02, .program_size = 256,
+	  .text_description = "Eon EN25QHxx" },
 };
 
 spi_flash_info_t default_spi_flash_info = {
@@ -470,6 +475,9 @@ void aw_fel_spiflash_info(feldev_handle *dev)
 		break;
 	case 0xC2:
 		manufacturer = "Macronix";
+		break;
+	case 0x1C:
+		manufacturer = "Eon";
 		break;
 	default:
 		manufacturer = "Unknown";
