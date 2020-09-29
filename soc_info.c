@@ -110,6 +110,21 @@ sram_swap_buffers h6_sram_swap_buffers[] = {
 	{ .size = 0 }  /* End of the table */
 };
 
+/*
+ * V831 has 96KiB SRAM A1 at 0x20000 where the SPL has to be loaded to.
+ * SRAM C is continuous with SRAM A1, and both SRAMs are tried to be used
+ * by BROM. Memory space is allocated both from the start of SRAM A1 and
+ * the end of SRAM C.
+ * The start of SRAM C is in between these areas, and can serve as backup
+ * of IRQ stack, which is inside the first 32KiB of SRAM A1. Other areas
+ * that are critical on older SoCs seem to be already in SRAM C, which
+ * we do not need to preserve.
+ */
+sram_swap_buffers v831_sram_swap_buffers[] = {
+	{ .buf1 = 0x21000, .buf2 = 0x38000, .size = 0x1000 },
+	{ .size = 0 }  /* End of the table */
+};
+
 const watchdog_info wd_a10_compat = {
 	.reg_mode = 0x01C20C94,
 	.reg_mode_value = 3,
@@ -250,6 +265,15 @@ soc_info_t soc_info_table[] = {
 		.rvbar_reg    = 0x09010040,
 		/* Check L.NOP in the OpenRISC reset vector */
 		.needs_smc_workaround_if_zero_word_at_addr = 0x100004,
+	},{
+		.soc_id       = 0x1817, /* Allwinner V831 */
+		.name         = "V831",
+		.spl_addr     = 0x20000,
+		.scratch_addr = 0x21000,
+		.thunk_addr   = 0x2A200, .thunk_size = 0x200,
+		.swap_buffers = v831_sram_swap_buffers,
+		.sid_base     = 0x03006000,
+		.sid_offset   = 0x200,
 	},{
 		.swap_buffers = NULL /* End of the table */
 	}
