@@ -147,6 +147,7 @@ enum sunxi_gpio_number {
 #define SUN8I_V831_GPH_UART0	(5)
 #define SUN50I_H5_GPA_UART0     (2)
 #define SUN50I_H6_GPH_UART0	(2)
+#define SUN50I_H616_GPH_UART0	(2)
 #define SUN50I_A64_GPB_UART0    (4)
 #define SUNXI_GPF_UART0         (4)
 
@@ -306,6 +307,7 @@ void soc_detection_init(void)
 #define soc_is_a64()	(soc_id == 0x1689)
 #define soc_is_h5()	(soc_id == 0x1718)
 #define soc_is_h6()	(soc_id == 0x1728)
+#define soc_is_h616()	(soc_id == 0x1823)
 #define soc_is_r40()	(soc_id == 0x1701)
 #define soc_is_v3s()	(soc_id == 0x1681)
 #define soc_is_v831()	(soc_id == 0x1817)
@@ -384,7 +386,7 @@ void clock_init_uart_h6(void)
 
 void clock_init_uart(void)
 {
-	if (soc_is_h6() || soc_is_v831())
+	if (soc_is_h6() || soc_is_v831() || soc_is_h616())
 		clock_init_uart_h6();
 	else
 		clock_init_uart_legacy();
@@ -433,6 +435,10 @@ void gpio_init(void)
 	} else if (soc_is_h6()) {
 		sunxi_gpio_set_cfgpin(SUNXI_GPH(0), SUN50I_H6_GPH_UART0);
 		sunxi_gpio_set_cfgpin(SUNXI_GPH(1), SUN50I_H6_GPH_UART0);
+		sunxi_gpio_set_pull(SUNXI_GPH(1), SUNXI_GPIO_PULL_UP);
+	} else if (soc_is_h616()) {
+		sunxi_gpio_set_cfgpin(SUNXI_GPH(0), SUN50I_H616_GPH_UART0);
+		sunxi_gpio_set_cfgpin(SUNXI_GPH(1), SUN50I_H616_GPH_UART0);
 		sunxi_gpio_set_pull(SUNXI_GPH(1), SUNXI_GPIO_PULL_UP);
 	} else if (soc_is_v3s()) {
 		sunxi_gpio_set_cfgpin(SUNXI_GPB(8), SUN8I_V3S_GPB_UART0);
@@ -518,7 +524,7 @@ int get_boot_device(void)
 	u32 *spl_signature = (void *)0x4;
 	if (soc_is_a64() || soc_is_a80() || soc_is_h5())
 		spl_signature = (void *)0x10004;
-	if (soc_is_h6() || soc_is_v831())
+	if (soc_is_h6() || soc_is_v831() || soc_is_h616())
 		spl_signature = (void *)0x20004;
 
 	/* Check the eGON.BT0 magic in the SPL header */
@@ -536,7 +542,7 @@ int get_boot_device(void)
 
 void bases_init(void)
 {
-	if (soc_is_h6() || soc_is_v831()) {
+	if (soc_is_h6() || soc_is_v831() || soc_is_h616()) {
 		pio_base = H6_PIO_BASE;
 		uart0_base = H6_UART0_BASE;
 	} else {
@@ -573,6 +579,8 @@ int main(void)
 		uart0_puts("Allwinner H5!\n");
 	else if (soc_is_h6())
 		uart0_puts("Allwinner H6!\n");
+	else if (soc_is_h616())
+		uart0_puts("Allwinner H616!\n");
 	else if (soc_is_r40())
 		uart0_puts("Allwinner R40!\n");
 	else if (soc_is_v3s())
