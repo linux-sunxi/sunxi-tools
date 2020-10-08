@@ -22,7 +22,6 @@
 #include <sys/mman.h>
 #include <stdint.h>
 #include <errno.h>
-#include <sys/io.h>
 #include <stdbool.h>
 
 #include "common.h"
@@ -74,24 +73,24 @@ static enum sunxi_soc_version soc_version;
 unsigned int
 sunxi_io_read(void *base, int offset)
 {
-	return inl((unsigned long) (base + offset));
+	return *(volatile unsigned int*) (base + offset);
 }
 
 void
 sunxi_io_write(void *base, int offset, unsigned int value)
 {
-	outl(value, (unsigned long) (base + offset));
+	*(volatile unsigned int*) (base + offset) = value;
 }
 
 void
 sunxi_io_mask(void *base, int offset, unsigned int value, unsigned int mask)
 {
-	unsigned int tmp = inl((unsigned long) (base + offset));
+	unsigned int tmp = sunxi_io_read(base, offset);
 
 	tmp &= ~mask;
 	tmp |= value & mask;
 
-	outl(tmp, (unsigned long) (base + offset));
+	sunxi_io_write(base, offset, tmp);
 }
 
 
