@@ -125,7 +125,7 @@ static uint32_t gpio_base(feldev_handle *dev)
 	case 0x1817: /* V831 */
 		return 0x0300B000;
 	default:
-		return 0x01C28000;
+		return 0x01C20800;
 	}
 }
 
