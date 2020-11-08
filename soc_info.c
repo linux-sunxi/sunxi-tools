@@ -141,6 +141,16 @@ const watchdog_info wd_h3_compat = {
 	.reg_mode_value = 1,
 };
 
+const watchdog_info wd_a80 = {
+	.reg_mode = 0x06000CB8,
+	.reg_mode_value = 1,
+};
+
+const watchdog_info wd_h6_compat = {
+	.reg_mode = 0x030090b8,
+	.reg_mode_value = 1,
+};
+
 soc_info_t soc_info_table[] = {
 	{
 		.soc_id       = 0x1623, /* Allwinner A10 */
@@ -159,6 +169,7 @@ soc_info_t soc_info_table[] = {
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.needs_l2en   = true,
 		.sid_base     = 0x01C23800,
+		.watchdog     = &wd_a10_compat,
 	},{
 		.soc_id       = 0x1651, /* Allwinner A20 */
 		.name         = "A20",
@@ -174,12 +185,14 @@ soc_info_t soc_info_table[] = {
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = ar100_abusing_sram_swap_buffers,
 		.sid_base     = 0x01C23800,
+		.watchdog     = &wd_h3_compat,
 	},{
 		.soc_id       = 0x1633, /* Allwinner A31 */
 		.name         = "A31",
 		.scratch_addr = 0x1000,
 		.thunk_addr   = 0x22E00, .thunk_size = 0x200,
 		.swap_buffers = a31_sram_swap_buffers,
+		.watchdog     = &wd_h3_compat,
 	},{
 		.soc_id       = 0x1667, /* Allwinner A33, R16 */
 		.name         = "A33",
@@ -187,6 +200,7 @@ soc_info_t soc_info_table[] = {
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = ar100_abusing_sram_swap_buffers,
 		.sid_base     = 0x01C23800,
+		.watchdog     = &wd_h3_compat,
 	},{
 		.soc_id       = 0x1689, /* Allwinner A64 */
 		.name         = "A64",
@@ -199,6 +213,7 @@ soc_info_t soc_info_table[] = {
 		.rvbar_reg    = 0x017000A0,
 		/* Check L.NOP in the OpenRISC reset vector */
 		.needs_smc_workaround_if_zero_word_at_addr = 0x40004,
+		.watchdog     = &wd_h3_compat,
 	},{
 		.soc_id       = 0x1639, /* Allwinner A80 */
 		.name         = "A80",
@@ -208,6 +223,7 @@ soc_info_t soc_info_table[] = {
 		.swap_buffers = a80_sram_swap_buffers,
 		.sid_base     = 0X01C0E000,
 		.sid_offset   = 0x200,
+		.watchdog     = &wd_a80,
 	},{
 		.soc_id       = 0x1673, /* Allwinner A83T */
 		.name         = "A83T",
@@ -217,6 +233,7 @@ soc_info_t soc_info_table[] = {
 		.swap_buffers = ar100_abusing_sram_swap_buffers,
 		.sid_base     = 0x01C14000,
 		.sid_offset   = 0x200,
+		.watchdog     = &wd_h3_compat,
 	},{
 		.soc_id       = 0x1680, /* Allwinner H3, H2+ */
 		.name         = "H3",
@@ -238,6 +255,7 @@ soc_info_t soc_info_table[] = {
 		.thunk_addr   = 0xA200, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.sid_base     = 0x01C23800,
+		.watchdog     = &wd_h3_compat,
 	},{
 		.soc_id       = 0x1718, /* Allwinner H5 */
 		.name         = "H5",
@@ -259,6 +277,7 @@ soc_info_t soc_info_table[] = {
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.sid_base     = 0x01C1B000,
 		.sid_offset   = 0x200,
+		.watchdog     = &wd_a10_compat,
 	},{
 		.soc_id       = 0x1728, /* Allwinner H6 */
 		.name         = "H6",
@@ -271,6 +290,7 @@ soc_info_t soc_info_table[] = {
 		.rvbar_reg    = 0x09010040,
 		/* Check L.NOP in the OpenRISC reset vector */
 		.needs_smc_workaround_if_zero_word_at_addr = 0x100004,
+		.watchdog     = &wd_h6_compat,
 	},{
 		.soc_id       = 0x1817, /* Allwinner V831 */
 		.name         = "V831",
@@ -280,6 +300,7 @@ soc_info_t soc_info_table[] = {
 		.swap_buffers = v831_sram_swap_buffers,
 		.sid_base     = 0x03006000,
 		.sid_offset   = 0x200,
+		.watchdog     = &wd_h6_compat,
 	},{
 		.soc_id       = 0x1823, /* Allwinner H616 */
 		.name         = "H616",
@@ -290,6 +311,7 @@ soc_info_t soc_info_table[] = {
 		.sid_base     = 0x03006000,
 		.sid_offset   = 0x200,
 		.rvbar_reg    = 0x09010040,
+		.watchdog     = &wd_h6_compat,
 	},{
 		.swap_buffers = NULL /* End of the table */
 	}
