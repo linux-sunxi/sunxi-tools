@@ -124,6 +124,7 @@ static uint32_t gpio_base(feldev_handle *dev)
 	switch (soc_info->soc_id) {
 	case 0x1817: /* V831 */
 	case 0x1728: /* H6 */
+	case 0x1823: /* H616 */
 		return 0x0300B000;
 	default:
 		return 0x01C20800;
@@ -141,6 +142,7 @@ static uint32_t spi_base(feldev_handle *dev)
 		return 0x01C05000;
 	case 0x1817: /* V831 */
 	case 0x1728: /* H6 */
+	case 0x1823: /* H616 */
 		return 0x05010000;
 	default:
 		return 0x01C68000;
@@ -181,6 +183,7 @@ static bool soc_is_h6_style(feldev_handle *dev)
 	switch (soc_info->soc_id) {
 	case 0x1817: /* V831 */
 	case 0x1728: /* H6 */
+	case 0x1823: /* H616 */
 		return true;
 	default:
 		return false;
@@ -234,6 +237,12 @@ static bool spi0_init(feldev_handle *dev)
 		gpio_set_cfgpin(dev, PC, 3, SUN50I_GPC_SPI0);
 		/* PC5 is SPI0-CS on the H6, and SPI0-HOLD on the V831 */
 		gpio_set_cfgpin(dev, PC, 5, SUN50I_GPC_SPI0);
+		break;
+	case 0x1823: /* Allwinner H616 */
+		gpio_set_cfgpin(dev, PC, 0, SUN50I_GPC_SPI0);	/* SPI0_CLK */
+		gpio_set_cfgpin(dev, PC, 2, SUN50I_GPC_SPI0);	/* SPI0_MOSI */
+		gpio_set_cfgpin(dev, PC, 3, SUN50I_GPC_SPI0);	/* SPI0_CS0 */
+		gpio_set_cfgpin(dev, PC, 4, SUN50I_GPC_SPI0);	/* SPI0_MISO */
 		break;
 	default: /* Unknown/Unsupported SoC */
 		printf("SPI support not implemented yet for %x (%s)!\n",
