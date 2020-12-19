@@ -721,7 +721,7 @@ void aw_restore_and_enable_mmu(feldev_handle *dev,
  */
 #define SPL_LEN_LIMIT 0x8000
 
-void aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t len)
+uint32_t aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t len)
 {
 	soc_info_t *soc_info = dev->soc_info;
 	sram_swap_buffers *swap_buffers;
@@ -855,6 +855,8 @@ void aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t len)
 	/* re-enable the MMU if it was enabled by BROM */
 	if (tt != NULL)
 		aw_restore_and_enable_mmu(dev, soc_info, tt);
+
+	return spl_len;
 }
 
 /*
@@ -927,14 +929,20 @@ void aw_fel_write_uboot_image(feldev_handle *dev, uint8_t *buf, size_t len)
  */
 void aw_fel_process_spl_and_uboot(feldev_handle *dev, const char *filename)
 {
-	/* load file into memory buffer */
 	size_t size;
+	uint32_t offset;
+	/* load file into memory buffer */
 	uint8_t *buf = load_file(filename, &size);
+
 	/* write and execute the SPL from the buffer */
-	aw_fel_write_and_execute_spl(dev, buf, size);
+	offset = aw_fel_write_and_execute_spl(dev, buf, size);
 	/* check for optional main U-Boot binary (and transfer it, if applicable) */
-	if (size > SPL_LEN_LIMIT)
-		aw_fel_write_uboot_image(dev, buf + SPL_LEN_LIMIT, size - SPL_LEN_LIMIT);
+	if (size > offset) {
+		/* U-Boot pads to at least 32KB */
+		if (offset < 32768)
+			offset = 32768;
+		aw_fel_write_uboot_image(dev, buf + offset, size - offset);
+	}
 	free(buf);
 }
 
