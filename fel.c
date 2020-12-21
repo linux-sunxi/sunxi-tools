@@ -870,15 +870,6 @@ void aw_fel_write_uboot_image(feldev_handle *dev, uint8_t *buf, size_t len)
 
 	image_header_t hdr = *(image_header_t *)buf;
 
-	uint32_t hcrc = be32toh(hdr.ih_hcrc);
-
-	/* The CRC is calculated on the whole header but the CRC itself */
-	hdr.ih_hcrc = 0;
-	uint32_t computed_hcrc = crc32(0, (const uint8_t *) &hdr, HEADER_SIZE);
-	if (hcrc != computed_hcrc)
-		pr_fatal("U-Boot header CRC mismatch: expected %x, got %x\n",
-			 hcrc, computed_hcrc);
-
 	/* Check for a valid mkimage header */
 	int image_type = get_image_type(buf, len);
 	if (image_type <= IH_TYPE_INVALID) {
@@ -898,6 +889,14 @@ void aw_fel_write_uboot_image(feldev_handle *dev, uint8_t *buf, size_t len)
 	if (image_type != IH_TYPE_FIRMWARE)
 		pr_fatal("U-Boot image type mismatch: "
 			 "expected IH_TYPE_FIRMWARE, got %02X\n", image_type);
+
+	/* The CRC is calculated on the whole header but the CRC itself */
+	uint32_t hcrc = be32toh(hdr.ih_hcrc);
+	hdr.ih_hcrc = 0;
+	uint32_t computed_hcrc = crc32(0, (const uint8_t *) &hdr, HEADER_SIZE);
+	if (hcrc != computed_hcrc)
+		pr_fatal("U-Boot header CRC mismatch: expected %x, got %x\n",
+			 hcrc, computed_hcrc);
 
 	uint32_t data_size = be32toh(hdr.ih_size); /* Image Data Size */
 	uint32_t load_addr = be32toh(hdr.ih_load); /* Data Load Address */
