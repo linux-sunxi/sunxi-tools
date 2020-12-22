@@ -214,8 +214,11 @@ void aw_fel_read(feldev_handle *dev, uint32_t offset, void *buf, size_t len)
 }
 
 /* AW_FEL_1_WRITE request */
-void aw_fel_write(feldev_handle *dev, void *buf, uint32_t offset, size_t len)
+void aw_fel_write(feldev_handle *dev, const void *buf, uint32_t offset, size_t len)
 {
+	if (len == 0)
+		return;
+
 	aw_send_fel_request(dev, AW_FEL_1_WRITE, offset, len);
 	aw_usb_write(dev, buf, len, false);
 	aw_read_fel_status(dev);
@@ -233,9 +236,12 @@ void aw_fel_execute(feldev_handle *dev, uint32_t offset)
  * Unlike aw_fel_write() above - which is reserved for internal use - this
  * routine optionally allows progress callbacks.
  */
-void aw_fel_write_buffer(feldev_handle *dev, void *buf, uint32_t offset,
+void aw_fel_write_buffer(feldev_handle *dev, const void *buf, uint32_t offset,
 			 size_t len, bool progress)
 {
+	if (len == 0)
+		return;
+
 	aw_send_fel_request(dev, AW_FEL_1_WRITE, offset, len);
 	aw_usb_write(dev, buf, len, progress);
 	aw_read_fel_status(dev);
