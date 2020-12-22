@@ -46,6 +46,7 @@ static bool enter_in_aarch64 = false;
 #define IH_TYPE_INVALID		0	/* Invalid Image	*/
 #define IH_TYPE_FIRMWARE	5	/* Firmware Image	*/
 #define IH_TYPE_SCRIPT		6	/* Script file		*/
+#define IH_TYPE_FLATDT		8	/* DTB or FIT image	*/
 #define IH_NMLEN		32	/* Image Name Length	*/
 
 /* Additional error codes, newly introduced for get_image_type() */
@@ -91,6 +92,8 @@ int get_image_type(const uint8_t *buf, size_t len)
 	if (len <= HEADER_SIZE) /* insufficient length/size */
 		return IH_TYPE_INVALID;
 
+	if (be32toh(hdr->ih_magic) == 0xd00dfeed)
+		return IH_TYPE_FLATDT;
 	if (be32toh(hdr->ih_magic) != IH_MAGIC) /* signature mismatch */
 		return IH_TYPE_INVALID;
 	/* For sunxi, we always expect ARM architecture here */
@@ -889,6 +892,11 @@ static void aw_fel_write_uboot_image(feldev_handle *dev, uint8_t *buf,
 		}
 		exit(1);
 	}
+	if (image_type == IH_TYPE_FLATDT) {		/* FIT image */
+		pr_error("FIT image not yet supported.\n");
+		exit(1);
+	}
+
 	if (image_type != IH_TYPE_FIRMWARE)
 		pr_fatal("U-Boot image type mismatch: "
 			 "expected IH_TYPE_FIRMWARE, got %02X\n", image_type);
