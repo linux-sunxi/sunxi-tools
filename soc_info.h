@@ -115,6 +115,7 @@ typedef struct {
 	bool               sid_fix;      /* Use SID workaround (read via register) */
 	/* Use SMC workaround (enter secure mode) if can't read from this address */
 	uint32_t           needs_smc_workaround_if_zero_word_at_addr;
+	uint32_t           sram_size;	/* Usable contiguous SRAM at spl_addr */
 	sram_swap_buffers *swap_buffers;
 } soc_info_t;
 
