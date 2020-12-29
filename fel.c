@@ -715,11 +715,8 @@ void aw_restore_and_enable_mmu(feldev_handle *dev,
 	free(tt);
 }
 
-/*
- * Maximum size of SPL, at the same time this is the start offset
- * of the main U-Boot image within u-boot-sunxi-with-spl.bin
- */
-#define SPL_LEN_LIMIT 0x8000
+/* Minimum offset of the main U-Boot image within u-boot-sunxi-with-spl.bin. */
+#define SPL_MIN_OFFSET 0x8000
 
 uint32_t aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t len)
 {
@@ -729,7 +726,7 @@ uint32_t aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t l
 	size_t i, thunk_size;
 	uint32_t *thunk_buf;
 	uint32_t sp, sp_irq;
-	uint32_t spl_checksum, spl_len, spl_len_limit = SPL_LEN_LIMIT;
+	uint32_t spl_checksum, spl_len, spl_len_limit;
 	uint32_t *buf32 = (uint32_t *)buf;
 	uint32_t cur_addr = soc_info->spl_addr;
 	uint32_t *tt = NULL;
@@ -781,6 +778,8 @@ uint32_t aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t l
 		aw_set_ttbr0(dev, soc_info, soc_info->mmu_tt_addr);
 		tt = aw_generate_mmu_translation_table();
 	}
+
+	spl_len_limit = soc_info->sram_size;
 
 	swap_buffers = soc_info->swap_buffers;
 	for (i = 0; swap_buffers[i].size; i++) {
@@ -939,8 +938,8 @@ void aw_fel_process_spl_and_uboot(feldev_handle *dev, const char *filename)
 	/* check for optional main U-Boot binary (and transfer it, if applicable) */
 	if (size > offset) {
 		/* U-Boot pads to at least 32KB */
-		if (offset < 32768)
-			offset = 32768;
+		if (offset < SPL_MIN_OFFSET)
+			offset = SPL_MIN_OFFSET;
 		aw_fel_write_uboot_image(dev, buf + offset, size - offset);
 	}
 	free(buf);
