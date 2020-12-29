@@ -808,8 +808,8 @@ void aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t len)
 	}
 
 	/* Clarify the SPL size limitations, and bail out if they are not met */
-	if (soc_info->thunk_addr < spl_len_limit)
-		spl_len_limit = soc_info->thunk_addr;
+	if (soc_info->thunk_addr - soc_info->spl_addr < spl_len_limit)
+		spl_len_limit = soc_info->thunk_addr - soc_info->spl_addr;
 
 	if (spl_len > spl_len_limit)
 		pr_fatal("SPL: too large (need %u, have %u)\n",
