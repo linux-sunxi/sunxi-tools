@@ -127,7 +127,7 @@ sram_swap_buffers v831_sram_swap_buffers[] = {
 
 /* H616 situation is the same as V831 one, except it has 32 KiB of SRAM A1. */
 sram_swap_buffers h616_sram_swap_buffers[] = {
-	{ .buf1 = 0x21000, .buf2 = 0x28000, .size = 0x1000 },
+	{ .buf1 = 0x21000, .buf2 = 0x52a00, .size = 0x1000 },
 	{ .size = 0 }  /* End of the table */
 };
 
@@ -321,9 +321,9 @@ soc_info_t soc_info_table[] = {
 		.name         = "H616",
 		.spl_addr     = 0x20000,
 		.scratch_addr = 0x21000,
-		.thunk_addr   = 0x2A200, .thunk_size = 0x200,
+		.thunk_addr   = 0x53a00, .thunk_size = 0x200,
 		.swap_buffers = h616_sram_swap_buffers,
-		.sram_size    = 224 * 1024,
+		.sram_size    = 207 * 1024,
 		.sid_base     = 0x03006000,
 		.sid_offset   = 0x200,
 		.rvbar_reg    = 0x09010040,
