@@ -102,11 +102,11 @@ sram_swap_buffers a80_sram_swap_buffers[] = {
  */
 sram_swap_buffers h6_sram_swap_buffers[] = {
 	/* 0x21C00-0x21FFF (IRQ stack) */
-	{ .buf1 = 0x21C00, .buf2 = 0x2A400, .size = 0x0400 },
+	{ .buf1 = 0x21C00, .buf2 = 0x42400, .size = 0x0400 },
 	/* 0x25C00-0x26FFF (Stack) */
-	{ .buf1 = 0x25C00, .buf2 = 0x2A800, .size = 0x1400 },
+	{ .buf1 = 0x25C00, .buf2 = 0x42800, .size = 0x1400 },
 	/* 0x27C00-0x27FFF (Something important) */
-	{ .buf1 = 0x27C00, .buf2 = 0x2BC00, .size = 0x0400 },
+	{ .buf1 = 0x27C00, .buf2 = 0x43c00, .size = 0x0400 },
 	{ .size = 0 }  /* End of the table */
 };
 
@@ -296,9 +296,9 @@ soc_info_t soc_info_table[] = {
 		.name         = "H6",
 		.spl_addr     = 0x20000,
 		.scratch_addr = 0x21000,
-		.thunk_addr   = 0x2A200, .thunk_size = 0x200,
+		.thunk_addr   = 0x42200, .thunk_size = 0x200,
 		.swap_buffers = h6_sram_swap_buffers,
-		.sram_size    = 152 * 1024,
+		.sram_size    = 144 * 1024,
 		.sid_base     = 0x03006000,
 		.sid_offset   = 0x200,
 		.rvbar_reg    = 0x09010040,
