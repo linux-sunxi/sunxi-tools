@@ -715,13 +715,10 @@ void aw_restore_and_enable_mmu(feldev_handle *dev,
 	free(tt);
 }
 
-/*
- * Maximum size of SPL, at the same time this is the start offset
- * of the main U-Boot image within u-boot-sunxi-with-spl.bin
- */
-#define SPL_LEN_LIMIT 0x8000
+/* Minimum offset of the main U-Boot image within u-boot-sunxi-with-spl.bin. */
+#define SPL_MIN_OFFSET 0x8000
 
-void aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t len)
+uint32_t aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t len)
 {
 	soc_info_t *soc_info = dev->soc_info;
 	sram_swap_buffers *swap_buffers;
@@ -729,7 +726,7 @@ void aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t len)
 	size_t i, thunk_size;
 	uint32_t *thunk_buf;
 	uint32_t sp, sp_irq;
-	uint32_t spl_checksum, spl_len, spl_len_limit = SPL_LEN_LIMIT;
+	uint32_t spl_checksum, spl_len, spl_len_limit;
 	uint32_t *buf32 = (uint32_t *)buf;
 	uint32_t cur_addr = soc_info->spl_addr;
 	uint32_t *tt = NULL;
@@ -782,6 +779,8 @@ void aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t len)
 		tt = aw_generate_mmu_translation_table();
 	}
 
+	spl_len_limit = soc_info->sram_size;
+
 	swap_buffers = soc_info->swap_buffers;
 	for (i = 0; swap_buffers[i].size; i++) {
 		if ((swap_buffers[i].buf2 >= soc_info->spl_addr) &&
@@ -808,8 +807,8 @@ void aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t len)
 	}
 
 	/* Clarify the SPL size limitations, and bail out if they are not met */
-	if (soc_info->thunk_addr < spl_len_limit)
-		spl_len_limit = soc_info->thunk_addr;
+	if (soc_info->thunk_addr - soc_info->spl_addr < spl_len_limit)
+		spl_len_limit = soc_info->thunk_addr - soc_info->spl_addr;
 
 	if (spl_len > spl_len_limit)
 		pr_fatal("SPL: too large (need %u, have %u)\n",
@@ -855,6 +854,8 @@ void aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t len)
 	/* re-enable the MMU if it was enabled by BROM */
 	if (tt != NULL)
 		aw_restore_and_enable_mmu(dev, soc_info, tt);
+
+	return spl_len;
 }
 
 /*
@@ -869,15 +870,6 @@ void aw_fel_write_uboot_image(feldev_handle *dev, uint8_t *buf, size_t len)
 		return; /* Insufficient size (no actual data), just bail out */
 
 	image_header_t hdr = *(image_header_t *)buf;
-
-	uint32_t hcrc = be32toh(hdr.ih_hcrc);
-
-	/* The CRC is calculated on the whole header but the CRC itself */
-	hdr.ih_hcrc = 0;
-	uint32_t computed_hcrc = crc32(0, (const uint8_t *) &hdr, HEADER_SIZE);
-	if (hcrc != computed_hcrc)
-		pr_fatal("U-Boot header CRC mismatch: expected %x, got %x\n",
-			 hcrc, computed_hcrc);
 
 	/* Check for a valid mkimage header */
 	int image_type = get_image_type(buf, len);
@@ -898,6 +890,14 @@ void aw_fel_write_uboot_image(feldev_handle *dev, uint8_t *buf, size_t len)
 	if (image_type != IH_TYPE_FIRMWARE)
 		pr_fatal("U-Boot image type mismatch: "
 			 "expected IH_TYPE_FIRMWARE, got %02X\n", image_type);
+
+	/* The CRC is calculated on the whole header but the CRC itself */
+	uint32_t hcrc = be32toh(hdr.ih_hcrc);
+	hdr.ih_hcrc = 0;
+	uint32_t computed_hcrc = crc32(0, (const uint8_t *) &hdr, HEADER_SIZE);
+	if (hcrc != computed_hcrc)
+		pr_fatal("U-Boot header CRC mismatch: expected %x, got %x\n",
+			 hcrc, computed_hcrc);
 
 	uint32_t data_size = be32toh(hdr.ih_size); /* Image Data Size */
 	uint32_t load_addr = be32toh(hdr.ih_load); /* Data Load Address */
@@ -928,14 +928,20 @@ void aw_fel_write_uboot_image(feldev_handle *dev, uint8_t *buf, size_t len)
  */
 void aw_fel_process_spl_and_uboot(feldev_handle *dev, const char *filename)
 {
-	/* load file into memory buffer */
 	size_t size;
+	uint32_t offset;
+	/* load file into memory buffer */
 	uint8_t *buf = load_file(filename, &size);
+
 	/* write and execute the SPL from the buffer */
-	aw_fel_write_and_execute_spl(dev, buf, size);
+	offset = aw_fel_write_and_execute_spl(dev, buf, size);
 	/* check for optional main U-Boot binary (and transfer it, if applicable) */
-	if (size > SPL_LEN_LIMIT)
-		aw_fel_write_uboot_image(dev, buf + SPL_LEN_LIMIT, size - SPL_LEN_LIMIT);
+	if (size > offset) {
+		/* U-Boot pads to at least 32KB */
+		if (offset < SPL_MIN_OFFSET)
+			offset = SPL_MIN_OFFSET;
+		aw_fel_write_uboot_image(dev, buf + offset, size - offset);
+	}
 	free(buf);
 }
 
