@@ -137,9 +137,9 @@ SOC_INFO := soc_info.c soc_info.h
 FEL_LIB  := fel_lib.c fel_lib.h
 SPI_FLASH:= fel-spiflash.c fel-spiflash.h fel-remotefunc-spi-data-transfer.h
 
-sunxi-fel: fel.c thunks/fel-to-spl-thunk.h $(PROGRESS) $(SOC_INFO) $(FEL_LIB) $(SPI_FLASH)
+sunxi-fel: fel.c fit_image.c thunks/fel-to-spl-thunk.h $(PROGRESS) $(SOC_INFO) $(FEL_LIB) $(SPI_FLASH)
 	$(CC) $(HOST_CFLAGS) $(LIBUSB_CFLAGS) $(ZLIB_CFLAGS) $(LDFLAGS) -o $@ \
-		$(filter %.c,$^) $(LIBS) $(LIBUSB_LIBS) $(ZLIB_LIBS)
+		$(filter %.c,$^) $(LIBS) $(LIBUSB_LIBS) $(ZLIB_LIBS) -lfdt
 
 sunxi-nand-part: nand-part-main.c nand-part.c nand-part-a10.h nand-part-a20.h
 	$(CC) $(HOST_CFLAGS) -c -o nand-part-main.o nand-part-main.c

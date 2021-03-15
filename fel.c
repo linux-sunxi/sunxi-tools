@@ -19,6 +19,7 @@
 #include "portable_endian.h"
 #include "fel_lib.h"
 #include "fel-spiflash.h"
+#include "fit_image.h"
 
 #include <assert.h>
 #include <ctype.h>
@@ -31,9 +32,10 @@
 #include <zlib.h>
 #include <sys/stat.h>
 
-static bool verbose = false; /* If set, makes the 'fel' tool more talkative */
+bool verbose = false; /* If set, makes the 'fel' tool more talkative */
 static uint32_t uboot_entry = 0; /* entry point (address) of U-Boot */
 static uint32_t uboot_size  = 0; /* size of U-Boot binary */
+static bool enter_in_aarch64 = false;
 
 /* printf-style output, but only if "verbose" flag is active */
 #define pr_info(...) \
@@ -45,6 +47,7 @@ static uint32_t uboot_size  = 0; /* size of U-Boot binary */
 #define IH_TYPE_INVALID		0	/* Invalid Image	*/
 #define IH_TYPE_FIRMWARE	5	/* Firmware Image	*/
 #define IH_TYPE_SCRIPT		6	/* Script file		*/
+#define IH_TYPE_FLATDT		8	/* DTB or FIT image	*/
 #define IH_NMLEN		32	/* Image Name Length	*/
 
 /* Additional error codes, newly introduced for get_image_type() */
@@ -90,6 +93,8 @@ int get_image_type(const uint8_t *buf, size_t len)
 	if (len <= HEADER_SIZE) /* insufficient length/size */
 		return IH_TYPE_INVALID;
 
+	if (be32toh(hdr->ih_magic) == 0xd00dfeed)
+		return IH_TYPE_FLATDT;
 	if (be32toh(hdr->ih_magic) != IH_MAGIC) /* signature mismatch */
 		return IH_TYPE_INVALID;
 	/* For sunxi, we always expect ARM architecture here */
@@ -864,7 +869,8 @@ uint32_t aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t l
  * address stored within the image header; and the function preserves the
  * U-Boot entry point (offset) and size values.
  */
-void aw_fel_write_uboot_image(feldev_handle *dev, uint8_t *buf, size_t len)
+static void aw_fel_write_uboot_image(feldev_handle *dev, uint8_t *buf,
+				     size_t len, const char *dt_name)
 {
 	if (len <= HEADER_SIZE)
 		return; /* Insufficient size (no actual data), just bail out */
@@ -887,6 +893,13 @@ void aw_fel_write_uboot_image(feldev_handle *dev, uint8_t *buf, size_t len)
 		}
 		exit(1);
 	}
+	if (image_type == IH_TYPE_FLATDT) {		/* FIT image */
+		uboot_entry = load_fit_images(dev, buf, dt_name,
+					      &enter_in_aarch64);
+		uboot_size = 4;		/* dummy value to pass check below */
+		return;
+	}
+
 	if (image_type != IH_TYPE_FIRMWARE)
 		pr_fatal("U-Boot image type mismatch: "
 			 "expected IH_TYPE_FIRMWARE, got %02X\n", image_type);
@@ -923,6 +936,28 @@ void aw_fel_write_uboot_image(feldev_handle *dev, uint8_t *buf, size_t len)
 	uboot_size = data_size;
 }
 
+static const char *spl_get_dtb_name(uint8_t *spl_buf)
+{
+	uint32_t dt_offset;
+
+	if (memcmp(spl_buf + 4, "eGON.BT0", 8))
+		return NULL;
+
+	if (memcmp(spl_buf + 0x14, "SPL", 3))
+		return NULL;
+
+	if (spl_buf[0x17] < 0x2)			/* only since v0.2 */
+		return NULL;
+
+	memcpy(&dt_offset, spl_buf + 0x20, 4);
+	dt_offset = le32toh(dt_offset);
+
+	if (verbose)
+		printf("found DT name in SPL header: %s\n", spl_buf + dt_offset);
+
+	return (char *)spl_buf + dt_offset;
+}
+
 /*
  * This function handles the common part of both "spl" and "uboot" commands.
  */
@@ -932,15 +967,18 @@ void aw_fel_process_spl_and_uboot(feldev_handle *dev, const char *filename)
 	uint32_t offset;
 	/* load file into memory buffer */
 	uint8_t *buf = load_file(filename, &size);
+	const char *dt_name = spl_get_dtb_name(buf);
 
 	/* write and execute the SPL from the buffer */
 	offset = aw_fel_write_and_execute_spl(dev, buf, size);
+
 	/* check for optional main U-Boot binary (and transfer it, if applicable) */
 	if (size > offset) {
 		/* U-Boot pads to at least 32KB */
 		if (offset < SPL_MIN_OFFSET)
 			offset = SPL_MIN_OFFSET;
-		aw_fel_write_uboot_image(dev, buf + offset, size - offset);
+		aw_fel_write_uboot_image(dev, buf + offset, size - offset,
+					 dt_name);
 	}
 	free(buf);
 }
@@ -1405,7 +1443,10 @@ int main(int argc, char **argv)
 	/* auto-start U-Boot if requested (by the "uboot" command) */
 	if (uboot_autostart) {
 		pr_info("Starting U-Boot (0x%08X).\n", uboot_entry);
-		aw_fel_execute(handle, uboot_entry);
+		if (enter_in_aarch64)
+			aw_rmr_request(handle, uboot_entry, true);
+		else
+			aw_fel_execute(handle, uboot_entry);
 	}
 
 	feldev_done(handle);
