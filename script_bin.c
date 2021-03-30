@@ -242,7 +242,7 @@ static int decompile_section(void *bin, size_t bin_size,
 		words	= (entry->pattern >>  0) & 0xffff;
 
 		for (char *p = entry->name; *p; p++)
-			if (!(isalnum(*p) || *p == '_')) {
+			if (!(isalnum(*p) || *p == '_' || *p == '-' || *p == '/')) {
 				pr_info("Warning: Malformed entry key \"%s\"\n",
 					entry->name);
 				break;
