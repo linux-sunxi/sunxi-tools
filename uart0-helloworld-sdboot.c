@@ -66,6 +66,9 @@ typedef unsigned int u32;
 #define H6_CCM_BASE		0x03001000
 #define H6_SRAMCTRL_BASE	0x03000000
 
+#define R329_UART0_BASE		0x02500000
+#define R329_PIO_BASE		0x02000400
+#define R329_CCM_BASE		0x02001000
 /*****************************************************************************
  * GPIO code, borrowed from U-Boot                                           *
  *****************************************************************************/
@@ -148,6 +151,7 @@ enum sunxi_gpio_number {
 #define SUN50I_H5_GPA_UART0     (2)
 #define SUN50I_H6_GPH_UART0	(2)
 #define SUN50I_H616_GPH_UART0	(2)
+#define SUN50I_R329_GPB_UART0   (2)
 #define SUN50I_A64_GPB_UART0    (4)
 #define SUNXI_GPF_UART0         (4)
 
@@ -308,6 +312,7 @@ void soc_detection_init(void)
 #define soc_is_h5()	(soc_id == 0x1718)
 #define soc_is_h6()	(soc_id == 0x1728)
 #define soc_is_h616()	(soc_id == 0x1823)
+#define soc_is_r329()	(soc_id == 0x1851)
 #define soc_is_r40()	(soc_id == 0x1701)
 #define soc_is_v3s()	(soc_id == 0x1681)
 #define soc_is_v831()	(soc_id == 0x1817)
@@ -365,6 +370,7 @@ int soc_is_h3(void)
 #define APB2_RESET_UART_SHIFT	(16)
 
 #define H6_UART_GATE_RESET	(H6_CCM_BASE + 0x90C)
+#define R329_UART_GATE_RESET	(R329_CCM_BASE + 0x90C)
 #define H6_UART_GATE_SHIFT	(0)
 #define H6_UART_RESET_SHIFT	(16)
 
@@ -384,10 +390,20 @@ void clock_init_uart_h6(void)
 	set_wbit(H6_UART_GATE_RESET, 1 << (H6_UART_RESET_SHIFT + CONFIG_CONS_INDEX - 1));
 }
 
+void clock_init_uart_r329(void)
+{
+	/* Open the clock gate for UART0 */
+	set_wbit(R329_UART_GATE_RESET, 1 << (H6_UART_GATE_SHIFT + CONFIG_CONS_INDEX - 1));
+	/* Deassert UART0 reset */
+	set_wbit(R329_UART_GATE_RESET, 1 << (H6_UART_RESET_SHIFT + CONFIG_CONS_INDEX - 1));
+}
+
 void clock_init_uart(void)
 {
 	if (soc_is_h6() || soc_is_v831() || soc_is_h616())
 		clock_init_uart_h6();
+	else if (soc_is_r329())
+		clock_init_uart_r329();
 	else
 		clock_init_uart_legacy();
 }
@@ -440,6 +456,10 @@ void gpio_init(void)
 		sunxi_gpio_set_cfgpin(SUNXI_GPH(0), SUN50I_H616_GPH_UART0);
 		sunxi_gpio_set_cfgpin(SUNXI_GPH(1), SUN50I_H616_GPH_UART0);
 		sunxi_gpio_set_pull(SUNXI_GPH(1), SUNXI_GPIO_PULL_UP);
+	} else if (soc_is_r329()) {
+		sunxi_gpio_set_cfgpin(SUNXI_GPB(4), SUN50I_R329_GPB_UART0);
+		sunxi_gpio_set_cfgpin(SUNXI_GPB(5), SUN50I_R329_GPB_UART0);
+		sunxi_gpio_set_pull(SUNXI_GPB(5), SUNXI_GPIO_PULL_UP);
 	} else if (soc_is_v3s()) {
 		sunxi_gpio_set_cfgpin(SUNXI_GPB(8), SUN8I_V3S_GPB_UART0);
 		sunxi_gpio_set_cfgpin(SUNXI_GPB(9), SUN8I_V3S_GPB_UART0);
@@ -526,6 +546,8 @@ int get_boot_device(void)
 		spl_signature = (void *)0x10004;
 	if (soc_is_h6() || soc_is_v831() || soc_is_h616())
 		spl_signature = (void *)0x20004;
+	if (soc_is_r329())
+		spl_signature = (void *)0x100004;
 
 	/* Check the eGON.BT0 magic in the SPL header */
 	if (spl_signature[0] != 0x4E4F4765 || spl_signature[1] != 0x3054422E)
@@ -545,6 +567,9 @@ void bases_init(void)
 	if (soc_is_h6() || soc_is_v831() || soc_is_h616()) {
 		pio_base = H6_PIO_BASE;
 		uart0_base = H6_UART0_BASE;
+	} else if (soc_is_r329()) {
+		pio_base = R329_PIO_BASE;
+		uart0_base = R329_UART0_BASE;
 	} else {
 		pio_base = SUNXI_PIO_BASE;
 		uart0_base = SUNXI_UART0_BASE;
@@ -581,6 +606,8 @@ int main(void)
 		uart0_puts("Allwinner H6!\n");
 	else if (soc_is_h616())
 		uart0_puts("Allwinner H616!\n");
+	else if (soc_is_r329())
+		uart0_puts("Allwinner R329!\n");
 	else if (soc_is_r40())
 		uart0_puts("Allwinner R40!\n");
 	else if (soc_is_v3s())

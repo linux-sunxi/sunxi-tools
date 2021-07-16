@@ -133,6 +133,18 @@ sram_swap_buffers h616_sram_swap_buffers[] = {
 	{ .size = 0 }  /* End of the table */
 };
 
+/*
+ * R329 has no SRAM A1, but a huge SRAM A2 at 0x100000. SPL and BROM uses
+ * this SRAM A2's first part like how other SoCs use SRAM A1. The sp and
+ * sp_irq values checked with thunk are 0x13c2c8 and 0x101400, which looks
+ * similar to the situation of V831, in which the stack is quite high.
+ */
+sram_swap_buffers r329_sram_swap_buffers[] = {
+	/* 0x101000-0x101400 (IRQ stack) */
+	{ .buf1 = 0x101000, .buf2 = 0x13bc00, .size = 0x0400 },
+	{ .size = 0 }  /* End of the table */
+};
+
 const watchdog_info wd_a10_compat = {
 	.reg_mode = 0x01C20C94,
 	.reg_mode_value = 3,
@@ -329,6 +341,18 @@ soc_info_t soc_info_table[] = {
 		.sid_base     = 0x03006000,
 		.sid_offset   = 0x200,
 		.rvbar_reg    = 0x09010040,
+		.watchdog     = &wd_h6_compat,
+	},{
+		.soc_id       = 0x1851, /* Allwinner R329 */
+		.name         = "R329",
+		.spl_addr     = 0x100000,
+		.scratch_addr = 0x101000,
+		.thunk_addr   = 0x13ba00, .thunk_size = 0x200,
+		.swap_buffers = r329_sram_swap_buffers,
+		.sram_size    = 1856 * 1024,
+		.sid_base     = 0x03006000,
+		.sid_offset   = 0x200,
+		.rvbar_reg    = 0x08100040,
 		.watchdog     = &wd_h6_compat,
 	},{
 		.swap_buffers = NULL /* End of the table */
