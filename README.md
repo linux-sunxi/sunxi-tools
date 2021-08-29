@@ -102,7 +102,13 @@ To build this, get a toolchain and run:
 Compilation requires the development version of *libusb-1.0* (include header
 and library) to be installed for `sunxi-fel`. Unless you explicitly pass
 *LIBUSB_CFLAGS* and *LIBUSB_LIBS* to the make utility, `pkg-config` is also
-needed.
+needed. Development versions of zlib and libfdt are also required.
+
+To install the dependencies on Ubuntu 20.04 using package manager:
+
+```bash
+sudo apt install libusb-1.0-0-dev libz-dev libfdt-dev
+```
 
 Available build targets:
 
