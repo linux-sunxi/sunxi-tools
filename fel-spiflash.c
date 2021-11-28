@@ -122,6 +122,7 @@ static uint32_t gpio_base(feldev_handle *dev)
 {
 	soc_info_t *soc_info = dev->soc_info;
 	switch (soc_info->soc_id) {
+	case 0x1816: /* V536 */
 	case 0x1817: /* V831 */
 	case 0x1728: /* H6 */
 	case 0x1823: /* H616 */
@@ -140,6 +141,7 @@ static uint32_t spi_base(feldev_handle *dev)
 	case 0x1651: /* A20 */
 	case 0x1701: /* R40 */
 		return 0x01C05000;
+	case 0x1816: /* V536 */
 	case 0x1817: /* V831 */
 	case 0x1728: /* H6 */
 	case 0x1823: /* H616 */
@@ -181,6 +183,7 @@ static bool soc_is_h6_style(feldev_handle *dev)
 {
 	soc_info_t *soc_info = dev->soc_info;
 	switch (soc_info->soc_id) {
+	case 0x1816: /* V536 */
 	case 0x1817: /* V831 */
 	case 0x1728: /* H6 */
 	case 0x1823: /* H616 */
@@ -228,6 +231,7 @@ static bool spi0_init(feldev_handle *dev)
 		gpio_set_cfgpin(dev, PC, 2, SUN50I_GPC_SPI0);
 		gpio_set_cfgpin(dev, PC, 3, SUN50I_GPC_SPI0);
 		break;
+	case 0x1816: /* Allwinner V536 */
 	case 0x1817: /* Allwinner V831 */
 		gpio_set_cfgpin(dev, PC, 1, SUN50I_GPC_SPI0);	/* SPI0-CS */
 		/* fall-through */
