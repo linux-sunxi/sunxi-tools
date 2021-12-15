@@ -90,7 +90,7 @@ static MBR *_get_mbr(int fd, int mbr_num, int force)
 		printf("check partition table copy %d: ", mbr_num);
 		printmbrheader(mbr);
 		if (force) {
-			strncpy((char *)mbr->magic, MBR_MAGIC, 8);
+			memcpy(mbr->magic, MBR_MAGIC, 8);
 			mbr->version = MBR_VERSION;
 			return mbr;
 		}
