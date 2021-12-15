@@ -119,6 +119,39 @@ void aw_fel_print_version(feldev_handle *dev)
 		buf.scratchpad, buf.pad[0], buf.pad[1]);
 }
 
+static void set_gpio(feldev_handle *dev, int bank, int pin, int value)
+{
+	uint32_t offset;
+	uint32_t reg_val;
+	uint32_t pio_addr = 0x01C20800;
+	value = !!value;
+
+	// set as output
+	//Port n Configure Register
+	offset = pio_addr + (bank * 0x24) + (pin / 8) * 4;
+
+	aw_fel_read(dev, offset, &reg_val, sizeof(reg_val));
+	int pin_offset = (pin % 8) * 4;
+	reg_val &= ~(7 << pin_offset);
+	reg_val |= (1 <<pin_offset); //Output
+	aw_fel_write_buffer(dev, &reg_val,offset, sizeof(reg_val), false);
+
+	// set value
+	offset = pio_addr + 0x0010+ bank * 0x24;
+	aw_fel_read(dev, offset, &reg_val, sizeof(reg_val));
+	reg_val &= ~(7 << pin);
+	reg_val |= (value << pin);
+	aw_fel_write_buffer(dev, &reg_val,offset, sizeof(reg_val), false);
+}
+
+static void watchdog_toggle(feldev_handle *dev) {
+	static int state = 0;
+	state = !state;
+
+	set_gpio(dev, 1, 9, state); // red led  PB9
+	set_gpio(dev, 3, 21, state); // watchdog out, PD21
+}
+
 /*
  * This wrapper for the FEL write functionality safeguards against overwriting
  * an already loaded U-Boot binary.
@@ -136,7 +169,21 @@ double aw_write_buffer(feldev_handle *dev, void *buf, uint32_t offset,
 			 uboot_entry, uboot_entry + uboot_size);
 
 	double start = gettime();
-	aw_fel_write_buffer(dev, buf, offset, len, progress);
+
+	size_t max_chunk = 128 * 1024;
+	size_t chunk;
+	int rc, sent;
+	while (len > 0) {
+		chunk = len < max_chunk ? len : max_chunk;
+
+		aw_fel_write_buffer(dev, buf, offset, chunk, progress);
+
+		len -= chunk;
+		buf += chunk;
+		offset += chunk;
+		watchdog_toggle(dev);
+	}
+
 	return gettime() - start;
 }
 
