@@ -77,13 +77,13 @@ static int fit_parse_arch(const char *value)
 
 static uint32_t fdt_getprop_u32(const void *fdt, int node, const char *name)
 {
-	const struct fdt_property *prop;
+	const fdt32_t *val;
 
-	prop = fdt_get_property(fdt, node, name, NULL);
-	if (!prop)
+	val = fdt_getprop(fdt, node, name, NULL);
+	if (!val)
 		return ~0U;
 
-	return be32toh(*(uint32_t *)prop->data);
+	return fdt32_to_cpu(*val);
 }
 
 static const char *fdt_getprop_str(const void *fdt, int node, const char *name)
