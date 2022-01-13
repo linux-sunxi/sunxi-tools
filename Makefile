@@ -64,6 +64,7 @@ CROSS_CC := $(CROSS_COMPILE)gcc
 DESTDIR ?=
 PREFIX  ?= /usr/local
 BINDIR  ?= $(PREFIX)/bin
+MANDIR  ?= $(PREFIX)/share/man/man1
 
 .PHONY: all clean tools target-tools install install-tools install-target-tools
 .PHONY: check
@@ -88,6 +89,7 @@ install-tools: $(TOOLS)
 	@set -ex ; for l in $(FEXC_LINKS) ; do \
 		ln -nfs sunxi-fexc $(DESTDIR)$(BINDIR)/$$l ; \
 	done
+	install -D -m0644 -t $(DESTDIR)$(MANDIR) sunxi-fel.1
 
 install-target-tools: $(TARGET_TOOLS)
 	install -d $(DESTDIR)$(BINDIR)
