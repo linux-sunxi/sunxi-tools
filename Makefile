@@ -36,6 +36,8 @@ endif
 
 DEFAULT_CFLAGS += -Iinclude/
 
+PKG_CONFIG ?= pkg-config
+
 # Tools useful on host and target
 TOOLS = sunxi-fexc sunxi-bootinfo sunxi-fel sunxi-nand-part sunxi-pio
 
@@ -116,12 +118,12 @@ sunxi-fexc: fexc.h script.h script.c \
 	script_fex.h script_fex.c
 
 LIBUSB = libusb-1.0
-LIBUSB_CFLAGS ?= `pkg-config --cflags $(LIBUSB)`
-LIBUSB_LIBS ?= `pkg-config --libs $(LIBUSB)`
+LIBUSB_CFLAGS ?= `$(PKG_CONFIG) --cflags $(LIBUSB)`
+LIBUSB_LIBS ?= `$(PKG_CONFIG) --libs $(LIBUSB)`
 
 ZLIB = zlib
-ZLIB_CFLAGS ?= `pkg-config --cflags $(ZLIB)`
-ZLIB_LIBS ?= `pkg-config --libs $(ZLIB)`
+ZLIB_CFLAGS ?= `$(PKG_CONFIG) --cflags $(ZLIB)`
+ZLIB_LIBS ?= `$(PKG_CONFIG) --libs $(ZLIB)`
 
 ifeq ($(OS),Windows_NT)
 	# Windows lacks mman.h / mmap()
