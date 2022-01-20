@@ -1,6 +1,8 @@
 /*
  * Request AArch32/AArch64 warm reset, using RVBAR and Reset Management Register
+ * This is used on ARMv8 cores only, so force v7 code to allow dsb and isb.
  */
+.arch	armv7-a
 
 rmr_request:
 	ldr	r0, 1f	/* RVBAR register address */

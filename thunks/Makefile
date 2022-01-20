@@ -31,5 +31,5 @@ fel-to-spl-thunk.h: fel-to-spl-thunk.S FORCE
 	$(OBJDUMP) -d $(subst .S,.o,$<) | $(AWK_O_TO_H) -v style=old > $@
 
 $(THUNKS): %.h: %.S FORCE
-	$(AS) -o $(subst .S,.o,$<) $<
+	$(AS) -o $(subst .S,.o,$<) -march=armv5te $<
 	$(OBJDUMP) -d $(subst .S,.o,$<) | $(AWK_O_TO_H) > $@
