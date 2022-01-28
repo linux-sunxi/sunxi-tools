@@ -313,6 +313,8 @@ static void restore_sram(feldev_handle *dev, void *buf)
 
 static void prepare_spi_batch_data_transfer(feldev_handle *dev, uint32_t buf)
 {
+	soc_info_t *soc_info = dev->soc_info;
+
 	if (spi_is_sun6i(dev)) {
 		aw_fel_remotefunc_prepare_spi_batch_data_transfer(dev,
 							    buf,
@@ -323,7 +325,8 @@ static void prepare_spi_batch_data_transfer(feldev_handle *dev, uint32_t buf)
 							    SUN6I_SPI0_RXD,
 							    SUN6I_SPI0_MBC,
 							    SUN6I_SPI0_MTC,
-							    SUN6I_SPI0_BCC);
+							    SUN6I_SPI0_BCC,
+							    soc_info->soc_id);
 	} else {
 		aw_fel_remotefunc_prepare_spi_batch_data_transfer(dev,
 							    buf,
@@ -334,7 +337,8 @@ static void prepare_spi_batch_data_transfer(feldev_handle *dev, uint32_t buf)
 							    SUN4I_SPI0_RX,
 							    SUN4I_SPI0_BC,
 							    SUN4I_SPI0_TC,
-							    0);
+							    0,
+							    soc_info->soc_id);
 	}
 }
 
