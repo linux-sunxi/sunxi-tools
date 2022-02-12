@@ -1,0 +1,255 @@
+.\" Manpage for sunxi-fel
+.\" Copyright (C) 2018 by Andre Przywara <osp@andrep.de>
+.TH sunxi-fel 1 "14 Jan 2022" "1.5" "sunxi-fel man page"
+.SH NAME
+sunxi-fel \- controlling USB BootROM protocol for Allwinner CPUs
+.SH SYNOPSIS
+sunxi-fel [OPTIONS] COMMAND [ARGS]
+.SH DESCRIPTION
+sunxi-fel is a script interface for USB communication with the BootROM of
+Allwinner CPUs.
+
+On explicit request (typically by pressing a button often labeled "uboot"
+or "recovery"), or when all other booting methods fail, the CPU's early ROM
+code enters the so called FEL mode, where it will wait for USB commands sent
+by some host to the Allwinner CPU's USB OTG interface. sunxi-fel implements
+this FEL protocol and communicates with the ROM code, to download or upload
+data and to start code execution.
+
+Besides simply allowing to write to or to read from device memory, sunxi-fel
+also helps with more complex things, which involve uploading code, executing
+it and then returning to FEL mode, to allow further data transfer or inspection.
+In particular it supports loading and executing U-Boot, including the primary
+SPL stage.
+.SH "OPTIONS"
+Those options affect general execution and should be put first, before any
+actual commands.
+.sp
+.B \-h, \-\-help
+.RS 4
+Print a help message and exit.
+.RE
+.sp
+.B \-v, \-\-verbose
+.RS 4
+Enable verbose logging.
+.RE
+.sp
+.B \-p, \-\-progress
+.RS 4
+"write" transfers show a progress bar.
+.RE
+.sp
+.B \-l, \-\-list
+.RS 4
+Enumerate all (USB) FEL devices and exit.
+.RE
+.sp
+.B \-d, \-\-dev bus:devnum
+.RS 4
+Use specific USB bus and device number
+.RE
+.sp
+.B \-\-sid SID
+.RS 4
+Select a device by its SID key (exact match). The SID key of a particular
+device can be queried using the "sid" command.
+.RE
+.SH "SUNXI-FEL COMMANDS"
+sunxi-fel can take several commands, each followed by their parameters, and
+will execute them in order. The only exception is the "uboot" command,
+which will delay launching U-Boot until all other commands have been executed.
+.sp
+Please note that accessing any part of the DRAM will not work until the
+DRAM controller has been initialized. This can be achieved by uploading and
+executing a suitable U-Boot SPL image, using the "spl" command. Trying to
+access DRAM before that will most likely hang.
+.sp
+Any numbers given as parameters to those commands can be prefixed with "0x"
+to denote hexadecimal notation or "0" to start an octal number.
+They are interpretated as decimal numbers otherwise.
+.PP
+.B spl <filename>
+.RS 4
+Load and execute U-Boot SPL.
+.sp
+Upload the given binary file to the appropriate SRAM location, carefully
+moving the FEL stack out of the way in the process. The binary is then
+executed. When it returns, the FEL stack is restored and execution is
+transferred back to the BootROM's FEL routine.
+.sp
+If the file additionally contains a main U-Boot binary
+(u-boot-sunxi-with-spl.bin), this command also transfers that
+to memory, using the load address stored in the image file, but won't execute
+it.
+.RE
+.PP
+.B uboot <u-boot-sunxi-with-spl.bin>
+.RS 4
+like "spl", but actually starts U-Boot. U-Boot execution will take place
+when the fel utility exits. This allows combining "uboot" with further "write"
+commands, to transfer other files possibly needed for the boot.
+.RE
+.PP
+.B hex[dump] <address> <length>
+.RS 4
+Hexadecimal memory dump. Dumps <length> bytes of the memory region starting at
+<address>. The context will be displayed as a hexdump, suitable for human
+inspection.
+.RE
+.PP
+.B dump <address> <length>
+.RS 4
+Binary memory dump. Dumps <length> bytes of the memory region starting at
+<address>. The context will be dumped "as is" to the standard output, so it
+can be redirected to a file and processed as binary data.
+.RE
+.PP
+.B exe[cute] <address>
+.RS 4
+Start executing code at <address> in memory on the device.
+.RE
+.PP
+.B reset64 <address>
+.RS 4
+Request a warm reset of the core, starting execution in the 64-bit AArch64
+execution state, at <address>.
+.RE
+.PP
+.B memmove <dest> <source> <size>
+.RS 4
+Copy <size> bytes within device memory, from <source> to <dest>.
+.RE
+.PP
+.B readl <address>
+.RS 4
+Read a 32-bit value from device memory at <address>. The value will be output
+as a hexadecimal number, prefixed with "0x". The address needs to be 4-byte
+aligned.
+.RE
+.PP
+.B writel <address> <value>
+.RS 4
+Write the given 32-bit <value> to device memory at <address>.
+.RE
+.PP
+.B read <address> <length> <file>
+.RS 4
+Write memory contents into file. Reads <length> bytes from memory at <address>
+and writes the content into <file>.
+.RE
+.PP
+.B write <address> <file>
+.RS 4
+Store file contents into memory. Writes the entire content of <file> into
+memory at <address>.
+.RE
+.PP
+.B write-with-progress <addr> <file>
+.RS 4
+Display a textual progress bar while writing to the device. Same as "write"
+with the "-p" parameter.
+.RE
+.PP
+.B write-with-gauge <addr> <file>
+.RS 4
+Same as write, but write the progress in percentages to the standard output.
+This can be piped to any "dialog" compatible program, when using the --gauge
+widget.
+.RE
+.PP
+.B write-with-xgauge <addr> <file>
+.RS 4
+Same as write-with-gauge, but with extended gauge output. This can be piped to
+any "dialog" compatible program, using the --gauge widget. Aside from updating
+the current progress in percents, it also updates the number of bytes written
+and gives an estimated time to completion.
+.RE
+.PP
+.B multi[write] # <addr> <file> ...
+.RS 4
+Like "write-with-progress", but with multiple load adddresses and files,
+all sharing the same progress bar.
+.RE
+.PP
+.B multi[write]-with-gauge ...
+.RS 4
+Like "write-with-gauge", but with multiple load adddresses and files,
+all sharing the same progress bar.
+.RE
+.PP
+.B multi[write]-with-xgauge ...
+.RS 4
+Like "write-with-xgauge", but with multiple load adddresses and files,
+all sharing the same progress bar.
+.RE
+.PP
+.B echo-gauge "some text"
+.RS 4
+Update prompt/caption for gauge output. This outputs a command to be
+interpreted by "dialog" to change the caption text.
+.RE
+.PP
+.B ver[sion]
+.RS 4
+Show the BROM version. This prints some static data, among other things
+containing the detected SoC. Can be used to verify a FEL connection is working.
+.RE
+.PP
+.B sid
+.RS 4
+Retrieve and output the 128-bit SID key. This key contains some form of serial
+number, which should be unique to each chip (although there have been reports
+of same SIDs for particular batches of chips).
+.RE
+.PP
+.B sid-register
+.RS 4
+As the "sid" command above, but use the alternative MMIO register access method
+on the device. Some SoCs require this method for reliable results.
+.RE
+.PP
+.B clear <address> <length>
+.RS 4
+Clear <length> bytes of memory starting at <address> (filling with zeroes).
+.RE
+.PP
+.B fill <address> <length> <value>
+.RS 4
+Fills <length> bytes of memory starting at <address> with the byte <value>.
+.RE
+.PP
+.B spiflash-info
+.RS 4
+Retrieves basic information about a SPI flash chip attached to the SPI0 pins.
+This is using the same method as the BootROM does, to accesses the same storage
+that the device could boot from.
+
+Prints the manufacturer of the flash chip and
+its capacity. Should also be used to detect the presence of a SPI flash chip.
+.RE
+.PP
+.B spiflash-read <addr> <length> <file>
+.RS 4
+Reads <length> bytes starting from offset <addr> of a SPI flash chip, storing
+the result into <file>.
+.RE
+.PP
+.B spiflash-write <addr> <file>
+.RS 4
+Reads <file> and stores its content in the SPI flash, starting at offset <addr>.
+.RE
+.SH EXAMPLES
+.RS 4
+\fB$\fR sunxi-fel -v -p ver
+.RE
+.sp
+.RS 4
+\fB$\fR sunxi-fel uboot u-boot-sunxi-with-spl.bin
+.RE
+.sp
+.RS 4
+\fB$\fR sunxi-fel -v -p spl sunxi-spl.bin write 0x44000 bl31.bin write 0x4a000000 u-boot.bin reset64 0x44000
+.RE
+.SH AUTHOR
+Andre Przywara <osp@andrep.de>
