@@ -165,11 +165,10 @@ static void aw_usb_write(feldev_handle *dev, const void *data, size_t len,
 	aw_read_usb_response(dev);
 }
 
-static void aw_usb_read(feldev_handle *dev, const void *data, size_t len)
+static void aw_usb_read(feldev_handle *dev, void *data, size_t len)
 {
 	aw_send_usb_request(dev, AW_USB_READ, len);
-	usb_bulk_send(dev->usb->handle, dev->usb->endpoint_in,
-		      data, len, false);
+	usb_bulk_recv(dev->usb->handle, dev->usb->endpoint_in, data, len);
 	aw_read_usb_response(dev);
 }
 
