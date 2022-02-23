@@ -200,6 +200,10 @@ int script_parse_fex(FILE *in, const char *filename, struct script *script)
 
 		pe = rtrim(s, pe);
 
+		/* Some lines end in a trailing semicolon. */
+		if (pe > s && pe[-1] == ';')
+			*--pe = '\0';
+
 		if (pe == s || *s == ';' || *s == '#')
 			continue; /* empty */
 		if (*s == ':') {
