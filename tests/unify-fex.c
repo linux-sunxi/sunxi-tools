@@ -127,6 +127,10 @@ int main(int argc, char **argv)
 						sprintf(p, "\"%s\"", c);
 						free(c);
 					}
+					/* Remove a trailing semicolon. */
+					c = strchr(p, 0);
+					if (*--c == ';')
+						*c = '\0';
 				}
 			}
 		}

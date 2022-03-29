@@ -1,0 +1,23 @@
+diff --git a/sunxi-boards/sys_config/a31/mixtile_loftq.fex b/sunxi-boards/sys_config/a31/mixtile_loftq.fex
+index 583b02e..2310b18 100644
+--- a/sunxi-boards/sys_config/a31/mixtile_loftq.fex
++++ b/sunxi-boards/sys_config/a31/mixtile_loftq.fex
+@@ -87,7 +87,7 @@ dram_tpr2       = 0x39a70140
+ dram_tpr3       = 0xa092e74c
+ dram_tpr4       = 0x2948c209 
+ dram_tpr5       = 0x8944422c
+-dram_tpr6       = 0x300284800
++dram_tpr6       = 0x30028480
+ dram_tpr7       = 0x2a3279
+ dram_tpr8       = 0x5034fa8
+ dram_tpr9       = 0x36353d8
+diff --git a/sunxi-boards/sys_config/h6/pine64_h64.fex b/sunxi-boards/sys_config/h6/pine64_h64.fex
+index 9caaecc..eb585b7 100644
+--- a/sunxi-boards/sys_config/h6/pine64_h64.fex
++++ b/sunxi-boards/sys_config/h6/pine64_h64.fex
+@@ -1,4 +1,4 @@
+-gma;sun50iw6p1 application
++;sun50iw6p1 application
+ ;---------------------------------------------------------------------------------------------------------
+ ; 说明： 脚本中的字符串区分大小写，用户可以修改"="后面的数值，但是不要修改前面的字符串
+ ; 描述gpio的形式：Port:端口+组内序号<功能分配><内部电阻状态><驱动能力><输出电平状态>

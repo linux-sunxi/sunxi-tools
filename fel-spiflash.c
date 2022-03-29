@@ -80,11 +80,14 @@ void fel_writel(feldev_handle *dev, uint32_t addr, uint32_t val);
 #define CCM_AHB_GATE_SPI0           (1 << 20)
 #define SUN6I_BUS_SOFT_RST_REG0     (0x01C20000 + 0x2C0)
 #define SUN6I_SPI0_RST              (1 << 20)
+#define SUNIV_PLL6_CTL              (0x01c20000 + 0x28)
+#define SUNIV_AHB_APB_CFG           (0x01c20000 + 0x54)
 
 #define H6_CCM_SPI0_CLK             (0x03001000 + 0x940)
 #define H6_CCM_SPI_BGR              (0x03001000 + 0x96C)
 #define H6_CCM_SPI0_GATE_RESET      (1 << 0 | 1 << 16)
 
+#define SUNIV_GPC_SPI0              (2)
 #define SUNXI_GPC_SPI0              (3)
 #define SUN50I_GPC_SPI0             (4)
 
@@ -117,6 +120,7 @@ void fel_writel(feldev_handle *dev, uint32_t addr, uint32_t val);
 #define CCM_SPI0_CLK_DIV_BY_2       (0x1000)
 #define CCM_SPI0_CLK_DIV_BY_4       (0x1001)
 #define CCM_SPI0_CLK_DIV_BY_6       (0x1002)
+#define CCM_SPI0_CLK_DIV_BY_32      (0x100f)
 
 static uint32_t gpio_base(feldev_handle *dev)
 {
@@ -139,6 +143,7 @@ static uint32_t spi_base(feldev_handle *dev)
 	case 0x1623: /* A10 */
 	case 0x1625: /* A13 */
 	case 0x1651: /* A20 */
+	case 0x1663: /* F1C100s */
 	case 0x1701: /* R40 */
 		return 0x01C05000;
 	case 0x1816: /* V536 */
@@ -208,6 +213,12 @@ static bool spi0_init(feldev_handle *dev)
 
 	/* Setup SPI0 pins muxing */
 	switch (soc_info->soc_id) {
+	case 0x1663: /* Allwinner F1C100s/F1C600/R6/F1C100A/F1C500 */
+		gpio_set_cfgpin(dev, PC, 0, SUNIV_GPC_SPI0);
+		gpio_set_cfgpin(dev, PC, 1, SUNIV_GPC_SPI0);
+		gpio_set_cfgpin(dev, PC, 2, SUNIV_GPC_SPI0);
+		gpio_set_cfgpin(dev, PC, 3, SUNIV_GPC_SPI0);
+		break;
 	case 0x1625: /* Allwinner A13 */
 	case 0x1680: /* Allwinner H3 */
 	case 0x1681: /* Allwinner V3s */
@@ -271,11 +282,28 @@ static bool spi0_init(feldev_handle *dev)
 		writel(reg_val, CCM_AHB_GATING0);
 	}
 
-	/* divide by 4 */
-	writel(CCM_SPI0_CLK_DIV_BY_4, spi_is_sun6i(dev) ? SUN6I_SPI0_CCTL :
-							  SUN4I_SPI0_CCTL);
-	/* Choose 24MHz from OSC24M and enable clock */
-	writel(1U << 31, soc_is_h6_style(dev) ? H6_CCM_SPI0_CLK : CCM_SPI0_CLK);
+	if (soc_info->soc_id == 0x1663) {	/* suniv F1C100s */
+		/*
+		 * suniv doesn't have a module clock for SPI0 and the clock
+		 * source is always the AHB clock. Setup AHB to 200 MHz by
+		 * setting PLL6 to 600 MHz with a divider of 3, then program
+		 * the internal SPI dividier to 32.
+		 */
+
+		/* Set PLL6 to 600MHz */
+		writel(0x80041801, SUNIV_PLL6_CTL);
+		/* PLL6:AHB:APB = 6:2:1 */
+		writel(0x00003180, SUNIV_AHB_APB_CFG);
+		/* divide by 32 */
+		writel(CCM_SPI0_CLK_DIV_BY_32, SUN6I_SPI0_CCTL);
+	} else {
+		/* divide 24MHz OSC by 4 */
+		writel(CCM_SPI0_CLK_DIV_BY_4,
+		       spi_is_sun6i(dev) ? SUN6I_SPI0_CCTL : SUN4I_SPI0_CCTL);
+		/* Choose 24MHz from OSC24M and enable clock */
+		writel(1U << 31,
+		       soc_is_h6_style(dev) ? H6_CCM_SPI0_CLK : CCM_SPI0_CLK);
+	}
 
 	if (spi_is_sun6i(dev)) {
 		/* Enable SPI in the master mode and do a soft reset */

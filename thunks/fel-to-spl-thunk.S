@@ -21,45 +21,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-/*************************************************************************/
-/* Usage instructions: "ruby -x fel-to-spl-thunk.S > fel-to-spl-thunk.h" */
-/*************************************************************************/
-
-/* Open a comment for gas.
-
-   Do not close the comment until after the Ruby code terminator (__END__).
-   Write the '*' '/' sequence of characters as "\x2a/" in string literals to
-   avoid doing so.
-
-#!/usr/bin/env ruby
-
-def tool_exists(tool_name)
-    `which #{tool_name} > /dev/null 2>&1`
-    return $?.to_i == 0
-end
-
-toolchains = [
-  "arm-none-eabi-",
-  "arm-linux-gnueabihf-",
-  "arm-none-linux-gnueabi-",
-  "armv7a-hardfloat-linux-gnueabi-",
-]
-
-toolchain = toolchains.find { |toolchain| tool_exists("#{toolchain}as") }
-abort "Can't find any ARM crosscompiler\n" unless toolchain
-
-system("#{toolchain}as -o #{$PROGRAM_NAME}.o #{$PROGRAM_NAME}")
-exit($?.to_i) if $?.to_i != 0
-
-`#{toolchain}objdump -d #{$PROGRAM_NAME}.o`.each_line {|l|
-    next unless l =~ /(\h+)\:\s+(\h+)\s+(\S+)\s+([^;]*)/
-    printf("\t0x%s, /* %8s:    %-10s %-28s \x2a/\n", $2, $1, $3, $4.strip)
-}
-
-__END__
-*/
-
-/*************************************************************************/
+.arm
 
 BUF1		.req	r0
 BUF2		.req	r1
@@ -75,14 +37,7 @@ entry_point:
 	b	setup_stack
 
 stack_begin:
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	.space	32, 0xff
 stack_end:
 	nop
 
@@ -118,15 +73,14 @@ setup_stack: /* Save the original SP, LR and CPSR to stack */
 
 	/* Check if the instructions or data cache is enabled */
 	mrc	p15, 0, TMP1, c1, c0, 0
-	movw	TMP2,      #((1 << 12) | (1 << 2))
-	tst	TMP1,      TMP2
+	tst	TMP1,      #(1 << 2)
+	tsteq	TMP1,      #(1 << 12)
 	bne	cache_is_unsupported
 
 	bl	swap_all_buffers
 
 verify_checksum:
-	movw	CHECKSUM,  #0x6c39
-	movt	CHECKSUM,  #0x5f0a
+	ldr	CHECKSUM,  checksum_seed
 	mov	BUF1,      SPL_ADDR
 	ldr     FULLSIZE,  [BUF1, #16]
 check_next_word:
@@ -140,13 +94,27 @@ check_next_word:
 	bne	checksum_is_bad
 
 	/* Change 'eGON.BT0' -> 'eGON.FEL' */
-	movw	TMP1,      (('F' << 8) + '.')
-	movt	TMP1,      (('L' << 8) + 'E')
+	ldr	TMP1,	   egon_fel_str
 	str	TMP1,      [SPL_ADDR, #8]
 
-	/* Call the SPL code */
-	dsb
-	isb
+	/*
+	 * Call the SPL code, but before that make sure the CPU sees the
+	 * recently uploaded code. This requires a DSB and ISB.
+	 * The "dsb" and "isb" *instructions* are not available in ARMv5TE,
+	 * but at least for DSB we can use the CP15 register encoding. This
+	 * works for ARMv7 and v8 as well, because we have checked our SCTLR
+	 * before (in fel.c), so we know that CP15BEN is set.
+	 * The ARM926 core does not implement ISB, instead the TRM recommends
+	 * just a branch to achieve the same "flush the pipeline" effect.
+	 * As just this is not sufficient for later cores, check the MIDR
+	 * register, and do the DSB only for ARMv6 or later.
+	 * The input register for the CP15 instruction is ignored.
+	 */
+	mcr	p15, 0, TMP1, c7, c10, 4	/* CP15DSB */
+	mrc	p15, 0, TMP1, c0, c0, 0		/* read MIDR */
+	and	TMP1, TMP1, #(0xf << 16)	/* architecture */
+	cmp	TMP1, #(0x6 << 16)		/* ARMv5TEJ */
+	mcrgt	p15, 0, TMP1, c7, c5, 4		/* CP15ISB, if > ARMv5TEJ */
 	blx	SPL_ADDR
 
 	/* Return back to FEL */
@@ -154,15 +122,13 @@ check_next_word:
 
 cache_is_unsupported:
 	/* Bail out if cache is enabled and change 'eGON.BT0' -> 'eGON.???' */
-	movw	TMP1,      (('?' << 8) + '.')
-	movt	TMP1,      (('?' << 8) + '?')
+	ldr	TMP1,	   cache_enabled_str
 	str	TMP1,      [SPL_ADDR, #8]
 	b	return_to_fel_noswap
 
 checksum_is_bad:
 	/* The checksum test failed, so change 'eGON.BT0' -> 'eGON.BAD' */
-	movw	TMP1,      (('B' << 8) + '.')
-	movt	TMP1,      (('D' << 8) + 'A')
+	ldr	TMP1,	   checksum_failed_str
 	str	TMP1,      [SPL_ADDR, #8]
 
 return_to_fel:
@@ -172,6 +138,15 @@ return_to_fel_noswap:
 	msr	cpsr_c,    TMP1 /* Restore the original CPSR */
 	ldr     sp,        [sp]
 	bx	lr
+
+checksum_seed:
+	.word	0x5f0a6c39
+egon_fel_str:
+	.ascii	".FEL"
+cache_enabled_str:
+	.ascii	".???"
+checksum_failed_str:
+	.ascii	".BAD"
 
 appended_data:
 /*

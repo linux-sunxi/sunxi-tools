@@ -27,9 +27,9 @@ AWK_O_TO_H := LC_ALL=C awk -f objdump_to_h.awk
 # The SPL thunk requires a different output format. The "style" variable for
 # awk controls this, and causes the htole32() conversion to be omitted.
 fel-to-spl-thunk.h: fel-to-spl-thunk.S FORCE
-	$(AS) -o $(subst .S,.o,$<) $<
+	$(AS) -o $(subst .S,.o,$<) -march=armv5te $<
 	$(OBJDUMP) -d $(subst .S,.o,$<) | $(AWK_O_TO_H) -v style=old > $@
 
 $(THUNKS): %.h: %.S FORCE
-	$(AS) -o $(subst .S,.o,$<) $<
+	$(AS) -o $(subst .S,.o,$<) -march=armv5te $<
 	$(OBJDUMP) -d $(subst .S,.o,$<) | $(AWK_O_TO_H) > $@

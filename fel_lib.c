@@ -43,7 +43,7 @@ struct _felusb_handle {
 };
 
 /* a helper function to report libusb errors */
-void usb_error(int rc, const char *caption, int exitcode)
+static void usb_error(int rc, const char *caption, int exitcode)
 {
 	if (caption)
 		fprintf(stderr, "%s ", caption);
@@ -70,8 +70,8 @@ void usb_error(int rc, const char *caption, int exitcode)
  */
 static const int AW_USB_MAX_BULK_SEND = 512 * 1024; /* 512 KiB per bulk request */
 
-void usb_bulk_send(libusb_device_handle *usb, int ep, const void *data,
-		   size_t length, bool progress)
+static void usb_bulk_send(libusb_device_handle *usb, int ep, const void *data,
+			  size_t length, bool progress)
 {
 	/*
 	 * With no progress notifications, we'll use the maximum chunk size.
@@ -97,7 +97,8 @@ void usb_bulk_send(libusb_device_handle *usb, int ep, const void *data,
 	}
 }
 
-void usb_bulk_recv(libusb_device_handle *usb, int ep, void *data, int length)
+static void usb_bulk_recv(libusb_device_handle *usb, int ep, void *data,
+			  int length)
 {
 	int rc, recv;
 	while (length > 0) {
@@ -165,16 +166,15 @@ static void aw_usb_write(feldev_handle *dev, const void *data, size_t len,
 	aw_read_usb_response(dev);
 }
 
-static void aw_usb_read(feldev_handle *dev, const void *data, size_t len)
+static void aw_usb_read(feldev_handle *dev, void *data, size_t len)
 {
 	aw_send_usb_request(dev, AW_USB_READ, len);
-	usb_bulk_send(dev->usb->handle, dev->usb->endpoint_in,
-		      data, len, false);
+	usb_bulk_recv(dev->usb->handle, dev->usb->endpoint_in, data, len);
 	aw_read_usb_response(dev);
 }
 
-void aw_send_fel_request(feldev_handle *dev, int type,
-			 uint32_t addr, uint32_t length)
+static void aw_send_fel_request(feldev_handle *dev, int type,
+				uint32_t addr, uint32_t length)
 {
 	struct aw_fel_request req = {
 		.request = htole32(type),
@@ -184,7 +184,7 @@ void aw_send_fel_request(feldev_handle *dev, int type,
 	aw_usb_write(dev, &req, sizeof(req), false);
 }
 
-void aw_read_fel_status(feldev_handle *dev)
+static void aw_read_fel_status(feldev_handle *dev)
 {
 	char buf[8];
 	aw_usb_read(dev, buf, sizeof(buf));
@@ -625,7 +625,7 @@ static int feldev_get_endpoint(feldev_handle *dev)
 }
 
 /* claim USB interface associated with the libusb handle for a FEL device */
-void feldev_claim(feldev_handle *dev)
+static void feldev_claim(feldev_handle *dev)
 {
 	int rc = libusb_claim_interface(dev->usb->handle, 0);
 #if defined(__linux__)
@@ -644,7 +644,7 @@ void feldev_claim(feldev_handle *dev)
 }
 
 /* release USB interface associated with the libusb handle for a FEL device */
-void feldev_release(feldev_handle *dev)
+static void feldev_release(feldev_handle *dev)
 {
 	libusb_release_interface(dev->usb->handle, 0);
 #if defined(__linux__)
