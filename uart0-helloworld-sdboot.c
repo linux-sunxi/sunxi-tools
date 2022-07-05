@@ -83,25 +83,18 @@ typedef unsigned int u32;
 #define SUNXI_GPIO_H    7
 #define SUNXI_GPIO_I    8
 
-struct sunxi_gpio {
-	u32 cfg[4];
-	u32 dat;
-	u32 drv[2];
-	u32 pull[2];
-};
-
-struct sunxi_gpio_reg {
-	struct sunxi_gpio gpio_bank[10];
-};
-
 #define GPIO_BANK(pin)		((pin) >> 5)
 #define GPIO_NUM(pin)		((pin) & 0x1F)
 
+#define GPIO_CFG_BASE(bank)	((u32 *)(pio_base + (bank) * pio_bank_size))
 #define GPIO_CFG_INDEX(pin)	(((pin) & 0x1F) >> 3)
 #define GPIO_CFG_OFFSET(pin)	((((pin) & 0x1F) & 0x7) << 2)
 
+#define GPIO_PULL_BASE(bank)	((u32 *)(pio_base + (bank) * pio_bank_size + pio_pull_off))
 #define GPIO_PULL_INDEX(pin)	(((pin) & 0x1f) >> 4)
 #define GPIO_PULL_OFFSET(pin)	((((pin) & 0x1f) & 0xf) << 1)
+
+#define GPIO_DAT_BASE(bank)	((u32 *)(pio_base + (bank) * pio_bank_size + pio_dat_off))
 
 /* GPIO bank sizes */
 #define SUNXI_GPIO_A_NR    (32)
@@ -161,6 +154,7 @@ enum sunxi_gpio_number {
 #define SUNXI_GPIO_PULL_DOWN    (2)
 
 static u32 pio_base;
+static u32 pio_bank_size, pio_dat_off, pio_pull_off;
 
 int sunxi_gpio_set_cfgpin(u32 pin, u32 val)
 {
@@ -168,12 +162,11 @@ int sunxi_gpio_set_cfgpin(u32 pin, u32 val)
 	u32 bank = GPIO_BANK(pin);
 	u32 index = GPIO_CFG_INDEX(pin);
 	u32 offset = GPIO_CFG_OFFSET(pin);
-	struct sunxi_gpio *pio =
-		&((struct sunxi_gpio_reg *)pio_base)->gpio_bank[bank];
-	cfg = readl(&pio->cfg[0] + index);
+	u32 *addr = GPIO_CFG_BASE(bank) + index;
+	cfg = readl(addr);
 	cfg &= ~(0xf << offset);
 	cfg |= val << offset;
-	writel(cfg, &pio->cfg[0] + index);
+	writel(cfg, addr);
 	return 0;
 }
 
@@ -183,12 +176,11 @@ int sunxi_gpio_set_pull(u32 pin, u32 val)
 	u32 bank = GPIO_BANK(pin);
 	u32 index = GPIO_PULL_INDEX(pin);
 	u32 offset = GPIO_PULL_OFFSET(pin);
-	struct sunxi_gpio *pio =
-		&((struct sunxi_gpio_reg *)pio_base)->gpio_bank[bank];
-	cfg = readl(&pio->pull[0] + index);
+	u32 *addr = GPIO_PULL_BASE(bank) + index;
+	cfg = readl(addr);
 	cfg &= ~(0x3 << offset);
 	cfg |= val << offset;
-	writel(cfg, &pio->pull[0] + index);
+	writel(cfg, addr);
 	return 0;
 }
 
@@ -197,14 +189,13 @@ int sunxi_gpio_output(u32 pin, u32 val)
 	u32 dat;
 	u32 bank = GPIO_BANK(pin);
 	u32 num = GPIO_NUM(pin);
-	struct sunxi_gpio *pio =
-		&((struct sunxi_gpio_reg *)pio_base)->gpio_bank[bank];
-	dat = readl(&pio->dat);
+	u32 *addr = GPIO_DAT_BASE(bank);
+	dat = readl(addr);
 	if(val)
 		dat |= 1 << num;
 	else
 		dat &= ~(1 << num);
-	writel(dat, &pio->dat);
+	writel(dat, addr);
 	return 0;
 }
 
@@ -213,9 +204,8 @@ int sunxi_gpio_input(u32 pin)
 	u32 dat;
 	u32 bank = GPIO_BANK(pin);
 	u32 num = GPIO_NUM(pin);
-	struct sunxi_gpio *pio =
-		&((struct sunxi_gpio_reg *)pio_base)->gpio_bank[bank];
-	dat = readl(&pio->dat);
+	u32 *addr = GPIO_DAT_BASE(bank);
+	dat = readl(addr);
 	dat >>= num;
 	return (dat & 0x1);
 }
@@ -416,6 +406,18 @@ void clock_init_uart(void)
 
 void gpio_init(void)
 {
+	if (0) {
+		/* GPIO V2 */
+		pio_bank_size = 0x30;
+		pio_dat_off = 0x10;
+		pio_pull_off = 0x24;
+	} else {
+		/* GPIO V1 */
+		pio_bank_size = 0x24;
+		pio_dat_off = 0x10;
+		pio_pull_off = 0x1c;
+	}
+
 	if (soc_is_a10() || soc_is_a20() || soc_is_r40()) {
 		sunxi_gpio_set_cfgpin(SUNXI_GPB(22), SUN4I_GPB_UART0);
 		sunxi_gpio_set_cfgpin(SUNXI_GPB(23), SUN4I_GPB_UART0);
