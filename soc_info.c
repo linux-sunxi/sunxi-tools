@@ -410,6 +410,18 @@ soc_info_t soc_info_table[] = {
 		.icache_fix   = true,
 		.watchdog     = &wd_v853_compat,
 	},{
+		.soc_id       = 0x1859, /* Allwinner D1/D1s/R528/T113-S3 */
+		.name         = "R528",
+		.spl_addr     = 0x20000,
+		.scratch_addr = 0x21000,
+		.thunk_addr   = 0x3a200, .thunk_size = 0x200,
+		.swap_buffers = v831_sram_swap_buffers,
+		.sram_size    = 160 * 1024,
+		.sid_base     = 0x03006000,
+		.sid_offset   = 0x200,
+		.icache_fix   = true,
+		.watchdog     = &wd_v853_compat,
+	},{
 		.swap_buffers = NULL /* End of the table */
 	}
 };
