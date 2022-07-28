@@ -141,6 +141,7 @@ enum sunxi_gpio_number {
 #define SUN5I_GPB_UART0         (2)
 #define SUN6I_GPH_UART0         (2)
 #define SUN8I_H3_GPA_UART0      (2)
+#define SUN8I_R528_GPE_UART0	(6)
 #define SUN8I_V3S_GPB_UART0	(3)
 #define SUN8I_V831_GPH_UART0	(5)
 #define SUN8I_V853_GPH_UART0	(5)
@@ -310,6 +311,7 @@ void soc_detection_init(void)
 #define soc_is_v3s()	(soc_id == 0x1681)
 #define soc_is_v831()	(soc_id == 0x1817)
 #define soc_is_v853()	(soc_id == 0x1886)
+#define soc_is_r528()	(soc_id == 0x1859)
 
 /* A10s and A13 share the same ID, so we need a little more effort on those */
 
@@ -396,7 +398,7 @@ void clock_init_uart(void)
 {
 	if (soc_is_h6() || soc_is_v831() || soc_is_h616())
 		clock_init_uart_h6();
-	else if (soc_is_r329() || soc_is_v853())
+	else if (soc_is_r329() || soc_is_v853() || soc_is_r528())
 		clock_init_uart_r329();
 	else
 		clock_init_uart_legacy();
@@ -410,7 +412,7 @@ void clock_init_uart(void)
 
 void gpio_init(void)
 {
-	if (soc_is_v853()) {
+	if (soc_is_v853() || soc_is_r528()) {
 		/* GPIO V2 */
 		pio_bank_size = 0x30;
 		pio_dat_off = 0x10;
@@ -478,6 +480,10 @@ void gpio_init(void)
 		sunxi_gpio_set_cfgpin(SUNXI_GPH(9), SUN8I_V853_GPH_UART0);
 		sunxi_gpio_set_cfgpin(SUNXI_GPH(10), SUN8I_V853_GPH_UART0);
 		sunxi_gpio_set_pull(SUNXI_GPH(10), SUNXI_GPIO_PULL_UP);
+	} else if (soc_is_r528()) {
+		sunxi_gpio_set_cfgpin(SUNXI_GPE(2), SUN8I_R528_GPE_UART0);
+		sunxi_gpio_set_cfgpin(SUNXI_GPE(3), SUN8I_R528_GPE_UART0);
+		sunxi_gpio_set_pull(SUNXI_GPE(3), SUNXI_GPIO_PULL_UP);
 	} else {
 		/* Unknown SoC */
 		while (1) {}
@@ -580,7 +586,7 @@ void bases_init(void)
 	} else if (soc_is_r329()) {
 		pio_base = R329_PIO_BASE;
 		uart0_base = R329_UART0_BASE;
-	} else if (soc_is_v853()) {
+	} else if (soc_is_v853() || soc_is_r528()) {
 		pio_base = V853_PIO_BASE;
 		uart0_base = R329_UART0_BASE;
 	} else {
@@ -629,6 +635,8 @@ int main(void)
 		uart0_puts("Allwinner V831!\n");
 	else if (soc_is_v853())
 		uart0_puts("Allwinner V853!\n");
+	else if (soc_is_r528())
+		uart0_puts("Allwinner R528/T113!\n");
 	else
 		uart0_puts("unknown Allwinner SoC!\n");
 
