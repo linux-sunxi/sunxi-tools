@@ -113,6 +113,8 @@ typedef struct {
 	uint32_t           rvbar_reg;    /* MMIO address of RVBARADDR0_L register */
 	const watchdog_info *watchdog;   /* Used for reset */
 	bool               sid_fix;      /* Use SID workaround (read via register) */
+	/* Use I$ workaround (disable I$ before first write to prevent stale thunk */
+	bool               icache_fix;
 	/* Use SMC workaround (enter secure mode) if can't read from this address */
 	uint32_t           needs_smc_workaround_if_zero_word_at_addr;
 	uint32_t           sram_size;	/* Usable contiguous SRAM at spl_addr */

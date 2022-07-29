@@ -69,6 +69,8 @@ typedef unsigned int u32;
 #define R329_UART0_BASE		0x02500000
 #define R329_PIO_BASE		0x02000400
 #define R329_CCM_BASE		0x02001000
+
+#define V853_PIO_BASE		0x02000000
 /*****************************************************************************
  * GPIO code, borrowed from U-Boot                                           *
  *****************************************************************************/
@@ -83,25 +85,18 @@ typedef unsigned int u32;
 #define SUNXI_GPIO_H    7
 #define SUNXI_GPIO_I    8
 
-struct sunxi_gpio {
-	u32 cfg[4];
-	u32 dat;
-	u32 drv[2];
-	u32 pull[2];
-};
-
-struct sunxi_gpio_reg {
-	struct sunxi_gpio gpio_bank[10];
-};
-
 #define GPIO_BANK(pin)		((pin) >> 5)
 #define GPIO_NUM(pin)		((pin) & 0x1F)
 
+#define GPIO_CFG_BASE(bank)	((u32 *)(pio_base + (bank) * pio_bank_size))
 #define GPIO_CFG_INDEX(pin)	(((pin) & 0x1F) >> 3)
 #define GPIO_CFG_OFFSET(pin)	((((pin) & 0x1F) & 0x7) << 2)
 
+#define GPIO_PULL_BASE(bank)	((u32 *)(pio_base + (bank) * pio_bank_size + pio_pull_off))
 #define GPIO_PULL_INDEX(pin)	(((pin) & 0x1f) >> 4)
 #define GPIO_PULL_OFFSET(pin)	((((pin) & 0x1f) & 0xf) << 1)
+
+#define GPIO_DAT_BASE(bank)	((u32 *)(pio_base + (bank) * pio_bank_size + pio_dat_off))
 
 /* GPIO bank sizes */
 #define SUNXI_GPIO_A_NR    (32)
@@ -148,6 +143,7 @@ enum sunxi_gpio_number {
 #define SUN8I_H3_GPA_UART0      (2)
 #define SUN8I_V3S_GPB_UART0	(3)
 #define SUN8I_V831_GPH_UART0	(5)
+#define SUN8I_V853_GPH_UART0	(5)
 #define SUN50I_H5_GPA_UART0     (2)
 #define SUN50I_H6_GPH_UART0	(2)
 #define SUN50I_H616_GPH_UART0	(2)
@@ -161,6 +157,7 @@ enum sunxi_gpio_number {
 #define SUNXI_GPIO_PULL_DOWN    (2)
 
 static u32 pio_base;
+static u32 pio_bank_size, pio_dat_off, pio_pull_off;
 
 int sunxi_gpio_set_cfgpin(u32 pin, u32 val)
 {
@@ -168,12 +165,11 @@ int sunxi_gpio_set_cfgpin(u32 pin, u32 val)
 	u32 bank = GPIO_BANK(pin);
 	u32 index = GPIO_CFG_INDEX(pin);
 	u32 offset = GPIO_CFG_OFFSET(pin);
-	struct sunxi_gpio *pio =
-		&((struct sunxi_gpio_reg *)pio_base)->gpio_bank[bank];
-	cfg = readl(&pio->cfg[0] + index);
+	u32 *addr = GPIO_CFG_BASE(bank) + index;
+	cfg = readl(addr);
 	cfg &= ~(0xf << offset);
 	cfg |= val << offset;
-	writel(cfg, &pio->cfg[0] + index);
+	writel(cfg, addr);
 	return 0;
 }
 
@@ -183,12 +179,11 @@ int sunxi_gpio_set_pull(u32 pin, u32 val)
 	u32 bank = GPIO_BANK(pin);
 	u32 index = GPIO_PULL_INDEX(pin);
 	u32 offset = GPIO_PULL_OFFSET(pin);
-	struct sunxi_gpio *pio =
-		&((struct sunxi_gpio_reg *)pio_base)->gpio_bank[bank];
-	cfg = readl(&pio->pull[0] + index);
+	u32 *addr = GPIO_PULL_BASE(bank) + index;
+	cfg = readl(addr);
 	cfg &= ~(0x3 << offset);
 	cfg |= val << offset;
-	writel(cfg, &pio->pull[0] + index);
+	writel(cfg, addr);
 	return 0;
 }
 
@@ -197,14 +192,13 @@ int sunxi_gpio_output(u32 pin, u32 val)
 	u32 dat;
 	u32 bank = GPIO_BANK(pin);
 	u32 num = GPIO_NUM(pin);
-	struct sunxi_gpio *pio =
-		&((struct sunxi_gpio_reg *)pio_base)->gpio_bank[bank];
-	dat = readl(&pio->dat);
+	u32 *addr = GPIO_DAT_BASE(bank);
+	dat = readl(addr);
 	if(val)
 		dat |= 1 << num;
 	else
 		dat &= ~(1 << num);
-	writel(dat, &pio->dat);
+	writel(dat, addr);
 	return 0;
 }
 
@@ -213,9 +207,8 @@ int sunxi_gpio_input(u32 pin)
 	u32 dat;
 	u32 bank = GPIO_BANK(pin);
 	u32 num = GPIO_NUM(pin);
-	struct sunxi_gpio *pio =
-		&((struct sunxi_gpio_reg *)pio_base)->gpio_bank[bank];
-	dat = readl(&pio->dat);
+	u32 *addr = GPIO_DAT_BASE(bank);
+	dat = readl(addr);
 	dat >>= num;
 	return (dat & 0x1);
 }
@@ -316,6 +309,7 @@ void soc_detection_init(void)
 #define soc_is_r40()	(soc_id == 0x1701)
 #define soc_is_v3s()	(soc_id == 0x1681)
 #define soc_is_v831()	(soc_id == 0x1817)
+#define soc_is_v853()	(soc_id == 0x1886)
 
 /* A10s and A13 share the same ID, so we need a little more effort on those */
 
@@ -402,7 +396,7 @@ void clock_init_uart(void)
 {
 	if (soc_is_h6() || soc_is_v831() || soc_is_h616())
 		clock_init_uart_h6();
-	else if (soc_is_r329())
+	else if (soc_is_r329() || soc_is_v853())
 		clock_init_uart_r329();
 	else
 		clock_init_uart_legacy();
@@ -416,6 +410,18 @@ void clock_init_uart(void)
 
 void gpio_init(void)
 {
+	if (soc_is_v853()) {
+		/* GPIO V2 */
+		pio_bank_size = 0x30;
+		pio_dat_off = 0x10;
+		pio_pull_off = 0x24;
+	} else {
+		/* GPIO V1 */
+		pio_bank_size = 0x24;
+		pio_dat_off = 0x10;
+		pio_pull_off = 0x1c;
+	}
+
 	if (soc_is_a10() || soc_is_a20() || soc_is_r40()) {
 		sunxi_gpio_set_cfgpin(SUNXI_GPB(22), SUN4I_GPB_UART0);
 		sunxi_gpio_set_cfgpin(SUNXI_GPB(23), SUN4I_GPB_UART0);
@@ -467,6 +473,10 @@ void gpio_init(void)
 	} else if (soc_is_v831()) {
 		sunxi_gpio_set_cfgpin(SUNXI_GPH(9), SUN8I_V831_GPH_UART0);
 		sunxi_gpio_set_cfgpin(SUNXI_GPH(10), SUN8I_V831_GPH_UART0);
+		sunxi_gpio_set_pull(SUNXI_GPH(10), SUNXI_GPIO_PULL_UP);
+	} else if (soc_is_v853()) {
+		sunxi_gpio_set_cfgpin(SUNXI_GPH(9), SUN8I_V853_GPH_UART0);
+		sunxi_gpio_set_cfgpin(SUNXI_GPH(10), SUN8I_V853_GPH_UART0);
 		sunxi_gpio_set_pull(SUNXI_GPH(10), SUNXI_GPIO_PULL_UP);
 	} else {
 		/* Unknown SoC */
@@ -544,7 +554,7 @@ int get_boot_device(void)
 	u32 *spl_signature = (void *)0x4;
 	if (soc_is_a64() || soc_is_a80() || soc_is_h5())
 		spl_signature = (void *)0x10004;
-	if (soc_is_h6() || soc_is_v831() || soc_is_h616())
+	if (soc_is_h6() || soc_is_v831() || soc_is_h616() || soc_is_v853())
 		spl_signature = (void *)0x20004;
 	if (soc_is_r329())
 		spl_signature = (void *)0x100004;
@@ -569,6 +579,9 @@ void bases_init(void)
 		uart0_base = H6_UART0_BASE;
 	} else if (soc_is_r329()) {
 		pio_base = R329_PIO_BASE;
+		uart0_base = R329_UART0_BASE;
+	} else if (soc_is_v853()) {
+		pio_base = V853_PIO_BASE;
 		uart0_base = R329_UART0_BASE;
 	} else {
 		pio_base = SUNXI_PIO_BASE;
@@ -614,6 +627,8 @@ int main(void)
 		uart0_puts("Allwinner V3s!\n");
 	else if (soc_is_v831())
 		uart0_puts("Allwinner V831!\n");
+	else if (soc_is_v853())
+		uart0_puts("Allwinner V853!\n");
 	else
 		uart0_puts("unknown Allwinner SoC!\n");
 

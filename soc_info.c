@@ -182,6 +182,11 @@ const watchdog_info wd_h6_compat = {
 	.reg_mode_value = 1,
 };
 
+const watchdog_info wd_v853_compat = {
+	.reg_mode = 0x020500b8,
+	.reg_mode_value = 0x16aa0001,
+};
+
 soc_info_t soc_info_table[] = {
 	{
 		.soc_id       = 0x1623, /* Allwinner A10 */
@@ -392,6 +397,18 @@ soc_info_t soc_info_table[] = {
 		.sid_offset   = 0x200,
 		.rvbar_reg    = 0x08100040,
 		.watchdog     = &wd_h6_compat,
+	},{
+		.soc_id       = 0x1886, /* Allwinner V853 */
+		.name         = "V853",
+		.spl_addr     = 0x20000,
+		.scratch_addr = 0x21000,
+		.thunk_addr   = 0x3A200, .thunk_size = 0x200,
+		.swap_buffers = v831_sram_swap_buffers,
+		.sram_size    = 132 * 1024,
+		.sid_base     = 0x03006000,
+		.sid_offset   = 0x200,
+		.icache_fix   = true,
+		.watchdog     = &wd_v853_compat,
 	},{
 		.swap_buffers = NULL /* End of the table */
 	}

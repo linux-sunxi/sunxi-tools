@@ -40,6 +40,7 @@ struct _felusb_handle {
 	libusb_device_handle *handle;
 	int endpoint_out, endpoint_in;
 	bool iface_detached;
+	bool icache_hacked;
 };
 
 /* a helper function to report libusb errors */
@@ -214,7 +215,7 @@ void aw_fel_read(feldev_handle *dev, uint32_t offset, void *buf, size_t len)
 }
 
 /* AW_FEL_1_WRITE request */
-void aw_fel_write(feldev_handle *dev, const void *buf, uint32_t offset, size_t len)
+static void aw_fel_write_raw(feldev_handle *dev, const void *buf, uint32_t offset, size_t len)
 {
 	if (len == 0)
 		return;
@@ -229,6 +230,33 @@ void aw_fel_execute(feldev_handle *dev, uint32_t offset)
 {
 	aw_send_fel_request(dev, AW_FEL_1_EXEC, offset, 0);
 	aw_read_fel_status(dev);
+}
+
+static void aw_disable_icache(feldev_handle *dev)
+{
+	soc_info_t *soc_info = dev->soc_info;
+	uint32_t arm_code[] = {
+		/* Clear SCTLR.I */
+		htole32(0xee110f10), /* mrc 15, 0, r0, cr1, cr0, {0} ;SCTLR */
+		htole32(0xe3c00a01), /* bic r0, r0, #0x1000 */
+		htole32(0xee010f10), /* mcr 15, 0, r0, cr1, cr0, {0} ;SCTLR */
+		/* Invalidate I-Cache */
+		htole32(0xee070f15), /* mcr 15, 0, r0, cr7, cr5, {0} ;ICIALLU */
+		/* Barrier to force instruction refetching */
+		htole32(0xf57ff06f), /* isb sy */
+		htole32(0xe12fff1e), /* bx  lr */
+	};
+	aw_fel_write_raw(dev, arm_code, soc_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute(dev, soc_info->scratch_addr);
+}
+
+void aw_fel_write(feldev_handle *dev, const void *buf, uint32_t offset, size_t len)
+{
+	if (dev->soc_info->icache_fix && !dev->usb->icache_hacked) {
+		aw_disable_icache(dev);
+		dev->usb->icache_hacked = true;
+	}
+	aw_fel_write_raw(dev, buf, offset, len);
 }
 
 /*
