@@ -305,6 +305,7 @@ void soc_detection_init(void)
 #define soc_is_a80()	(soc_id == 0x1639)
 #define soc_is_a64()	(soc_id == 0x1689)
 #define soc_is_h5()	(soc_id == 0x1718)
+#define soc_is_a63()	(soc_id == 0x1719)
 #define soc_is_h6()	(soc_id == 0x1728)
 #define soc_is_h616()	(soc_id == 0x1823)
 #define soc_is_r329()	(soc_id == 0x1851)
@@ -398,7 +399,8 @@ void clock_init_uart_r329(void)
 
 void clock_init_uart(void)
 {
-	if (soc_is_h6() || soc_is_v831() || soc_is_h616() || soc_is_v5())
+	if (soc_is_h6() || soc_is_v831() || soc_is_h616() || soc_is_v5() ||
+	    soc_is_a63())
 		clock_init_uart_h6();
 	else if (soc_is_r329() || soc_is_v853() || soc_is_r528())
 		clock_init_uart_r329();
@@ -458,6 +460,10 @@ void gpio_init(void)
 		sunxi_gpio_set_cfgpin(SUNXI_GPA(4), SUN50I_H5_GPA_UART0);
 		sunxi_gpio_set_cfgpin(SUNXI_GPA(5), SUN50I_H5_GPA_UART0);
 		sunxi_gpio_set_pull(SUNXI_GPA(5), SUNXI_GPIO_PULL_UP);
+	} else if (soc_is_a63()) {
+		sunxi_gpio_set_cfgpin(SUNXI_GPB(9), SUN50I_A64_GPB_UART0);
+		sunxi_gpio_set_cfgpin(SUNXI_GPB(10), SUN50I_A64_GPB_UART0);
+		sunxi_gpio_set_pull(SUNXI_GPB(10), SUNXI_GPIO_PULL_UP);
 	} else if (soc_is_h6()) {
 		sunxi_gpio_set_cfgpin(SUNXI_GPH(0), SUN50I_H6_GPH_UART0);
 		sunxi_gpio_set_cfgpin(SUNXI_GPH(1), SUN50I_H6_GPH_UART0);
@@ -566,7 +572,8 @@ int get_boot_device(void)
 	u32 *spl_signature = (void *)0x4;
 	if (soc_is_a64() || soc_is_a80() || soc_is_h5())
 		spl_signature = (void *)0x10004;
-	if (soc_is_h6() || soc_is_v831() || soc_is_h616() || soc_is_v853())
+	if (soc_is_h6() || soc_is_v831() || soc_is_h616() || soc_is_v853() ||
+	    soc_is_a63())
 		spl_signature = (void *)0x20004;
 	if (soc_is_r329())
 		spl_signature = (void *)0x100004;
@@ -586,7 +593,8 @@ int get_boot_device(void)
 
 void bases_init(void)
 {
-	if (soc_is_h6() || soc_is_v831() || soc_is_h616() || soc_is_v5()) {
+	if (soc_is_h6() || soc_is_v831() || soc_is_h616() || soc_is_v5() ||
+	    soc_is_a63()) {
 		pio_base = H6_PIO_BASE;
 		uart0_base = H6_UART0_BASE;
 	} else if (soc_is_r329()) {
@@ -627,6 +635,8 @@ int main(void)
 		uart0_puts("Allwinner H3!\n");
 	else if (soc_is_h5())
 		uart0_puts("Allwinner H5!\n");
+	else if (soc_is_a63())
+		uart0_puts("Allwinner A63!\n");
 	else if (soc_is_h6())
 		uart0_puts("Allwinner H6!\n");
 	else if (soc_is_h616())
