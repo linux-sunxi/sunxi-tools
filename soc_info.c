@@ -337,6 +337,18 @@ soc_info_t soc_info_table[] = {
 		.sid_offset   = 0x200,
 		.watchdog     = &wd_a10_compat,
 	},{
+		.soc_id       = 0x1719, /* Allwinner A63 */
+		.name         = "A63",
+		.spl_addr     = 0x20000,
+		.scratch_addr = 0x21000,
+		.thunk_addr   = 0x42200, .thunk_size = 0x200,
+		.swap_buffers = h6_sram_swap_buffers,
+		.sram_size    = 144 * 1024,
+		.sid_base     = 0x03006000,
+		.sid_offset   = 0x200,
+		.rvbar_reg    = 0x09010040,
+		.watchdog     = &wd_h6_compat,
+	},{
 		.soc_id       = 0x1728, /* Allwinner H6 */
 		.name         = "H6",
 		.spl_addr     = 0x20000,
