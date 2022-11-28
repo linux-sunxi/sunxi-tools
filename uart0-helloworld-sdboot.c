@@ -71,6 +71,8 @@ typedef unsigned int u32;
 #define R329_CCM_BASE		0x02001000
 
 #define V853_PIO_BASE		0x02000000
+
+#define SUNIV_UART0_BASE	0x01c25000
 /*****************************************************************************
  * GPIO code, borrowed from U-Boot                                           *
  *****************************************************************************/
@@ -137,6 +139,7 @@ enum sunxi_gpio_number {
 /* GPIO pin function config */
 #define SUNXI_GPIO_INPUT        (0)
 #define SUNXI_GPIO_OUTPUT       (1)
+#define SUNIV_GPE_UART0         (5)
 #define SUN4I_GPB_UART0         (2)
 #define SUN5I_GPB_UART0         (2)
 #define SUN6I_GPH_UART0         (2)
@@ -315,6 +318,7 @@ void soc_detection_init(void)
 #define soc_is_v853()	(soc_id == 0x1886)
 #define soc_is_r528()	(soc_id == 0x1859)
 #define soc_is_v5()	(soc_id == 0x1721)
+#define soc_is_suniv()	(soc_id == 0x1663)
 
 /* A10s and A13 share the same ID, so we need a little more effort on those */
 
@@ -363,10 +367,14 @@ int soc_is_h3(void)
 
 #define CONFIG_CONS_INDEX	1
 #define APB2_CFG		(AW_CCM_BASE + 0x058)
+#define APB1_GATE		(AW_CCM_BASE + 0x068)
 #define APB2_GATE		(AW_CCM_BASE + 0x06C)
+#define APB1_RESET		(AW_CCM_BASE + 0x2D0)
 #define APB2_RESET		(AW_CCM_BASE + 0x2D8)
 #define APB2_GATE_UART_SHIFT	(16)
+#define APB1_GATE_UART_SHIFT	20
 #define APB2_RESET_UART_SHIFT	(16)
+#define APB1_RESET_UART_SHIFT	20
 
 #define H6_UART_GATE_RESET	(H6_CCM_BASE + 0x90C)
 #define R329_UART_GATE_RESET	(R329_CCM_BASE + 0x90C)
@@ -379,6 +387,17 @@ void clock_init_uart_legacy(void)
 	set_wbit(APB2_GATE, 1 << (APB2_GATE_UART_SHIFT + CONFIG_CONS_INDEX - 1));
 	/* Deassert UART0 reset (only needed on A31/A64/H3) */
 	set_wbit(APB2_RESET, 1 << (APB2_RESET_UART_SHIFT + CONFIG_CONS_INDEX - 1));
+}
+
+void clock_init_uart_suniv(void)
+{
+	/* open the clock for uart */
+	set_wbit(APB1_GATE,
+		 1U << (APB1_GATE_UART_SHIFT + CONFIG_CONS_INDEX - 1));
+
+	/* deassert uart reset */
+	set_wbit(APB1_RESET,
+		 1U << (APB1_RESET_UART_SHIFT + CONFIG_CONS_INDEX - 1));
 }
 
 void clock_init_uart_h6(void)
@@ -404,6 +423,8 @@ void clock_init_uart(void)
 		clock_init_uart_h6();
 	else if (soc_is_r329() || soc_is_v853() || soc_is_r528())
 		clock_init_uart_r329();
+	else if (soc_is_suniv())
+		clock_init_uart_suniv();
 	else
 		clock_init_uart_legacy();
 }
@@ -496,6 +517,10 @@ void gpio_init(void)
 		sunxi_gpio_set_cfgpin(SUNXI_GPB(9), SUN8I_V5_GPB_UART0);
 		sunxi_gpio_set_cfgpin(SUNXI_GPB(10), SUN8I_V5_GPB_UART0);
 		sunxi_gpio_set_pull(SUNXI_GPB(10), SUNXI_GPIO_PULL_UP);
+	} else if (soc_is_suniv()) {
+		sunxi_gpio_set_cfgpin(SUNXI_GPE(0), SUNIV_GPE_UART0);
+		sunxi_gpio_set_cfgpin(SUNXI_GPE(1), SUNIV_GPE_UART0);
+		sunxi_gpio_set_pull(SUNXI_GPE(1), SUNXI_GPIO_PULL_UP);
 	} else {
 		/* Unknown SoC */
 		while (1) {}
@@ -520,7 +545,9 @@ static u32 uart0_base;
 
 #define UART0_LSR (uart0_base + 0x14)   /* line status register */
 
-#define BAUD_115200    (0xD) /* 24 * 1000 * 1000 / 16 / 115200 = 13 */
+#define BAUD_115200		13	/* 24 * 1000 * 1000 / 16 / 115200 */
+/* The BROM sets the CPU clock to 204MHz, AHB=CPU/2, APB=AHB/2 => 51 MHz */
+#define BAUD_115200_SUNIV 	28	/* 51 * 1000 * 1000 / 16 / 115200 */
 #define NO_PARITY      (0)
 #define ONE_STOP_BIT   (0)
 #define DAT_LEN_8_BITS (3)
@@ -534,7 +561,10 @@ void uart0_init(void)
 	writel(0x80, UART0_LCR);
 	/* set baudrate */
 	writel(0, UART0_DLH);
-	writel(BAUD_115200, UART0_DLL);
+	if (soc_is_suniv())
+		writel(BAUD_115200_SUNIV, UART0_DLL);
+	else
+		writel(BAUD_115200, UART0_DLL);
 	/* set line control */
 	writel(LC_8_N_1, UART0_LCR);
 }
@@ -603,6 +633,9 @@ void bases_init(void)
 	} else if (soc_is_v853() || soc_is_r528()) {
 		pio_base = V853_PIO_BASE;
 		uart0_base = R329_UART0_BASE;
+	} else if (soc_is_suniv()) {
+		pio_base = SUNXI_PIO_BASE;
+		uart0_base = SUNIV_UART0_BASE;
 	} else {
 		pio_base = SUNXI_PIO_BASE;
 		uart0_base = SUNXI_UART0_BASE;
@@ -655,6 +688,8 @@ int main(void)
 		uart0_puts("Allwinner R528/T113!\n");
 	else if (soc_is_v5())
 		uart0_puts("Allwinner V5!\n");
+	else if (soc_is_suniv())
+		uart0_puts("Allwinner F1C100s!\n");
 	else
 		uart0_puts("unknown Allwinner SoC!\n");
 
