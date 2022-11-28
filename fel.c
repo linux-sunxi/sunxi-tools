@@ -1249,6 +1249,7 @@ void usage(const char *cmd) {
 		"	-l, --list			Enumerate all (USB) FEL devices and exit\n"
 		"	-d, --dev bus:devnum		Use specific USB bus and device number\n"
 		"	    --sid SID			Select device by SID key (exact match)\n"
+		"	    --list-socs			Print a list of all supported SoCs\n"
 		"\n"
 		"	spl file			Load and execute U-Boot SPL\n"
 		"		If file additionally contains a main U-Boot binary\n"
@@ -1297,6 +1298,7 @@ int main(int argc, char **argv)
 	bool uboot_autostart = false; /* flag for "uboot" command = U-Boot autostart */
 	bool pflag_active = false; /* -p switch, causing "write" to output progress */
 	bool device_list = false; /* -l switch, prints device list and exits */
+	bool socs_list = false; /* list all supported SoCs and exit */
 	feldev_handle *handle;
 	int busnum = -1, devnum = -1;
 	char *sid_arg = NULL;
@@ -1315,6 +1317,9 @@ int main(int argc, char **argv)
 		else if (strcmp(argv[1], "--list") == 0 || strcmp(argv[1], "-l") == 0
 			 || strcmp(argv[1], "list") == 0)
 			device_list = true;
+		else if (strcmp(argv[1], "--list-socs") == 0 ||
+			 strcmp(argv[1], "list-socs") == 0)
+			socs_list = true;
 		else if (strncmp(argv[1], "--dev", 5) == 0 || strncmp(argv[1], "-d", 2) == 0) {
 			char *dev_arg = argv[1];
 			dev_arg += strspn(dev_arg, "-dev="); /* skip option chars, ignore '=' */
@@ -1353,6 +1358,14 @@ int main(int argc, char **argv)
 	/* Process options that don't require a FEL device handle */
 	if (device_list)
 		felusb_list_devices(); /* and exit program afterwards */
+	if (socs_list) {
+		const soc_info_t *soc_info = NULL;
+
+		printf("SoCID name\n");
+		while ((soc_info = get_next_soc(soc_info)) != NULL)
+			printf("%04x: %s\n", soc_info->soc_id, soc_info->name);
+		return 0;
+	}
 	if (sid_arg) {
 		/* try to set busnum and devnum according to "--sid" option */
 		select_by_sid(sid_arg, &busnum, &devnum);
