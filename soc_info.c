@@ -151,6 +151,11 @@ sram_swap_buffers h616_sram_swap_buffers[] = {
 	{ .size = 0 }  /* End of the table */
 };
 
+sram_swap_buffers a133_sram_swap_buffers[] = {
+	{ .buf1 = 0x21000, .buf2 = 0x40000, .size = 0x400 },
+	{ .size = 0 }  /* End of the table */
+};
+
 /*
  * R329 has no SRAM A1, but a huge SRAM A2 at 0x100000. SPL and BROM uses
  * this SRAM A2's first part like how other SoCs use SRAM A1. The sp and
@@ -623,6 +628,20 @@ soc_info_t soc_info_table[] = {
 		.rvbar_reg    = 0x08000040,
 		.icache_fix   = true,
 		.watchdog     = &wd_a523_compat,
+	},{
+		.soc_id       = 0x1855, /* Allwinner A133 */
+		.name         = "A133",
+		.spl_addr     = 0x20000,
+		.scratch_addr = 0x21000,
+		.thunk_addr   = 0x40400, .thunk_size = 0x200,
+		.swap_buffers = a133_sram_swap_buffers,
+		.sram_size    = 148 * 1024,
+		.sid_base     = 0x03006000,
+		.sid_offset   = 0x200,
+		.sid_sections = generic_2k_sid_maps,
+		.rvbar_reg    = 0x08100040,
+		.needs_smc_workaround_if_zero_word_at_addr = 0x100004,
+		.watchdog     = &wd_h6_compat,
 	},{
 		.swap_buffers = NULL /* End of the table */
 	}
