@@ -187,6 +187,19 @@ const watchdog_info wd_v853_compat = {
 	.reg_mode_value = 0x16aa0001,
 };
 
+const sid_section r40_sid_maps[] = {
+	SID_SECTION("chipid",	0x00, 128),
+	SID_SECTION("in",	0x10, 256),
+	SID_SECTION("ssk",	0x30, 128),
+	SID_SECTION("thermal",	0x40,  32),
+	SID_SECTION("ft_zone",	0x44,  64),
+	SID_SECTION("tvout",	0x4c, 128),
+	SID_SECTION("rssk",	0x5c, 256),
+	SID_SECTION("hdcp_hash",0x7c, 128),
+	SID_SECTION("reserved",	0x90, 896),
+	SID_SECTION(NULL,	0,      0),
+};
+
 soc_info_t soc_info_table[] = {
 	{
 		.soc_id       = 0x1623, /* Allwinner A10 */
@@ -335,6 +348,7 @@ soc_info_t soc_info_table[] = {
 		.sram_size    = 48 * 1024,
 		.sid_base     = 0x01C1B000,
 		.sid_offset   = 0x200,
+		.sid_sections = r40_sid_maps,
 		.watchdog     = &wd_a10_compat,
 	},{
 		.soc_id       = 0x1719, /* Allwinner A63 */

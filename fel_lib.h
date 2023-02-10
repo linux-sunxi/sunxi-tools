@@ -80,6 +80,8 @@ void fel_clrsetbits_le32(feldev_handle *dev,
 /* retrieve SID root key */
 bool fel_get_sid_root_key(feldev_handle *dev, uint32_t *result,
 			  bool force_workaround);
+bool fel_get_sid(feldev_handle *dev, uint32_t *result, uint32_t offset,
+		 size_t count);
 
 bool aw_fel_remotefunc_prepare(feldev_handle *dev,
 			       size_t                stack_size,
