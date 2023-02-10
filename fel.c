@@ -202,7 +202,7 @@ void *load_file(const char *name, size_t *size)
 		perror("Failed to open input file");
 		exit(1);
 	}
-	
+
 	while (true) {
 		size_t len = bufsize - offset;
 		size_t n = fread(buf+offset, 1, len, in);
@@ -216,7 +216,7 @@ void *load_file(const char *name, size_t *size)
 			exit(1);
 		}
 	}
-	if (size) 
+	if (size)
 		*size = offset;
 	if (in != stdin)
 		fclose(in);
@@ -438,6 +438,35 @@ void aw_fel_print_sid(feldev_handle *dev, bool force_workaround)
 	/* output SID in "xxxxxxxx:xxxxxxxx:xxxxxxxx:xxxxxxxx" format */
 	for (unsigned i = 0; i <= 3; i++)
 		printf("%08x%c", key[i], i < 3 ? ':' : '\n');
+}
+
+void aw_fel_dump_sid(feldev_handle *dev)
+{
+	uint32_t buffer[2048 / sizeof(uint32_t)]; /* total SID size is 2K */
+	soc_info_t *soc_info = dev->soc_info;
+
+	if (!soc_info->sid_base || !soc_info->sid_sections) {
+		printf("SID memory maps for your SoC (%s) are unknown.\n",
+			dev->soc_name);
+		return;
+	}
+
+	for (const sid_section *s = soc_info->sid_sections; s->name; s++) {
+		uint32_t count = s->size_bits / 32;
+
+		if (!fel_get_sid(dev, buffer, s->offset, count)) {
+			fprintf(stderr, "Read sid:%s failed\n", s->name);
+			return;
+		}
+
+		printf("%-15s", s->name);
+		for (uint32_t i = 0; i < count; i++) {
+			if (i > 0 && ((i % 8) == 0))
+				printf("\n%-15s", "");
+			printf(" %08x", buffer[i]);
+		}
+		putchar('\n');
+	}
 }
 
 void aw_enable_l2_cache(feldev_handle *dev, soc_info_t *soc_info)
@@ -1368,6 +1397,8 @@ int main(int argc, char **argv)
 			aw_fel_print_sid(handle, false);
 		} else if (strcmp(argv[1], "sid-registers") == 0) {
 			aw_fel_print_sid(handle, true); /* enforce register access */
+		} else if (strcmp(argv[1], "sid-dump") == 0) {
+			aw_fel_dump_sid(handle);
 		} else if (strcmp(argv[1], "write") == 0 && argc > 3) {
 			skip += 2 * file_upload(handle, 1, argc - 2, argv + 2,
 					pflag_active ? progress_bar : NULL);

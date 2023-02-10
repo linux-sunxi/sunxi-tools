@@ -62,6 +62,21 @@ typedef struct {
 } watchdog_info;
 
 /*
+ * sunxi sid sections
+ */
+typedef struct {
+	const char	*name;
+	uint32_t	offset;
+	uint32_t	size_bits;
+} sid_section;
+
+#define SID_SECTION(_name, _offset, _size_bits) {	\
+	.name = _name,					\
+	.offset = _offset,				\
+	.size_bits = _size_bits,			\
+}
+
+/*
  * Each SoC variant may have its own list of memory buffers to be exchanged
  * and the information about the placement of the thunk code, which handles
  * the transition of execution from the BROM FEL code to the U-Boot SPL and
@@ -110,6 +125,7 @@ typedef struct {
 	uint32_t           mmu_tt_addr;  /* MMU translation table address */
 	uint32_t           sid_base;     /* base address for SID registers */
 	uint32_t           sid_offset;   /* offset for SID_KEY[0-3], "root key" */
+	const sid_section *sid_sections; /* sid memory maps */
 	uint32_t           rvbar_reg;    /* MMIO address of RVBARADDR0_L register */
 	const watchdog_info *watchdog;   /* Used for reset */
 	bool               sid_fix;      /* Use SID workaround (read via register) */

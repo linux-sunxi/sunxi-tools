@@ -610,6 +610,15 @@ bool fel_get_sid_root_key(feldev_handle *dev, uint32_t *result,
 	return true;
 }
 
+bool fel_get_sid(feldev_handle *dev, uint32_t *result, uint32_t offset,
+		 size_t count)
+{
+	fel_readl_n(dev, dev->soc_info->sid_base
+		    + dev->soc_info->sid_offset + offset, result, count);
+
+	return true;
+}
+
 /* general functions, "FEL device" management */
 
 static int feldev_get_endpoint(feldev_handle *dev)
