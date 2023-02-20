@@ -187,7 +187,7 @@ const watchdog_info wd_v853_compat = {
 	.reg_mode_value = 0x16aa0001,
 };
 
-const sid_section r40_sid_maps[] = {
+static const sid_section r40_sid_maps[] = {
 	SID_SECTION("chipid",	0x00, 128),
 	SID_SECTION("in",	0x10, 256),
 	SID_SECTION("ssk",	0x30, 128),
@@ -198,6 +198,66 @@ const sid_section r40_sid_maps[] = {
 	SID_SECTION("hdcp_hash",0x7c, 128),
 	SID_SECTION("reserved",	0x90, 896),
 	SID_SECTION(NULL,	0,      0),
+};
+
+static const sid_section h3_sid_maps[] = {
+	SID_SECTION("chipid",		0x00, 128),
+	SID_SECTION("oem_program",	0x10,  32),
+	SID_SECTION("nv1",	 	0x14,  32),
+	SID_SECTION("nv2",	 	0x18,  64),
+	SID_SECTION("rsakey_hash",	0x20, 160),
+	SID_SECTION("thermal",		0x34,  64),
+	SID_SECTION("renewability",	0x3c,  64),
+	SID_SECTION("huk",		0x44, 256),
+	SID_SECTION("rotpk_hash",	0x64, 256),
+	SID_SECTION("ssk",		0x84, 128),
+	SID_SECTION("rssk",		0x94, 256),
+	SID_SECTION("hdcp_hash",	0xb4, 128),
+	SID_SECTION("ek_hash",		0xc4, 128),
+	SID_SECTION("sn",		0xd4, 192),
+	SID_SECTION("nv2_backup",	0xec,  64),
+	SID_SECTION("lcjs",		0xf4,  32),
+	SID_SECTION("debug",		0xf8,  32),
+	SID_SECTION("chip_config",	0xfc,  32),
+	SID_SECTION(NULL,	0,      0),
+};
+
+static const sid_section h6_sid_maps[] = {
+	SID_SECTION("chipid",		 0x00, 128),
+	SID_SECTION("brom_config", 	 0x10,  32),
+	SID_SECTION("thermal",		 0x14,  64),
+	SID_SECTION("tf_zone",		 0x1c, 128),
+	SID_SECTION("oem_program",	 0x2c,  96),
+	SID_SECTION("mac-addr",		 0x38,  64),
+	SID_SECTION("write_protect",	 0x40,  32),
+	SID_SECTION("read-protect",	 0x44,  32),
+	SID_SECTION("lcjs",		 0x48,  32),
+	SID_SECTION("attr",		 0x4c,  32),
+	SID_SECTION("huk",		 0x50,  96),
+	SID_SECTION("vendor_id",	 0x5c,  32),
+	SID_SECTION("huk2",		 0x60, 128),
+	SID_SECTION("rotpk_hash",	 0x70, 256),
+	SID_SECTION("ssk",		 0x90, 128),
+	SID_SECTION("rssk",		 0xa0, 256),
+	SID_SECTION("hdcp_hash",	 0xc0, 128),
+	SID_SECTION("ek_hash",	 	 0xd0, 128),
+	SID_SECTION("sn", 		 0xe0, 192),
+	SID_SECTION("nv1",	 	 0xf8,  32),
+	SID_SECTION("nv2",	 	 0xfc, 224),
+	SID_SECTION("hdcp_pkf",	 	0x118, 128),
+	SID_SECTION("hdcp_duk",	 	0x128, 128),
+	SID_SECTION("backup_key", 	0x138, 576),
+	SID_SECTION("sck0",	 	0x180, 256),
+	SID_SECTION("sck0_mask", 	0x1a0, 256),
+	SID_SECTION("sck1",	 	0x1c0, 256),
+	SID_SECTION("sck1_mask", 	0x1e0, 256),
+	SID_SECTION(NULL,	0,      0)
+};
+
+/* Placeholder for SoCs without a known SID map */
+static const sid_section generic_2k_sid_maps[] = {
+	SID_SECTION("chipid",		0x00,  128),
+	SID_SECTION("unknown",		0x10, 1920),
 };
 
 soc_info_t soc_info_table[] = {
@@ -229,6 +289,7 @@ soc_info_t soc_info_table[] = {
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.sram_size    = 48 * 1024,
 		.sid_base     = 0x01C23800,
+		.sid_sections = generic_2k_sid_maps,
 		.watchdog     = &wd_a10_compat,
 	},{
 		.soc_id       = 0x1650, /* Allwinner A23 */
@@ -238,6 +299,7 @@ soc_info_t soc_info_table[] = {
 		.swap_buffers = ar100_abusing_sram_swap_buffers,
 		.sram_size    = 64 * 1024,
 		.sid_base     = 0x01C23800,
+		.sid_sections = generic_2k_sid_maps,
 		.watchdog     = &wd_h3_compat,
 	},{
 		.soc_id       = 0x1633, /* Allwinner A31 */
@@ -255,6 +317,7 @@ soc_info_t soc_info_table[] = {
 		.swap_buffers = ar100_abusing_sram_swap_buffers,
 		.sram_size    = 32 * 1024,
 		.sid_base     = 0x01C23800,
+		.sid_sections = generic_2k_sid_maps,
 		.watchdog     = &wd_h3_compat,
 	},{
 		.soc_id       = 0x1689, /* Allwinner A64 */
@@ -266,6 +329,7 @@ soc_info_t soc_info_table[] = {
 		.sram_size    = 140 * 1024,
 		.sid_base     = 0x01C14000,
 		.sid_offset   = 0x200,
+		.sid_sections = h3_sid_maps,
 		.rvbar_reg    = 0x017000A0,
 		/* Check L.NOP in the OpenRISC reset vector */
 		.needs_smc_workaround_if_zero_word_at_addr = 0x40004,
@@ -280,6 +344,7 @@ soc_info_t soc_info_table[] = {
 		.sram_size    = 40 * 1024,
 		.sid_base     = 0X01C0E000,
 		.sid_offset   = 0x200,
+		.sid_sections = generic_2k_sid_maps,
 		.watchdog     = &wd_a80,
 	},{
 		.soc_id       = 0x1663, /* Allwinner F1C100s (all new sun3i?) */
@@ -300,6 +365,7 @@ soc_info_t soc_info_table[] = {
 		.sram_size    = 32 * 1024,
 		.sid_base     = 0x01C14000,
 		.sid_offset   = 0x200,
+		.sid_sections = generic_2k_sid_maps,
 		.watchdog     = &wd_h3_compat,
 	},{
 		.soc_id       = 0x1680, /* Allwinner H3, H2+ */
@@ -312,6 +378,7 @@ soc_info_t soc_info_table[] = {
 		.sid_base     = 0x01C14000,
 		.sid_offset   = 0x200,
 		.sid_fix      = true,
+		.sid_sections = h3_sid_maps,
 		/* Check L.NOP in the OpenRISC reset vector */
 		.needs_smc_workaround_if_zero_word_at_addr = 0x40004,
 		.watchdog     = &wd_h3_compat,
@@ -324,6 +391,7 @@ soc_info_t soc_info_table[] = {
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.sram_size    = 60 * 1024,
 		.sid_base     = 0x01C23800,
+		.sid_sections = generic_2k_sid_maps,
 		.watchdog     = &wd_h3_compat,
 	},{
 		.soc_id       = 0x1718, /* Allwinner H5 */
@@ -335,6 +403,7 @@ soc_info_t soc_info_table[] = {
 		.sram_size    = 140 * 1024,
 		.sid_base     = 0x01C14000,
 		.sid_offset   = 0x200,
+		.sid_sections = h3_sid_maps,
 		.rvbar_reg    = 0x017000A0,
 		/* Check L.NOP in the OpenRISC reset vector */
 		.needs_smc_workaround_if_zero_word_at_addr = 0x40004,
@@ -360,6 +429,7 @@ soc_info_t soc_info_table[] = {
 		.sram_size    = 144 * 1024,
 		.sid_base     = 0x03006000,
 		.sid_offset   = 0x200,
+		.sid_sections = generic_2k_sid_maps,
 		.rvbar_reg    = 0x09010040,
 		.watchdog     = &wd_h6_compat,
 	},{
@@ -372,6 +442,7 @@ soc_info_t soc_info_table[] = {
 		.sram_size    = 144 * 1024,
 		.sid_base     = 0x03006000,
 		.sid_offset   = 0x200,
+		.sid_sections = h6_sid_maps,
 		.rvbar_reg    = 0x09010040,
 		/* Check L.NOP in the OpenRISC reset vector */
 		.needs_smc_workaround_if_zero_word_at_addr = 0x100004,
@@ -386,6 +457,7 @@ soc_info_t soc_info_table[] = {
 		.sram_size    = 228 * 1024,
 		.sid_base     = 0x03006000,
 		.sid_offset   = 0x200,
+		.sid_sections = generic_2k_sid_maps,
 		.watchdog     = &wd_h6_compat,
 	},{
 		.soc_id       = 0x1817, /* Allwinner V831 */
@@ -397,6 +469,7 @@ soc_info_t soc_info_table[] = {
 		.sram_size    = 228 * 1024,
 		.sid_base     = 0x03006000,
 		.sid_offset   = 0x200,
+		.sid_sections = generic_2k_sid_maps,
 		.watchdog     = &wd_h6_compat,
 	},{
 		.soc_id       = 0x1823, /* Allwinner H616 */
@@ -408,6 +481,7 @@ soc_info_t soc_info_table[] = {
 		.sram_size    = 207 * 1024,
 		.sid_base     = 0x03006000,
 		.sid_offset   = 0x200,
+		.sid_sections = generic_2k_sid_maps,
 		.rvbar_reg    = 0x09010040,
 		.watchdog     = &wd_h6_compat,
 	},{
@@ -421,6 +495,7 @@ soc_info_t soc_info_table[] = {
 		.sram_size    = 1856 * 1024,
 		.sid_base     = 0x03006000,
 		.sid_offset   = 0x200,
+		.sid_sections = generic_2k_sid_maps,
 		.rvbar_reg    = 0x08100040,
 		.watchdog     = &wd_h6_compat,
 	},{
@@ -433,6 +508,7 @@ soc_info_t soc_info_table[] = {
 		.sram_size    = 132 * 1024,
 		.sid_base     = 0x03006000,
 		.sid_offset   = 0x200,
+		.sid_sections = generic_2k_sid_maps,
 		.icache_fix   = true,
 		.watchdog     = &wd_v853_compat,
 	},{
@@ -445,6 +521,7 @@ soc_info_t soc_info_table[] = {
 		.sram_size    = 160 * 1024,
 		.sid_base     = 0x03006000,
 		.sid_offset   = 0x200,
+		.sid_sections = generic_2k_sid_maps,
 		.icache_fix   = true,
 		.watchdog     = &wd_v853_compat,
 	},{
@@ -457,6 +534,7 @@ soc_info_t soc_info_table[] = {
 		.sram_size    = 136 * 1024,
 		.sid_base     = 0x03006000,
 		.sid_offset   = 0x200,
+		.sid_sections = generic_2k_sid_maps,
 		.watchdog     = &wd_h6_compat,
 	},{
 		.swap_buffers = NULL /* End of the table */
