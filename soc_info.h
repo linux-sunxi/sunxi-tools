@@ -143,5 +143,6 @@ typedef struct {
 void get_soc_name_from_id(soc_name_t buffer, uint32_t soc_id);
 soc_info_t *get_soc_info_from_id(uint32_t soc_id);
 soc_info_t *get_soc_info_from_version(struct aw_fel_version *buf);
+const soc_info_t *get_next_soc(const soc_info_t *prev);
 
 #endif /* _SUNXI_TOOLS_SOC_INFO_H */

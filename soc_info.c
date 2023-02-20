@@ -590,6 +590,33 @@ soc_info_t *get_soc_info_from_version(struct aw_fel_version *buf)
 	return get_soc_info_from_id(buf->soc_id);
 }
 
+/*
+ * Iterate through all supported SoCs. The first call will take NULL as
+ * an argument, subsequent calls pass in the pointer returned by the
+ * previous call. When we reach the end of the list, the function
+ * returns NULL.
+ */
+const soc_info_t *get_next_soc(const soc_info_t *prev)
+{
+	const soc_info_t *soc;
+
+	if (prev == NULL)
+		return &soc_info_table[0];
+
+	for (soc = soc_info_table; soc->swap_buffers; soc++) {
+		if (soc != prev)
+			continue;
+
+		soc++;
+		if (!soc->swap_buffers)		/* end of list? */
+			return NULL;
+
+		return soc;
+	}
+
+	return NULL;				/* prev entry not found */
+}
+
 void get_soc_name_from_id(soc_name_t buffer, uint32_t soc_id)
 {
 	soc_info_t *soc;
