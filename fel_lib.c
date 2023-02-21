@@ -548,7 +548,8 @@ void fel_clrsetbits_le32(feldev_handle *dev,
  * SoCs. This function uses an alternative, register-based approach to retrieve
  * the values.
  */
-static void fel_get_sid_registers(feldev_handle *dev, uint32_t *result)
+static void fel_get_sid_registers(feldev_handle *dev, uint32_t *result,
+				   uint32_t offset, uint32_t length)
 {
 	uint32_t arm_code[] = {
 		/* <sid_read_root_key>: */
@@ -576,9 +577,9 @@ static void fel_get_sid_registers(feldev_handle *dev, uint32_t *result)
 		/* <sid_base>: */
 		htole32(dev->soc_info->sid_base), /* SID base addr */
 		/* <offset>: */
-		htole32(0),			/* first word to read */
+		htole32(offset),		/* first word to read */
 		/* <end>: */
-		htole32(16),			/* where to stop to read */
+		htole32(offset + length),	/* where to stop to read */
 		/* retrieved SID values go here */
 	};
 	/* write and execute code */
@@ -586,44 +587,44 @@ static void fel_get_sid_registers(feldev_handle *dev, uint32_t *result)
 	aw_fel_execute(dev, dev->soc_info->scratch_addr);
 	/* read back the result */
 	aw_fel_read(dev, dev->soc_info->scratch_addr + sizeof(arm_code),
-		    result, 4 * sizeof(uint32_t));
-	for (unsigned i = 0; i < 4; i++)
+		    result, length);
+	for (unsigned i = 0; i < length / 4; i++)
 		result[i] = le32toh(result[i]);
 }
 
-/* Read the SID "root" key (128 bits). You need to pass the device handle,
- * a pointer to a result array capable of receiving at least four 32-bit words,
- * and a flag specifying if the register-access workaround should be enforced.
- * Return value indicates whether the result is expected to be usable:
- * The function will return `false` (and zero the result) if it cannot access
- * the SID registers.
+/**
+ * fel_read_sid() - Read the content of the SID eFuses.
+ * @dev: device handle for the FEL device
+ * @result: pointer of a buffer receiving the content of the eFuses
+ * @offset: beginning of the eFuses area to read, in bytes
+ * @length: length of the eFuses area to read, in bytes
+ * @force_workaround: whether to use the MMIO register based read method
+ *
+ * Read the contents of the non-volatile eFuses stored in the SoC. The size
+ * and supposed usage layout differs between SoCs, but the "root" key
+ * (containing some unique serial number) is always in the first 128 bits.
+ *
+ * Return: 0 if the operation was successful, a negative error code otherwise.
  */
-bool fel_get_sid_root_key(feldev_handle *dev, uint32_t *result,
-			  bool force_workaround)
+int fel_read_sid(feldev_handle *dev, uint32_t *result,
+		 unsigned int offset, unsigned int length,
+		 bool force_workaround)
 {
-	if (!dev->soc_info->sid_base) {
-		/* SID unavailable */
-		for (unsigned i = 0; i < 4; i++) result[i] = 0;
-		return false;
-	}
+	const soc_info_t *soc = dev->soc_info;
 
-	if (dev->soc_info->sid_fix || force_workaround)
+	if (!soc->sid_base)			/* SID unavailable */
+		return -2;
+	if ((offset & 3) || (length & 3))	/* needs to be 32-bit aligned */
+		return -3;
+
+	if (soc->sid_fix || force_workaround)
 		/* Work around SID issues by using ARM thunk code */
-		fel_get_sid_registers(dev, result);
+		fel_get_sid_registers(dev, result, offset, length);
 	else
 		/* Read SID directly from memory */
-		fel_readl_n(dev, dev->soc_info->sid_base
-			       + dev->soc_info->sid_offset, result, 4);
-	return true;
-}
-
-bool fel_get_sid(feldev_handle *dev, uint32_t *result, uint32_t offset,
-		 size_t count)
-{
-	fel_readl_n(dev, dev->soc_info->sid_base
-		    + dev->soc_info->sid_offset + offset, result, count);
-
-	return true;
+		fel_readl_n(dev, soc->sid_base + soc->sid_offset + offset,
+			    result, length);
+	return 0;
 }
 
 /* general functions, "FEL device" management */
@@ -859,7 +860,7 @@ feldev_list_entry *list_fel_devices(size_t *count)
 		strncpy(entry->soc_name, dev->soc_name, sizeof(soc_name_t));
 
 		/* retrieve SID bits */
-		fel_get_sid_root_key(dev, entry->SID, false);
+		fel_read_sid(dev, entry->SID, 0, 16, false);
 
 		feldev_close(dev);
 		free(dev);
