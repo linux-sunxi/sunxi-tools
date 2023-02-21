@@ -433,7 +433,7 @@ void aw_fel_print_sid(feldev_handle *dev, bool force_workaround)
 		pr_info("SID key (e-fuses) at 0x%08X\n",
 			soc_info->sid_base + soc_info->sid_offset);
 	}
-	fel_get_sid_root_key(dev, key, force_workaround);
+	fel_read_sid(dev, key, 0, sizeof(key), force_workaround);
 
 	/* output SID in "xxxxxxxx:xxxxxxxx:xxxxxxxx:xxxxxxxx" format */
 	for (unsigned i = 0; i <= 3; i++)
@@ -454,7 +454,7 @@ void aw_fel_dump_sid(feldev_handle *dev)
 	for (const sid_section *s = soc_info->sid_sections; s->name; s++) {
 		uint32_t count = s->size_bits / 32;
 
-		if (!fel_get_sid(dev, buffer, s->offset, count)) {
+		if (fel_read_sid(dev, buffer, s->offset, count * 4, false)) {
 			fprintf(stderr, "Read sid:%s failed\n", s->name);
 			return;
 		}
