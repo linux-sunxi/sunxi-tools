@@ -42,7 +42,7 @@ sid_key_index	.req	r1
 
 sid_read_root_key:
 	ldr	SID_BASE, sid_base
-	mov	sid_key_index, #0
+	ldr	sid_key_index, offset
 	adr	r3, sid_result			/* result pointer */
 sid_read_loop:
 	mov	r2, sid_key_index, lsl #16	/* PG_INDEX value */
@@ -55,10 +55,11 @@ sid_read_wait:
 	bne	sid_read_wait		/* loop while bit 1 still set */
 
 	ldr	r2, [SID_BASE, #SID_RDKEY]	/* read SID key value */
-	str	r2, [r3, sid_key_index]		/* store SID value */
+	str	r2, [r3], #4			/* store SID value */
 
 	add	sid_key_index, #4
-	cmp	sid_key_index, #16
+	ldr	r2, end
+	cmp	sid_key_index, r2
 	blo	sid_read_loop		/* loop while (sid_key_index < 0x10) */
 
 	mov	r2, #0
@@ -66,7 +67,6 @@ sid_read_wait:
 	bx	lr
 
 sid_base:	.word 0
-sid_result:	.word 0 /* receives the four "root key" 32-bit words */
-		.word 0
-		.word 0
-		.word 0
+offset:		.word 0
+end:		.word 0
+sid_result:	/* receives the values read from the SID registers */

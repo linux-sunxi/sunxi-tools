@@ -551,9 +551,10 @@ void fel_clrsetbits_le32(feldev_handle *dev,
 static void fel_get_sid_registers(feldev_handle *dev, uint32_t *result)
 {
 	uint32_t arm_code[] = {
-		htole32(0xe59f0040), /*    0:  ldr   r0, [pc, #64]           */
-		htole32(0xe3a01000), /*    4:  mov   r1, #0                  */
-		htole32(0xe28f303c), /*    8:  add   r3, pc, #60             */
+		/* <sid_read_root_key>: */
+		htole32(0xe59f0044), /*    0:  ldr   r0, [pc, #68]           */
+		htole32(0xe59f1044), /*    4:  ldr   r1, [pc, #68]           */
+		htole32(0xe28f3048), /*    8:  add   r3, pc, #72             */
 		/* <sid_read_loop>: */
 		htole32(0xe1a02801), /*    c:  lsl   r2, r1, #16             */
 		htole32(0xe3822b2b), /*   10:  orr   r2, r2, #44032          */
@@ -564,14 +565,20 @@ static void fel_get_sid_registers(feldev_handle *dev, uint32_t *result)
 		htole32(0xe3120002), /*   20:  tst   r2, #2                  */
 		htole32(0x1afffffc), /*   24:  bne   1c <sid_read_wait>      */
 		htole32(0xe5902060), /*   28:  ldr   r2, [r0, #96]           */
-		htole32(0xe7832001), /*   2c:  str   r2, [r3, r1]            */
+		htole32(0xe4832004), /*   2c:  str   r2, [r3], #4            */
 		htole32(0xe2811004), /*   30:  add   r1, r1, #4              */
-		htole32(0xe3510010), /*   34:  cmp   r1, #16                 */
-		htole32(0x3afffff3), /*   38:  bcc   c <sid_read_loop>       */
-		htole32(0xe3a02000), /*   3c:  mov   r2, #0                  */
-		htole32(0xe5802040), /*   40:  str   r2, [r0, #64]           */
-		htole32(0xe12fff1e), /*   44:  bx    lr                      */
+		htole32(0xe59f2018), /*   34:  ldr   r2, [pc, #24]           */
+		htole32(0xe1510002), /*   38:  cmp   r1, r2                  */
+		htole32(0x3afffff2), /*   3c:  bcc   c <sid_read_loop>       */
+		htole32(0xe3a02000), /*   40:  mov   r2, #0                  */
+		htole32(0xe5802040), /*   44:  str   r2, [r0, #64]           */
+		htole32(0xe12fff1e), /*   48:  bx    lr                      */
+		/* <sid_base>: */
 		htole32(dev->soc_info->sid_base), /* SID base addr */
+		/* <offset>: */
+		htole32(0),			/* first word to read */
+		/* <end>: */
+		htole32(16),			/* where to stop to read */
 		/* retrieved SID values go here */
 	};
 	/* write and execute code */
