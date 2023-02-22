@@ -116,6 +116,13 @@ Request a warm reset of the core, starting execution in the 64-bit AArch64
 execution state, at <address>.
 .RE
 .PP
+.B wdreset
+.RS 4
+Reset the device by triggering the watchdog with the shortest possible period.
+This will reset the whole SoC, including all on-SoC peripherals, but might not
+affect on-board devices like PMICs or PHYs.
+.RE
+.PP
 .B memmove <dest> <source> <size>
 .RS 4
 Copy <size> bytes within device memory, from <source> to <dest>.
@@ -203,10 +210,18 @@ number, which should be unique to each chip (although there have been reports
 of same SIDs for particular batches of chips).
 .RE
 .PP
-.B sid-register
+.B sid-registers
 .RS 4
 As the "sid" command above, but use the alternative MMIO register access method
-on the device. Some SoCs require this method for reliable results.
+on the device. There are SoCs that require this method due to bugs in the SID
+implementation, those known will automatically choose this workaround when using
+the "sid" command. This command here is to test new SoCs for compliance.
+.RE
+.PP
+.B sid-dump
+.RS 4
+Read the entire SID eFuses array and dump its content. For SoCs with a known
+eFuses layout, this will annotate the known regions.
 .RE
 .PP
 .B clear <address> <length>

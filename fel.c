@@ -1273,6 +1273,9 @@ void usage(const char *cmd) {
 		"	echo-gauge \"some text\"		Update prompt/caption for gauge output\n"
 		"	ver[sion]			Show BROM version\n"
 		"	sid				Retrieve and output 128-bit SID key\n"
+		"	sid-registers			Retrieve and output 128-bit SID key,\n"
+		"					using the MMIO register read method\n"
+		"	sid-dump			Dump the content of all the SID eFuses\n"
 		"	clear address length		Clear memory\n"
 		"	fill address length value	Fill memory\n"
 		, cmd);
