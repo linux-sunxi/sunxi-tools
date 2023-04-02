@@ -258,6 +258,7 @@ static const sid_section h6_sid_maps[] = {
 static const sid_section generic_2k_sid_maps[] = {
 	SID_SECTION("chipid",		0x00,  128),
 	SID_SECTION("unknown",		0x10, 1920),
+	SID_SECTION(NULL, 0, 0),
 };
 
 soc_info_t soc_info_table[] = {
