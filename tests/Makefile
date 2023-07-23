@@ -25,7 +25,7 @@ check: check_all_fex coverage
 check_all_fex: $(BOARDS_DIR)/README unify-fex
 	./test_all_fex.sh $(BOARDS_DIR)
 
-coverage:
+coverage: $(BOARDS_DIR)/README
 	# Usage help / invocation with no args
 	../sunxi-fexc -? 2> /dev/null ; exit 0
 	# Improve code coverage for corner cases (e.g. erroneous parameters)
