@@ -484,6 +484,8 @@ soc_info_t soc_info_table[] = {
 		.sid_offset   = 0x200,
 		.sid_sections = generic_2k_sid_maps,
 		.rvbar_reg    = 0x09010040,
+		.rvbar_reg_alt= 0x08100040,
+		.ver_reg      = 0x03000024,
 		.watchdog     = &wd_h6_compat,
 	},{
 		.soc_id       = 0x1851, /* Allwinner R329 */

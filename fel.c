@@ -1101,6 +1101,14 @@ void aw_rmr_request(feldev_handle *dev, uint32_t entry_point, bool aarch64)
 			 dev->soc_name);
 		return;
 	}
+	/* The H616 has two die variants with different RVBAR locations. */
+	uint32_t rvbar_reg = soc_info->rvbar_reg;
+	if (soc_info->rvbar_reg_alt) {
+		uint32_t ver_reg = fel_readl(dev, soc_info->ver_reg);
+
+		if (ver_reg & 0xff)
+			rvbar_reg = soc_info->rvbar_reg_alt;
+	}
 
 	uint32_t rmr_mode = (1 << 1) | (aarch64 ? 1 : 0); /* RR, AA64 flag */
 	uint32_t arm_code[] = {
@@ -1119,7 +1127,7 @@ void aw_rmr_request(feldev_handle *dev, uint32_t entry_point, bool aarch64)
 		htole32(0xe320f003), /* loop:      wfi                      */
 		htole32(0xeafffffd), /* b          <loop>                   */
 
-		htole32(soc_info->rvbar_reg),
+		htole32(rvbar_reg),
 		htole32(entry_point),
 		htole32(rmr_mode)
 	};
@@ -1128,7 +1136,7 @@ void aw_rmr_request(feldev_handle *dev, uint32_t entry_point, bool aarch64)
 	/* execute the thunk code (triggering a warm reset on the SoC) */
 	pr_info("Store entry point 0x%08X to RVBAR 0x%08X, "
 		"and request warm reset with RMR mode %u...",
-		entry_point, soc_info->rvbar_reg, rmr_mode);
+		entry_point, rvbar_reg, rmr_mode);
 	aw_fel_execute(dev, soc_info->scratch_addr);
 	pr_info(" done.\n");
 }

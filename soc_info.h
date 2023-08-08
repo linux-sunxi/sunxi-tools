@@ -127,6 +127,8 @@ typedef struct {
 	uint32_t           sid_offset;   /* offset for SID_KEY[0-3], "root key" */
 	const sid_section *sid_sections; /* sid memory maps */
 	uint32_t           rvbar_reg;    /* MMIO address of RVBARADDR0_L register */
+	uint32_t           rvbar_reg_alt;/* alternative MMIO address of RVBARADDR0_L register */
+	uint32_t           ver_reg;      /* MMIO address of "Version Register" */
 	const watchdog_info *watchdog;   /* Used for reset */
 	bool               sid_fix;      /* Use SID workaround (read via register) */
 	/* Use I$ workaround (disable I$ before first write to prevent stale thunk */
