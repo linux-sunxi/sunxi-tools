@@ -162,6 +162,14 @@ sram_swap_buffers f1c100s_sram_swap_buffers[] = {
 	{ .size = 0 }  /* End of the table */
 };
 
+/*
+ * Some SoCs put both stacks, BSS and data segments at the end of a comparably
+ * large SRAM, so we don't need to move anything around.
+ */
+sram_swap_buffers no_sram_swap_buffers[] = {
+	{ .size = 0 }  /* End of the table */
+};
+
 const watchdog_info wd_a10_compat = {
 	.reg_mode = 0x01C20C94,
 	.reg_mode_value = 3,
@@ -184,6 +192,11 @@ const watchdog_info wd_h6_compat = {
 
 const watchdog_info wd_v853_compat = {
 	.reg_mode = 0x020500b8,
+	.reg_mode_value = 0x16aa0001,
+};
+
+const watchdog_info wd_a523_compat = {
+	.reg_mode = 0x02050008,
 	.reg_mode_value = 0x16aa0001,
 };
 
@@ -539,6 +552,19 @@ soc_info_t soc_info_table[] = {
 		.sid_offset   = 0x200,
 		.sid_sections = generic_2k_sid_maps,
 		.watchdog     = &wd_h6_compat,
+	},{
+		.soc_id       = 0x1890, /* Allwinner A523 */
+		.name         = "A523",
+		.spl_addr     = 0x20000,
+		.scratch_addr = 0x21000,
+		.thunk_addr   = 0x43e00, .thunk_size = 0x200,
+		.swap_buffers = no_sram_swap_buffers,
+		.sram_size    = 144 * 1024,
+		.sid_base     = 0x03006000,
+		.sid_offset   = 0x200,
+		.sid_sections = generic_2k_sid_maps,
+		.rvbar_reg    = 0x08000040,
+		.watchdog     = &wd_a523_compat,
 	},{
 		.swap_buffers = NULL /* End of the table */
 	}
