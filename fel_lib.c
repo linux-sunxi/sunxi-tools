@@ -623,7 +623,7 @@ int fel_read_sid(feldev_handle *dev, uint32_t *result,
 	else
 		/* Read SID directly from memory */
 		fel_readl_n(dev, soc->sid_base + soc->sid_offset + offset,
-			    result, length);
+			    result, length / 4);
 	return 0;
 }
 
