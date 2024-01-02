@@ -113,6 +113,24 @@ sram_swap_buffers h6_sram_swap_buffers[] = {
 };
 
 /*
+ * T7 SRAM layout:
+ *
+ * SRAM A1: 0x0002_0000 - 0x0002_7fff,  32K contains stacks
+ * SRAM  C: 0x0002_8000 - 0x0004_ffff, 160K full access
+ * SRAM A2: 0x0010_0000 - 0x0010_3fff,  16K OpenRISC
+ *          0x0010_4000 - 0x0011_ffff, 112K full access
+ */
+sram_swap_buffers t7_sram_swap_buffers[] = {
+	/* 0x21C00-0x21FFF (IRQ stack) */
+	{ .buf1 = 0x21C00, .buf2 = 0x4e400, .size = 0x0400 },
+	/* 0x25C00-0x26FFF (Stack) */
+	{ .buf1 = 0x25C00, .buf2 = 0x4e800, .size = 0x1400 },
+	/* 0x27C00-0x27FFF (Something important) */
+	{ .buf1 = 0x27C00, .buf2 = 0x4fc00, .size = 0x0400 },
+	{ .size = 0 }  /* End of the table */
+};
+
+/*
  * V831 has 96KiB SRAM A1 at 0x20000 where the SPL has to be loaded to.
  * SRAM C is continuous with SRAM A1, and both SRAMs are tried to be used
  * by BROM. Memory space is allocated both from the start of SRAM A1 and
@@ -407,6 +425,18 @@ soc_info_t soc_info_table[] = {
 		.sid_base     = 0x01C23800,
 		.sid_sections = generic_2k_sid_maps,
 		.watchdog     = &wd_h3_compat,
+	},{
+		.soc_id       = 0x1708, /* Allwinner T7 */
+		.name         = "T7",
+		.spl_addr     = 0x20000,
+		.scratch_addr = 0x21000,
+		.thunk_addr   = 0x4e200, .thunk_size = 0x200,
+		.swap_buffers = t7_sram_swap_buffers,
+		.sram_size    = 184 * 1024,
+		.sid_base     = 0x03006000,
+		.sid_offset   = 0x200,
+		.sid_sections = generic_2k_sid_maps,
+		.watchdog     = &wd_h6_compat,
 	},{
 		.soc_id       = 0x1718, /* Allwinner H5 */
 		.name         = "H5",
