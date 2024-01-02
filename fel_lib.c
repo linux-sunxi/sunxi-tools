@@ -285,7 +285,9 @@ void aw_fel_write_buffer(feldev_handle *dev, const void *buf, uint32_t offset,
 #define LCODE_MAX_TOTAL  0x100 /* max. words in buffer */
 #define LCODE_MAX_WORDS  (LCODE_MAX_TOTAL - LCODE_ARM_WORDS) /* data words */
 
-/* multiple "readl" from sequential addresses to a destination buffer */
+/* multiple "readl" from sequential addresses to a destination buffer
+ * @length: length of the data to read, in 32bits word.
+ */
 static void aw_fel_readl_n(feldev_handle *dev, uint32_t addr,
 			   uint32_t *dst, size_t count)
 {
@@ -331,6 +333,7 @@ static void aw_fel_readl_n(feldev_handle *dev, uint32_t addr,
 /*
  * aw_fel_readl_n() wrapper that can handle large transfers. If necessary,
  * those will be done in separate 'chunks' of no more than LCODE_MAX_WORDS.
+ * @count: the count of word(32bits) to read.
  */
 void fel_readl_n(feldev_handle *dev, uint32_t addr, uint32_t *dst, size_t count)
 {
@@ -623,7 +626,7 @@ int fel_read_sid(feldev_handle *dev, uint32_t *result,
 	else
 		/* Read SID directly from memory */
 		fel_readl_n(dev, soc->sid_base + soc->sid_offset + offset,
-			    result, length);
+			    result, length / 4);
 	return 0;
 }
 
