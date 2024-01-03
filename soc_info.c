@@ -285,6 +285,29 @@ static const sid_section h6_sid_maps[] = {
 	SID_SECTION(NULL,	0,      0)
 };
 
+static const sid_section t7_sid_maps[] = {
+	SID_SECTION("chipid",		 0x00, 128),
+	SID_SECTION("brom_config",	 0x10,  32),
+	SID_SECTION("thermal",		 0x14,  96),
+	SID_SECTION("tf_zone",		 0x20, 128),
+	SID_SECTION("oem",		 0x30, 128),
+	SID_SECTION("jtag-security",	 0x48,  32),
+	SID_SECTION("jtag-attr",	 0x4c,  32),
+	SID_SECTION("in",		 0x50, 192),
+	SID_SECTION("operator-id",	 0x68,  32),
+	SID_SECTION("id",		 0x6c,  32),
+	SID_SECTION("rotpk",		 0x70, 256),
+	SID_SECTION("ssk",		 0x90, 128),
+	SID_SECTION("rssk",		 0xa0, 256),
+	SID_SECTION("reserved",		 0xc0, 128),
+	SID_SECTION("ek_hash",	 	 0xd0, 128),
+	SID_SECTION("sn", 		 0xe0, 192),
+	SID_SECTION("nv1",	 	 0xf8,  32),
+	SID_SECTION("nv2",	 	 0xfc, 224),
+	SID_SECTION("reserved2", 	0x118, 320),
+	SID_SECTION(NULL,	0,      0)
+};
+
 /* Placeholder for SoCs without a known SID map */
 static const sid_section generic_2k_sid_maps[] = {
 	SID_SECTION("chipid",		0x00,  128),
@@ -435,7 +458,7 @@ soc_info_t soc_info_table[] = {
 		.sram_size    = 184 * 1024,
 		.sid_base     = 0x03006000,
 		.sid_offset   = 0x200,
-		.sid_sections = generic_2k_sid_maps,
+		.sid_sections = t7_sid_maps,
 		.watchdog     = &wd_h6_compat,
 	},{
 		.soc_id       = 0x1718, /* Allwinner H5 */
