@@ -276,28 +276,22 @@ static u32 soc_id;
 
 void soc_detection_init(void)
 {
+	u32 reg;
 	u32 midr;
+
 	asm volatile("mrc p15, 0, %0, c0, c0, 0" : "=r" (midr));
-
-	if (((midr >> 4) & 0xFFF) == 0xC0F) {
-		soc_id = 0x1639; /* ARM Cortex-A15, so likely Allwinner A80 */
+	if (((midr >> 4) & 0xFFF) == 0xc08) { /* ARM Cortex-A8: A10/A10s/A13 */
+		reg = VER_REG;
+	} else if ((readl(0x03021008) & 0xfff) == 0x43b) {// GICD_IIDR @ NCAT
+		reg = H6_VER_REG;
+	} else if ((readl(0x01c81008) & 0xfff) == 0x43b) {// GICD_IIDR @ legacy
+		reg = VER_REG;
 	} else {
-		u32 reg;
-
-		/*
-		 * This register is GICD_IIDR on H6, but unmapped according to
-		 * other known SoCs' user manuals.
-		 */
-		reg = readl(0x03021008);
-
-		if ((reg & 0xfff) == 0x43b) /* Found GICv2 here, so it's a H6 */
-			reg = H6_VER_REG;
-		else
-			reg = VER_REG;
-
-		set_wbit(reg, 1 << 15);
-		soc_id = readl(reg) >> 16;
+		while (1);				// unknown
 	}
+
+	set_wbit(reg, 1U << 15);
+	soc_id = readl(reg) >> 16;
 }
 
 /* Most SoCs can reliably be distinguished by simply checking their ID value */
