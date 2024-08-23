@@ -170,55 +170,60 @@ enum sunxi_gpio_number {
 #define BIT(x)	(1U << (x))
 #define FLAG_VAR0		0
 #define FLAG_VAR1		BIT(0)
+#define FLAG_NEW_CLOCK		BIT(3)
+#define FLAG_UART_ON_APB1	BIT(4)
+
+#define FLAG_NCAT2		FLAG_NEW_CLOCK
 
 static const struct soc_info {
 	u16	soc_id;
 	char	soc_name[10];
+	u32	ccu_base;
 	u32	uart0_base;
 	u8	flags;
 } soc_table[] = {
-	{ 0x1623, "A10",
+	{ 0x1623, "A10", AW_CCM_BASE,
 		SUNXI_UART0_BASE, },
-	{ 0x1625, "A10s",
+	{ 0x1625, "A10s", AW_CCM_BASE,
 		SUNXI_UART0_BASE, FLAG_VAR0 },
-	{ 0x1625, "A13",
+	{ 0x1625, "A13", AW_CCM_BASE,
 		SUNXI_UART0_BASE, FLAG_VAR1 },
-	{ 0x1633, "A31/A31s",
+	{ 0x1633, "A31/A31s", AW_CCM_BASE,
 		SUNXI_UART0_BASE, },
-	{ 0x1651, "A20",
+	{ 0x1651, "A20", AW_CCM_BASE,
 		SUNXI_UART0_BASE, },
-	{ 0x1663, "F1C100s",
-		SUNIV_UART0_BASE, },
-	{ 0x1689, "A64",
+	{ 0x1663, "F1C100s", AW_CCM_BASE,
+		SUNIV_UART0_BASE, FLAG_UART_ON_APB1 },
+	{ 0x1689, "A64", AW_CCM_BASE,
 		SUNXI_UART0_BASE, },
-	{ 0x1680, "H2+",
+	{ 0x1680, "H2+", AW_CCM_BASE,
 		SUNXI_UART0_BASE, FLAG_VAR1 },
-	{ 0x1680, "H3",
+	{ 0x1680, "H3", AW_CCM_BASE,
 		SUNXI_UART0_BASE, FLAG_VAR0 },
-	{ 0x1681, "V3s",
+	{ 0x1681, "V3s", AW_CCM_BASE,
 		SUNXI_UART0_BASE, },
-	{ 0x1701, "R40",
+	{ 0x1701, "R40", AW_CCM_BASE,
 		SUNXI_UART0_BASE, },
-	{ 0x1708, "T7",
-		H6_UART0_BASE, },
-	{ 0x1718, "H5",
+	{ 0x1708, "T7", H6_CCM_BASE,
+		H6_UART0_BASE, FLAG_NEW_CLOCK },
+	{ 0x1718, "H5", AW_CCM_BASE,
 		SUNXI_UART0_BASE, },
-	{ 0x1719, "A63",
-		H6_UART0_BASE, },
-	{ 0x1721, "V5",
-		H6_UART0_BASE, },
-	{ 0x1728, "H6",
-		H6_UART0_BASE, },
-	{ 0x1817, "V831",
-		H6_UART0_BASE, },
-	{ 0x1823, "H616",
-		H6_UART0_BASE, },
-	{ 0x1851, "R329",
-		R329_UART0_BASE, },
-	{ 0x1859, "R528",
-		R329_UART0_BASE, },
-	{ 0x1886, "V853",
-		R329_UART0_BASE, },
+	{ 0x1719, "A63", H6_CCM_BASE,
+		H6_UART0_BASE, FLAG_NEW_CLOCK },
+	{ 0x1721, "V5", H6_CCM_BASE,
+		H6_UART0_BASE, FLAG_NEW_CLOCK },
+	{ 0x1728, "H6", H6_CCM_BASE,
+		H6_UART0_BASE, FLAG_NEW_CLOCK },
+	{ 0x1817, "V831", H6_CCM_BASE,
+		H6_UART0_BASE, FLAG_NEW_CLOCK },
+	{ 0x1823, "H616", H6_CCM_BASE,
+		H6_UART0_BASE, FLAG_NEW_CLOCK },
+	{ 0x1851, "R329", R329_CCM_BASE,
+		R329_UART0_BASE, FLAG_NCAT2 },
+	{ 0x1859, "R528", R329_CCM_BASE,
+		R329_UART0_BASE, FLAG_NCAT2 },
+	{ 0x1886, "V853", R329_CCM_BASE,
+		R329_UART0_BASE, FLAG_NCAT2 },
 };
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
@@ -476,67 +481,27 @@ int soc_is_h3(void)
  *****************************************************************************/
 
 #define CONFIG_CONS_INDEX	1
-#define APB2_CFG		(AW_CCM_BASE + 0x058)
-#define APB1_GATE		(AW_CCM_BASE + 0x068)
-#define APB2_GATE		(AW_CCM_BASE + 0x06C)
-#define APB1_RESET		(AW_CCM_BASE + 0x2D0)
-#define APB2_RESET		(AW_CCM_BASE + 0x2D8)
-#define APB2_GATE_UART_SHIFT	(16)
-#define APB1_GATE_UART_SHIFT	20
-#define APB2_RESET_UART_SHIFT	(16)
-#define APB1_RESET_UART_SHIFT	20
 
-#define H6_UART_GATE_RESET	(H6_CCM_BASE + 0x90C)
-#define R329_UART_GATE_RESET	(R329_CCM_BASE + 0x90C)
-#define H6_UART_GATE_SHIFT	(0)
-#define H6_UART_RESET_SHIFT	(16)
-
-void clock_init_uart_legacy(void)
+static void clock_init_uart(const struct soc_info *soc)
 {
-	/* Open the clock gate for UART0 */
-	set_wbit(APB2_GATE, 1 << (APB2_GATE_UART_SHIFT + CONFIG_CONS_INDEX - 1));
-	/* Deassert UART0 reset (only needed on A31/A64/H3) */
-	set_wbit(APB2_RESET, 1 << (APB2_RESET_UART_SHIFT + CONFIG_CONS_INDEX - 1));
-}
+	if (soc->flags & FLAG_NEW_CLOCK) {
+		set_wbit(soc->ccu_base + 0x90c,
+			 0x10001 << (CONFIG_CONS_INDEX - 1));
+	} else {
+		int bit = 16 + CONFIG_CONS_INDEX - 1;
+		int gate_ofs = 0x06c;
+		int reset_ofs = 0x2d8;
 
-void clock_init_uart_suniv(void)
-{
-	/* open the clock for uart */
-	set_wbit(APB1_GATE,
-		 1U << (APB1_GATE_UART_SHIFT + CONFIG_CONS_INDEX - 1));
-
-	/* deassert uart reset */
-	set_wbit(APB1_RESET,
-		 1U << (APB1_RESET_UART_SHIFT + CONFIG_CONS_INDEX - 1));
-}
-
-void clock_init_uart_h6(void)
-{
-	/* Open the clock gate for UART0 */
-	set_wbit(H6_UART_GATE_RESET, 1 << (H6_UART_GATE_SHIFT + CONFIG_CONS_INDEX - 1));
-	/* Deassert UART0 reset */
-	set_wbit(H6_UART_GATE_RESET, 1 << (H6_UART_RESET_SHIFT + CONFIG_CONS_INDEX - 1));
-}
-
-void clock_init_uart_r329(void)
-{
-	/* Open the clock gate for UART0 */
-	set_wbit(R329_UART_GATE_RESET, 1 << (H6_UART_GATE_SHIFT + CONFIG_CONS_INDEX - 1));
-	/* Deassert UART0 reset */
-	set_wbit(R329_UART_GATE_RESET, 1 << (H6_UART_RESET_SHIFT + CONFIG_CONS_INDEX - 1));
-}
-
-void clock_init_uart(void)
-{
-	if (soc_is_h6() || soc_is_v831() || soc_is_h616() || soc_is_v5() ||
-	    soc_is_a63() || soc_is_t7())
-		clock_init_uart_h6();
-	else if (soc_is_r329() || soc_is_v853() || soc_is_r528())
-		clock_init_uart_r329();
-	else if (soc_is_suniv())
-		clock_init_uart_suniv();
-	else
-		clock_init_uart_legacy();
+		if (soc->flags & FLAG_UART_ON_APB1) {
+			bit = 20 + CONFIG_CONS_INDEX - 1;
+			gate_ofs = 0x068;
+			reset_ofs = 0x2d0;
+		}
+		/* Open the clock gate for UART0 */
+		set_wbit(soc->ccu_base + gate_ofs, 1U << bit);
+		/* Deassert UART0 reset (not really needed on old SoCs) */
+		set_wbit(soc->ccu_base + reset_ofs, 1U << bit);
+	}
 }
 
 /*****************************************************************************
@@ -665,7 +630,7 @@ static u32 uart0_base;
 
 static void uart0_init(const struct soc_info *soc)
 {
-	clock_init_uart();
+	clock_init_uart(soc);
 
 	uart0_base = soc->uart0_base;
 
