@@ -51,6 +51,12 @@
  */
 
 typedef unsigned int u32;
+typedef unsigned short int u16;
+typedef unsigned char u8;
+
+#ifndef NULL
+#define NULL ((void*)0)
+#endif
 
 #define set_wbit(addr, v)	(*((volatile unsigned long  *)(addr)) |= (unsigned long)(v))
 #define readl(addr)		(*((volatile unsigned long  *)(addr)))
@@ -160,6 +166,76 @@ enum sunxi_gpio_number {
 #define SUNXI_GPIO_PULL_DISABLE (0)
 #define SUNXI_GPIO_PULL_UP      (1)
 #define SUNXI_GPIO_PULL_DOWN    (2)
+
+#define BIT(x)	(1U << (x))
+#define FLAG_VAR0		0
+#define FLAG_VAR1		BIT(0)
+
+static const struct soc_info {
+	u16	soc_id;
+	char	soc_name[10];
+	u8	flags;
+} soc_table[] = {
+	{ 0x1623, "A10",
+		},
+	{ 0x1625, "A10s",
+		FLAG_VAR0 },
+	{ 0x1625, "A13",
+		FLAG_VAR1 },
+	{ 0x1633, "A31/A31s",
+		},
+	{ 0x1651, "A20",
+		},
+	{ 0x1663, "F1C100s",
+		},
+	{ 0x1689, "A64",
+		},
+	{ 0x1680, "H2+",
+		FLAG_VAR1 },
+	{ 0x1680, "H3",
+		FLAG_VAR0 },
+	{ 0x1681, "V3s",
+		},
+	{ 0x1701, "R40",
+		},
+	{ 0x1708, "T7",
+		},
+	{ 0x1718, "H5",
+		},
+	{ 0x1719, "A63",
+		},
+	{ 0x1721, "V5",
+		},
+	{ 0x1728, "H6",
+		},
+	{ 0x1817, "V831",
+		},
+	{ 0x1823, "H616",
+		},
+	{ 0x1851, "R329",
+		},
+	{ 0x1859, "R528",
+		},
+	{ 0x1886, "V853",
+		},
+};
+
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
+
+static const struct soc_info *find_soc_info(int soc_id, int variant)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(soc_table); i++) {
+		if (soc_table[i].soc_id != soc_id)
+			continue;
+
+		if (variant == (soc_table[i].flags & FLAG_VAR1))
+			return &soc_table[i];
+	}
+
+	return NULL;
+}
 
 static u32 pio_base;
 static u32 pio_bank_size, pio_dat_off, pio_pull_off;
@@ -274,10 +350,37 @@ u32 sid_read_key(u32 sid_base, u32 offset)
 
 static u32 soc_id;
 
-void soc_detection_init(void)
+/* A10s and A13 share the same ID, so we need a little more effort on those */
+static int sunxi_get_sun5i_variant(void)
 {
-	u32 reg;
+	if ((readl(SUN4I_SID_BASE + 8) & 0xf000) != 0x7000)
+		return FLAG_VAR1;
+
+	return FLAG_VAR0;
+}
+
+/* H2+ and H3 share the same ID, we can differentiate them by SID_RKEY0 */
+static int sunxi_get_h3_variant(void)
+{
+	u32 sid0 = sid_read_key(SUN8I_SID_BASE, 0);
+
+	/* H2+ uses those SID IDs */
+	if ((sid0 & 0xff) == 0x42 || (sid0 & 0xff) == 0x83)
+		return FLAG_VAR1;
+
+	/*
+	 * Note: according to Allwinner sources, H3 is expected
+	 * to show up as 0x00, 0x81 or ("H3D") 0x58 here.
+	 */
+
+	return FLAG_VAR0;
+}
+
+static const struct soc_info *sunxi_detect_soc(void)
+{
+	int variant = 0;
 	u32 midr;
+	u32 reg;
 
 	asm volatile("mrc p15, 0, %0, c0, c0, 0" : "=r" (midr));
 	if (((midr >> 4) & 0xFFF) == 0xc08) { /* ARM Cortex-A8: A10/A10s/A13 */
@@ -292,6 +395,17 @@ void soc_detection_init(void)
 
 	set_wbit(reg, 1U << 15);
 	soc_id = readl(reg) >> 16;
+
+	switch(soc_id) {
+	case 0x1680:
+		variant = sunxi_get_h3_variant();
+		break;
+	case 0x1625:
+		variant = sunxi_get_sun5i_variant();
+		break;
+	}
+
+	return find_soc_info(soc_id, variant);
 }
 
 /* Most SoCs can reliably be distinguished by simply checking their ID value */
@@ -639,56 +753,18 @@ void bases_init(void)
 
 int main(void)
 {
-	soc_detection_init();
+	const struct soc_info *soc = sunxi_detect_soc();
+
+	if (soc == NULL)
+		return 0;
+
 	bases_init();
 	gpio_init();
 	uart0_init();
 
-	uart0_puts("\nHello from ");
-	if (soc_is_a10())
-		uart0_puts("Allwinner A10!\n");
-	else if (soc_is_a10s())
-		uart0_puts("Allwinner A10s!\n");
-	else if (soc_is_a13())
-		uart0_puts("Allwinner A13!\n");
-	else if (soc_is_a20())
-		uart0_puts("Allwinner A20!\n");
-	else if (soc_is_a31())
-		uart0_puts("Allwinner A31/A31s!\n");
-	else if (soc_is_a64())
-		uart0_puts("Allwinner A64!\n");
-	else if (soc_is_h2_plus())
-		uart0_puts("Allwinner H2+!\n");
-	else if (soc_is_h3())
-		uart0_puts("Allwinner H3!\n");
-	else if (soc_is_h5())
-		uart0_puts("Allwinner H5!\n");
-	else if (soc_is_a63())
-		uart0_puts("Allwinner A63!\n");
-	else if (soc_is_h6())
-		uart0_puts("Allwinner H6!\n");
-	else if (soc_is_h616())
-		uart0_puts("Allwinner H616!\n");
-	else if (soc_is_r329())
-		uart0_puts("Allwinner R329!\n");
-	else if (soc_is_r40())
-		uart0_puts("Allwinner R40!\n");
-	else if (soc_is_v3s())
-		uart0_puts("Allwinner V3s!\n");
-	else if (soc_is_v831())
-		uart0_puts("Allwinner V831!\n");
-	else if (soc_is_v853())
-		uart0_puts("Allwinner V853!\n");
-	else if (soc_is_r528())
-		uart0_puts("Allwinner R528/T113!\n");
-	else if (soc_is_t7())
-		uart0_puts("Allwinner T7!\n");
-	else if (soc_is_v5())
-		uart0_puts("Allwinner V5!\n");
-	else if (soc_is_suniv())
-		uart0_puts("Allwinner F1C100s!\n");
-	else
-		uart0_puts("unknown Allwinner SoC!\n");
+	uart0_puts("\nHello from Allwinner ");
+	uart0_puts(soc->soc_name);
+	uart0_puts("!\n");
 
 	switch (get_boot_device()) {
 	case BOOT_DEVICE_FEL:
