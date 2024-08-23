@@ -143,24 +143,13 @@ enum sunxi_gpio_number {
 #define SUNXI_GPI(_nr)          (SUNXI_GPIO_I_START + (_nr))
 
 /* GPIO pin function config */
-#define SUNXI_GPIO_INPUT        (0)
-#define SUNXI_GPIO_OUTPUT       (1)
-#define SUNIV_GPE_UART0         (5)
-#define SUN4I_GPB_UART0         (2)
-#define SUN5I_GPB_UART0         (2)
-#define SUN6I_GPH_UART0         (2)
-#define SUN8I_H3_GPA_UART0      (2)
-#define SUN8I_R528_GPE_UART0	(6)
-#define SUN8I_V3S_GPB_UART0	(3)
-#define SUN8I_V5_GPB_UART0	(2)
-#define SUN8I_V831_GPH_UART0	(5)
-#define SUN8I_V853_GPH_UART0	(5)
-#define SUN50I_H5_GPA_UART0     (2)
-#define SUN50I_H6_GPH_UART0	(2)
-#define SUN50I_H616_GPH_UART0	(2)
-#define SUN50I_R329_GPB_UART0   (2)
-#define SUN50I_A64_GPB_UART0    (4)
-#define SUNXI_GPF_UART0         (4)
+#define MUX_GPIO_INPUT		0
+#define MUX_GPIO_OUTPUT		1
+#define MUX_2			2
+#define MUX_3			3
+#define MUX_4			4
+#define MUX_5			5
+#define MUX_6			6
 
 /* GPIO pin pull-up/down config */
 #define SUNXI_GPIO_PULL_DISABLE (0)
@@ -170,60 +159,65 @@ enum sunxi_gpio_number {
 #define BIT(x)	(1U << (x))
 #define FLAG_VAR0		0
 #define FLAG_VAR1		BIT(0)
+#define FLAG_UART_ON_PORTF	BIT(1)
+#define FLAG_NEW_GPIO		BIT(2)
 #define FLAG_NEW_CLOCK		BIT(3)
 #define FLAG_UART_ON_APB1	BIT(4)
 
-#define FLAG_NCAT2		FLAG_NEW_CLOCK
+#define FLAG_NCAT2		FLAG_NEW_GPIO | FLAG_NEW_CLOCK
 
 static const struct soc_info {
 	u16	soc_id;
 	char	soc_name[10];
+	u32	pio_base;
 	u32	ccu_base;
 	u32	uart0_base;
+	u16	uart0_tx_pin;
+	u8	uart0_pinmux;
 	u8	flags;
 } soc_table[] = {
-	{ 0x1623, "A10", AW_CCM_BASE,
-		SUNXI_UART0_BASE, },
-	{ 0x1625, "A10s", AW_CCM_BASE,
-		SUNXI_UART0_BASE, FLAG_VAR0 },
-	{ 0x1625, "A13", AW_CCM_BASE,
-		SUNXI_UART0_BASE, FLAG_VAR1 },
-	{ 0x1633, "A31/A31s", AW_CCM_BASE,
-		SUNXI_UART0_BASE, },
-	{ 0x1651, "A20", AW_CCM_BASE,
-		SUNXI_UART0_BASE, },
-	{ 0x1663, "F1C100s", AW_CCM_BASE,
-		SUNIV_UART0_BASE, FLAG_UART_ON_APB1 },
-	{ 0x1689, "A64", AW_CCM_BASE,
-		SUNXI_UART0_BASE, },
-	{ 0x1680, "H2+", AW_CCM_BASE,
-		SUNXI_UART0_BASE, FLAG_VAR1 },
-	{ 0x1680, "H3", AW_CCM_BASE,
-		SUNXI_UART0_BASE, FLAG_VAR0 },
-	{ 0x1681, "V3s", AW_CCM_BASE,
-		SUNXI_UART0_BASE, },
-	{ 0x1701, "R40", AW_CCM_BASE,
-		SUNXI_UART0_BASE, },
-	{ 0x1708, "T7", H6_CCM_BASE,
-		H6_UART0_BASE, FLAG_NEW_CLOCK },
-	{ 0x1718, "H5", AW_CCM_BASE,
-		SUNXI_UART0_BASE, },
-	{ 0x1719, "A63", H6_CCM_BASE,
-		H6_UART0_BASE, FLAG_NEW_CLOCK },
-	{ 0x1721, "V5", H6_CCM_BASE,
-		H6_UART0_BASE, FLAG_NEW_CLOCK },
-	{ 0x1728, "H6", H6_CCM_BASE,
-		H6_UART0_BASE, FLAG_NEW_CLOCK },
-	{ 0x1817, "V831", H6_CCM_BASE,
-		H6_UART0_BASE, FLAG_NEW_CLOCK },
-	{ 0x1823, "H616", H6_CCM_BASE,
-		H6_UART0_BASE, FLAG_NEW_CLOCK },
-	{ 0x1851, "R329", R329_CCM_BASE,
-		R329_UART0_BASE, FLAG_NCAT2 },
-	{ 0x1859, "R528", R329_CCM_BASE,
-		R329_UART0_BASE, FLAG_NCAT2 },
-	{ 0x1886, "V853", R329_CCM_BASE,
-		R329_UART0_BASE, FLAG_NCAT2 },
+	{ 0x1623, "A10", SUNXI_PIO_BASE, AW_CCM_BASE,
+		SUNXI_UART0_BASE, SUNXI_GPB(22), MUX_2 },
+	{ 0x1625, "A10s", SUNXI_PIO_BASE, AW_CCM_BASE,
+		SUNXI_UART0_BASE, SUNXI_GPB(19), MUX_2, FLAG_VAR0 },
+	{ 0x1625, "A13", SUNXI_PIO_BASE, AW_CCM_BASE,
+		SUNXI_UART0_BASE, SUNXI_GPB(19), MUX_2, FLAG_VAR1 | FLAG_UART_ON_PORTF },
+	{ 0x1633, "A31/A31s", SUNXI_PIO_BASE, AW_CCM_BASE,
+		SUNXI_UART0_BASE, SUNXI_GPH(20), MUX_2, },
+	{ 0x1651, "A20", SUNXI_PIO_BASE, AW_CCM_BASE,
+		SUNXI_UART0_BASE, SUNXI_GPB(22), MUX_2 },
+	{ 0x1663, "F1C100s", SUNXI_PIO_BASE, AW_CCM_BASE,
+		SUNIV_UART0_BASE, SUNXI_GPE(0), MUX_5, FLAG_UART_ON_APB1 },
+	{ 0x1689, "A64", SUNXI_PIO_BASE, AW_CCM_BASE,
+		SUNXI_UART0_BASE, SUNXI_GPB(8), MUX_4 },
+	{ 0x1680, "H2+", SUNXI_PIO_BASE, AW_CCM_BASE,
+		SUNXI_UART0_BASE, SUNXI_GPA(4), MUX_2, FLAG_VAR1 },
+	{ 0x1680, "H3", SUNXI_PIO_BASE, AW_CCM_BASE,
+		SUNXI_UART0_BASE, SUNXI_GPA(4), MUX_2, FLAG_VAR0 },
+	{ 0x1681, "V3s", SUNXI_PIO_BASE, AW_CCM_BASE,
+		SUNXI_UART0_BASE, SUNXI_GPB(8), MUX_3 },
+	{ 0x1701, "R40", SUNXI_PIO_BASE, AW_CCM_BASE,
+		SUNXI_UART0_BASE, SUNXI_GPB(22), MUX_2 },
+	{ 0x1708, "T7", H6_PIO_BASE, H6_CCM_BASE,
+		H6_UART0_BASE, SUNXI_GPB(8), MUX_4, FLAG_NEW_CLOCK },
+	{ 0x1718, "H5", SUNXI_PIO_BASE, AW_CCM_BASE,
+		SUNXI_UART0_BASE, SUNXI_GPA(4), MUX_2 },
+	{ 0x1719, "A63", H6_PIO_BASE, H6_CCM_BASE,
+		H6_UART0_BASE, SUNXI_GPB(9), MUX_4, FLAG_NEW_CLOCK },
+	{ 0x1721, "V5", H6_PIO_BASE, H6_CCM_BASE,
+		H6_UART0_BASE, SUNXI_GPB(9), MUX_2, FLAG_NEW_CLOCK },
+	{ 0x1728, "H6", H6_PIO_BASE, H6_CCM_BASE,
+		H6_UART0_BASE, SUNXI_GPH(0), MUX_2, FLAG_NEW_CLOCK },
+	{ 0x1817, "V831", H6_PIO_BASE, H6_CCM_BASE,
+		H6_UART0_BASE, SUNXI_GPH(9), MUX_5, FLAG_NEW_CLOCK },
+	{ 0x1823, "H616", H6_PIO_BASE, H6_CCM_BASE,
+		H6_UART0_BASE, SUNXI_GPH(0), MUX_2, FLAG_NEW_CLOCK },
+	{ 0x1851, "R329", R329_PIO_BASE, R329_CCM_BASE,
+		R329_UART0_BASE, SUNXI_GPB(4), MUX_2, FLAG_NCAT2 },
+	{ 0x1859, "R528", V853_PIO_BASE, R329_CCM_BASE,
+		R329_UART0_BASE, SUNXI_GPE(2), MUX_6, FLAG_NCAT2 },
+	{ 0x1886, "V853", V853_PIO_BASE, R329_CCM_BASE,
+		R329_UART0_BASE, SUNXI_GPH(9), MUX_5, FLAG_NCAT2 },
 };
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
@@ -246,7 +240,7 @@ static const struct soc_info *find_soc_info(int soc_id, int variant)
 static u32 pio_base;
 static u32 pio_bank_size, pio_dat_off, pio_pull_off;
 
-int sunxi_gpio_set_cfgpin(u32 pin, u32 val)
+static int sunxi_gpio_set_cfgpin(u32 pin, u32 val)
 {
 	u32 cfg;
 	u32 bank = GPIO_BANK(pin);
@@ -260,7 +254,7 @@ int sunxi_gpio_set_cfgpin(u32 pin, u32 val)
 	return 0;
 }
 
-int sunxi_gpio_set_pull(u32 pin, u32 val)
+static int sunxi_gpio_set_pull(u32 pin, u32 val)
 {
 	u32 cfg;
 	u32 bank = GPIO_BANK(pin);
@@ -272,44 +266,6 @@ int sunxi_gpio_set_pull(u32 pin, u32 val)
 	cfg |= val << offset;
 	writel(cfg, addr);
 	return 0;
-}
-
-int sunxi_gpio_output(u32 pin, u32 val)
-{
-	u32 dat;
-	u32 bank = GPIO_BANK(pin);
-	u32 num = GPIO_NUM(pin);
-	u32 *addr = GPIO_DAT_BASE(bank);
-	dat = readl(addr);
-	if(val)
-		dat |= 1 << num;
-	else
-		dat &= ~(1 << num);
-	writel(dat, addr);
-	return 0;
-}
-
-int sunxi_gpio_input(u32 pin)
-{
-	u32 dat;
-	u32 bank = GPIO_BANK(pin);
-	u32 num = GPIO_NUM(pin);
-	u32 *addr = GPIO_DAT_BASE(bank);
-	dat = readl(addr);
-	dat >>= num;
-	return (dat & 0x1);
-}
-
-int gpio_direction_input(unsigned gpio)
-{
-	sunxi_gpio_set_cfgpin(gpio, SUNXI_GPIO_INPUT);
-	return sunxi_gpio_input(gpio);
-}
-
-int gpio_direction_output(unsigned gpio, int value)
-{
-	sunxi_gpio_set_cfgpin(gpio, SUNXI_GPIO_OUTPUT);
-	return sunxi_gpio_output(gpio, value);
 }
 
 /*****************************************************************************
@@ -510,9 +466,11 @@ static void clock_init_uart(const struct soc_info *soc)
  * and they are shared with MMC0.                                            *
  *****************************************************************************/
 
-void gpio_init(void)
+static void gpio_init(const struct soc_info *soc)
 {
-	if (soc_is_v853() || soc_is_r528()) {
+	pio_base = soc->pio_base;
+
+	if (soc->flags & FLAG_NEW_GPIO) {
 		/* GPIO V2 */
 		pio_bank_size = 0x30;
 		pio_dat_off = 0x10;
@@ -524,81 +482,19 @@ void gpio_init(void)
 		pio_pull_off = 0x1c;
 	}
 
-	if (soc_is_a10() || soc_is_a20() || soc_is_r40()) {
-		sunxi_gpio_set_cfgpin(SUNXI_GPB(22), SUN4I_GPB_UART0);
-		sunxi_gpio_set_cfgpin(SUNXI_GPB(23), SUN4I_GPB_UART0);
-		sunxi_gpio_set_pull(SUNXI_GPB(23), SUNXI_GPIO_PULL_UP);
-	} else if (soc_is_a10s()) {
-		sunxi_gpio_set_cfgpin(SUNXI_GPB(19), SUN5I_GPB_UART0);
-		sunxi_gpio_set_cfgpin(SUNXI_GPB(20), SUN5I_GPB_UART0);
-		sunxi_gpio_set_pull(SUNXI_GPB(20), SUNXI_GPIO_PULL_UP);
-	} else if (soc_is_a13()) {
-		/* Disable PB19/PB20 as UART0 to avoid conflict */
-		gpio_direction_input(SUNXI_GPB(19));
-		gpio_direction_input(SUNXI_GPB(20));
+	if (soc->flags & FLAG_UART_ON_PORTF) {
+		/* Disable normal UART0 pins to avoid conflict */
+		sunxi_gpio_set_cfgpin(soc->uart0_tx_pin, MUX_GPIO_INPUT);
+		sunxi_gpio_set_cfgpin(soc->uart0_tx_pin + 1, MUX_GPIO_INPUT);
+
 		/* Use SD breakout board to access UART0 on MMC0 pins */
-		sunxi_gpio_set_cfgpin(SUNXI_GPF(2), SUNXI_GPF_UART0);
-		sunxi_gpio_set_cfgpin(SUNXI_GPF(4), SUNXI_GPF_UART0);
+		sunxi_gpio_set_cfgpin(SUNXI_GPF(2), soc->uart0_pinmux);
+		sunxi_gpio_set_cfgpin(SUNXI_GPF(4), soc->uart0_pinmux);
 		sunxi_gpio_set_pull(SUNXI_GPF(4), SUNXI_GPIO_PULL_UP);
-	} else if (soc_is_a31()) {
-		sunxi_gpio_set_cfgpin(SUNXI_GPH(20), SUN6I_GPH_UART0);
-		sunxi_gpio_set_cfgpin(SUNXI_GPH(21), SUN6I_GPH_UART0);
-		sunxi_gpio_set_pull(SUNXI_GPH(21), SUNXI_GPIO_PULL_UP);
-	} else if (soc_is_a64() || soc_is_t7()) {
-		sunxi_gpio_set_cfgpin(SUNXI_GPB(8), SUN50I_A64_GPB_UART0);
-		sunxi_gpio_set_cfgpin(SUNXI_GPB(9), SUN50I_A64_GPB_UART0);
-		sunxi_gpio_set_pull(SUNXI_GPB(9), SUNXI_GPIO_PULL_UP);
-	} else if (soc_is_h3() || soc_is_h2_plus()) {
-		sunxi_gpio_set_cfgpin(SUNXI_GPA(4), SUN8I_H3_GPA_UART0);
-		sunxi_gpio_set_cfgpin(SUNXI_GPA(5), SUN8I_H3_GPA_UART0);
-		sunxi_gpio_set_pull(SUNXI_GPA(5), SUNXI_GPIO_PULL_UP);
-	} else if (soc_is_h5()) {
-		sunxi_gpio_set_cfgpin(SUNXI_GPA(4), SUN50I_H5_GPA_UART0);
-		sunxi_gpio_set_cfgpin(SUNXI_GPA(5), SUN50I_H5_GPA_UART0);
-		sunxi_gpio_set_pull(SUNXI_GPA(5), SUNXI_GPIO_PULL_UP);
-	} else if (soc_is_a63()) {
-		sunxi_gpio_set_cfgpin(SUNXI_GPB(9), SUN50I_A64_GPB_UART0);
-		sunxi_gpio_set_cfgpin(SUNXI_GPB(10), SUN50I_A64_GPB_UART0);
-		sunxi_gpio_set_pull(SUNXI_GPB(10), SUNXI_GPIO_PULL_UP);
-	} else if (soc_is_h6()) {
-		sunxi_gpio_set_cfgpin(SUNXI_GPH(0), SUN50I_H6_GPH_UART0);
-		sunxi_gpio_set_cfgpin(SUNXI_GPH(1), SUN50I_H6_GPH_UART0);
-		sunxi_gpio_set_pull(SUNXI_GPH(1), SUNXI_GPIO_PULL_UP);
-	} else if (soc_is_h616()) {
-		sunxi_gpio_set_cfgpin(SUNXI_GPH(0), SUN50I_H616_GPH_UART0);
-		sunxi_gpio_set_cfgpin(SUNXI_GPH(1), SUN50I_H616_GPH_UART0);
-		sunxi_gpio_set_pull(SUNXI_GPH(1), SUNXI_GPIO_PULL_UP);
-	} else if (soc_is_r329()) {
-		sunxi_gpio_set_cfgpin(SUNXI_GPB(4), SUN50I_R329_GPB_UART0);
-		sunxi_gpio_set_cfgpin(SUNXI_GPB(5), SUN50I_R329_GPB_UART0);
-		sunxi_gpio_set_pull(SUNXI_GPB(5), SUNXI_GPIO_PULL_UP);
-	} else if (soc_is_v3s()) {
-		sunxi_gpio_set_cfgpin(SUNXI_GPB(8), SUN8I_V3S_GPB_UART0);
-		sunxi_gpio_set_cfgpin(SUNXI_GPB(9), SUN8I_V3S_GPB_UART0);
-		sunxi_gpio_set_pull(SUNXI_GPB(9), SUNXI_GPIO_PULL_UP);
-	} else if (soc_is_v831()) {
-		sunxi_gpio_set_cfgpin(SUNXI_GPH(9), SUN8I_V831_GPH_UART0);
-		sunxi_gpio_set_cfgpin(SUNXI_GPH(10), SUN8I_V831_GPH_UART0);
-		sunxi_gpio_set_pull(SUNXI_GPH(10), SUNXI_GPIO_PULL_UP);
-	} else if (soc_is_v853()) {
-		sunxi_gpio_set_cfgpin(SUNXI_GPH(9), SUN8I_V853_GPH_UART0);
-		sunxi_gpio_set_cfgpin(SUNXI_GPH(10), SUN8I_V853_GPH_UART0);
-		sunxi_gpio_set_pull(SUNXI_GPH(10), SUNXI_GPIO_PULL_UP);
-	} else if (soc_is_r528()) {
-		sunxi_gpio_set_cfgpin(SUNXI_GPE(2), SUN8I_R528_GPE_UART0);
-		sunxi_gpio_set_cfgpin(SUNXI_GPE(3), SUN8I_R528_GPE_UART0);
-		sunxi_gpio_set_pull(SUNXI_GPE(3), SUNXI_GPIO_PULL_UP);
-	} else if (soc_is_v5()) {
-		sunxi_gpio_set_cfgpin(SUNXI_GPB(9), SUN8I_V5_GPB_UART0);
-		sunxi_gpio_set_cfgpin(SUNXI_GPB(10), SUN8I_V5_GPB_UART0);
-		sunxi_gpio_set_pull(SUNXI_GPB(10), SUNXI_GPIO_PULL_UP);
-	} else if (soc_is_suniv()) {
-		sunxi_gpio_set_cfgpin(SUNXI_GPE(0), SUNIV_GPE_UART0);
-		sunxi_gpio_set_cfgpin(SUNXI_GPE(1), SUNIV_GPE_UART0);
-		sunxi_gpio_set_pull(SUNXI_GPE(1), SUNXI_GPIO_PULL_UP);
 	} else {
-		/* Unknown SoC */
-		while (1) {}
+		sunxi_gpio_set_cfgpin(soc->uart0_tx_pin, soc->uart0_pinmux);
+		sunxi_gpio_set_cfgpin(soc->uart0_tx_pin + 1, soc->uart0_pinmux);
+		sunxi_gpio_set_pull(soc->uart0_tx_pin + 1, SUNXI_GPIO_PULL_UP);
 	}
 }
 
@@ -698,22 +594,6 @@ int get_boot_device(void)
 	return BOOT_DEVICE_UNK;
 }
 
-void bases_init(void)
-{
-	if (soc_is_h6() || soc_is_v831() || soc_is_h616() || soc_is_v5() ||
-	    soc_is_a63() || soc_is_t7()) {
-		pio_base = H6_PIO_BASE;
-	} else if (soc_is_r329()) {
-		pio_base = R329_PIO_BASE;
-	} else if (soc_is_v853() || soc_is_r528()) {
-		pio_base = V853_PIO_BASE;
-	} else if (soc_is_suniv()) {
-		pio_base = SUNXI_PIO_BASE;
-	} else {
-		pio_base = SUNXI_PIO_BASE;
-	}
-}
-
 int main(void)
 {
 	const struct soc_info *soc = sunxi_detect_soc();
@@ -721,8 +601,7 @@ int main(void)
 	if (soc == NULL)
 		return 0;
 
-	bases_init();
-	gpio_init();
+	gpio_init(soc);
 	uart0_init(soc);
 
 	uart0_puts("\nHello from Allwinner ");
