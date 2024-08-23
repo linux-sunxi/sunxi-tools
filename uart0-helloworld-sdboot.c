@@ -301,7 +301,7 @@ static int sunxi_gpio_set_pull(u32 pin, u32 val)
 #define SID_OP_LOCK	0xAC	/* Efuse operation lock value */
 #define SID_READ_START	(1 << 1) /* bit 1 of SID_PRCTL, Software Read Start */
 
-u32 sid_read_key(u32 sid_base, u32 offset)
+static u32 sid_read_key(u32 sid_base, u32 offset)
 {
 	u32 reg_val;
 
