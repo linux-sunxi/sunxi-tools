@@ -225,6 +225,8 @@ static const struct soc_info {
 		R329_UART0_BASE, SUNXI_GPE(2), MUX_6, FLAG_NCAT2 },
 	{ 0x1886, "V853", V853_PIO_BASE, R329_CCM_BASE, SRAM_A1_ADDR_20000,
 		R329_UART0_BASE, SUNXI_GPH(9), MUX_5, FLAG_NCAT2 },
+	{ 0x1890, "A523", V853_PIO_BASE, R329_CCM_BASE, SRAM_A1_ADDR_20000,
+		R329_UART0_BASE, SUNXI_GPB(9), MUX_2, FLAG_NCAT2 },
 };
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
@@ -357,6 +359,8 @@ static const struct soc_info *sunxi_detect_soc(void)
 		reg = H6_VER_REG;
 	} else if ((readl(0x01c81008) & 0xfff) == 0x43b) {// GICD_IIDR @ legacy
 		reg = VER_REG;
+	} else if ((readl(0x03400008) & 0xfff) == 0x43b) {// GICD_IIDR @ GIC-600
+		reg = H6_VER_REG;
 	} else {
 		while (1);				// unknown
 	}
