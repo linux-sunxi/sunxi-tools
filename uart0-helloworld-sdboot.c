@@ -174,50 +174,51 @@ enum sunxi_gpio_number {
 static const struct soc_info {
 	u16	soc_id;
 	char	soc_name[10];
+	u32	uart0_base;
 	u8	flags;
 } soc_table[] = {
 	{ 0x1623, "A10",
-		},
+		SUNXI_UART0_BASE, },
 	{ 0x1625, "A10s",
-		FLAG_VAR0 },
+		SUNXI_UART0_BASE, FLAG_VAR0 },
 	{ 0x1625, "A13",
-		FLAG_VAR1 },
+		SUNXI_UART0_BASE, FLAG_VAR1 },
 	{ 0x1633, "A31/A31s",
-		},
+		SUNXI_UART0_BASE, },
 	{ 0x1651, "A20",
-		},
+		SUNXI_UART0_BASE, },
 	{ 0x1663, "F1C100s",
-		},
+		SUNIV_UART0_BASE, },
 	{ 0x1689, "A64",
-		},
+		SUNXI_UART0_BASE, },
 	{ 0x1680, "H2+",
-		FLAG_VAR1 },
+		SUNXI_UART0_BASE, FLAG_VAR1 },
 	{ 0x1680, "H3",
-		FLAG_VAR0 },
+		SUNXI_UART0_BASE, FLAG_VAR0 },
 	{ 0x1681, "V3s",
-		},
+		SUNXI_UART0_BASE, },
 	{ 0x1701, "R40",
-		},
+		SUNXI_UART0_BASE, },
 	{ 0x1708, "T7",
-		},
+		H6_UART0_BASE, },
 	{ 0x1718, "H5",
-		},
+		SUNXI_UART0_BASE, },
 	{ 0x1719, "A63",
-		},
+		H6_UART0_BASE, },
 	{ 0x1721, "V5",
-		},
+		H6_UART0_BASE, },
 	{ 0x1728, "H6",
-		},
+		H6_UART0_BASE, },
 	{ 0x1817, "V831",
-		},
+		H6_UART0_BASE, },
 	{ 0x1823, "H616",
-		},
+		H6_UART0_BASE, },
 	{ 0x1851, "R329",
-		},
+		R329_UART0_BASE, },
 	{ 0x1859, "R528",
-		},
+		R329_UART0_BASE, },
 	{ 0x1886, "V853",
-		},
+		R329_UART0_BASE, },
 };
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
@@ -662,15 +663,17 @@ static u32 uart0_base;
 #define DAT_LEN_8_BITS (3)
 #define LC_8_N_1       (NO_PARITY << 3 | ONE_STOP_BIT << 2 | DAT_LEN_8_BITS)
 
-void uart0_init(void)
+static void uart0_init(const struct soc_info *soc)
 {
 	clock_init_uart();
+
+	uart0_base = soc->uart0_base;
 
 	/* select dll dlh */
 	writel(0x80, UART0_LCR);
 	/* set baudrate */
 	writel(0, UART0_DLH);
-	if (soc_is_suniv())
+	if (soc->soc_id == 0x1663)
 		writel(BAUD_115200_SUNIV, UART0_DLL);
 	else
 		writel(BAUD_115200, UART0_DLL);
@@ -678,13 +681,13 @@ void uart0_init(void)
 	writel(LC_8_N_1, UART0_LCR);
 }
 
-void uart0_putc(char c)
+static void uart0_putc(char c)
 {
 	while (!(readl(UART0_LSR) & (1 << 6))) {}
 	writel(c, UART0_THR);
 }
 
-void uart0_puts(const char *s)
+static void uart0_puts(const char *s)
 {
 	while (*s) {
 		if (*s == '\n')
@@ -735,19 +738,14 @@ void bases_init(void)
 	if (soc_is_h6() || soc_is_v831() || soc_is_h616() || soc_is_v5() ||
 	    soc_is_a63() || soc_is_t7()) {
 		pio_base = H6_PIO_BASE;
-		uart0_base = H6_UART0_BASE;
 	} else if (soc_is_r329()) {
 		pio_base = R329_PIO_BASE;
-		uart0_base = R329_UART0_BASE;
 	} else if (soc_is_v853() || soc_is_r528()) {
 		pio_base = V853_PIO_BASE;
-		uart0_base = R329_UART0_BASE;
 	} else if (soc_is_suniv()) {
 		pio_base = SUNXI_PIO_BASE;
-		uart0_base = SUNIV_UART0_BASE;
 	} else {
 		pio_base = SUNXI_PIO_BASE;
-		uart0_base = SUNXI_UART0_BASE;
 	}
 }
 
@@ -760,7 +758,7 @@ int main(void)
 
 	bases_init();
 	gpio_init();
-	uart0_init();
+	uart0_init(soc);
 
 	uart0_puts("\nHello from Allwinner ");
 	uart0_puts(soc->soc_name);
