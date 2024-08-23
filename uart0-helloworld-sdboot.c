@@ -79,6 +79,12 @@ typedef unsigned char u8;
 #define V853_PIO_BASE		0x02000000
 
 #define SUNIV_UART0_BASE	0x01c25000
+
+#define SRAM_A1_ADDR_0		0x00000000
+#define SRAM_A1_ADDR_10000	0x00010000
+#define SRAM_A1_ADDR_20000	0x00020000
+#define SRAM_A1_ADDR_100000	0x00100000
+
 /*****************************************************************************
  * GPIO code, borrowed from U-Boot                                           *
  *****************************************************************************/
@@ -171,52 +177,53 @@ static const struct soc_info {
 	char	soc_name[10];
 	u32	pio_base;
 	u32	ccu_base;
+	u32	sram_a1_base;
 	u32	uart0_base;
 	u16	uart0_tx_pin;
 	u8	uart0_pinmux;
 	u8	flags;
 } soc_table[] = {
-	{ 0x1623, "A10", SUNXI_PIO_BASE, AW_CCM_BASE,
+	{ 0x1623, "A10", SUNXI_PIO_BASE, AW_CCM_BASE, SRAM_A1_ADDR_0,
 		SUNXI_UART0_BASE, SUNXI_GPB(22), MUX_2 },
-	{ 0x1625, "A10s", SUNXI_PIO_BASE, AW_CCM_BASE,
+	{ 0x1625, "A10s", SUNXI_PIO_BASE, AW_CCM_BASE, SRAM_A1_ADDR_0,
 		SUNXI_UART0_BASE, SUNXI_GPB(19), MUX_2, FLAG_VAR0 },
-	{ 0x1625, "A13", SUNXI_PIO_BASE, AW_CCM_BASE,
+	{ 0x1625, "A13", SUNXI_PIO_BASE, AW_CCM_BASE, SRAM_A1_ADDR_0,
 		SUNXI_UART0_BASE, SUNXI_GPB(19), MUX_2, FLAG_VAR1 | FLAG_UART_ON_PORTF },
-	{ 0x1633, "A31/A31s", SUNXI_PIO_BASE, AW_CCM_BASE,
+	{ 0x1633, "A31/A31s", SUNXI_PIO_BASE, AW_CCM_BASE, SRAM_A1_ADDR_0,
 		SUNXI_UART0_BASE, SUNXI_GPH(20), MUX_2, },
-	{ 0x1651, "A20", SUNXI_PIO_BASE, AW_CCM_BASE,
+	{ 0x1651, "A20", SUNXI_PIO_BASE, AW_CCM_BASE, SRAM_A1_ADDR_0,
 		SUNXI_UART0_BASE, SUNXI_GPB(22), MUX_2 },
-	{ 0x1663, "F1C100s", SUNXI_PIO_BASE, AW_CCM_BASE,
+	{ 0x1663, "F1C100s", SUNXI_PIO_BASE, AW_CCM_BASE, SRAM_A1_ADDR_0,
 		SUNIV_UART0_BASE, SUNXI_GPE(0), MUX_5, FLAG_UART_ON_APB1 },
-	{ 0x1689, "A64", SUNXI_PIO_BASE, AW_CCM_BASE,
+	{ 0x1689, "A64", SUNXI_PIO_BASE, AW_CCM_BASE, SRAM_A1_ADDR_10000,
 		SUNXI_UART0_BASE, SUNXI_GPB(8), MUX_4 },
-	{ 0x1680, "H2+", SUNXI_PIO_BASE, AW_CCM_BASE,
+	{ 0x1680, "H2+", SUNXI_PIO_BASE, AW_CCM_BASE, SRAM_A1_ADDR_0,
 		SUNXI_UART0_BASE, SUNXI_GPA(4), MUX_2, FLAG_VAR1 },
-	{ 0x1680, "H3", SUNXI_PIO_BASE, AW_CCM_BASE,
+	{ 0x1680, "H3", SUNXI_PIO_BASE, AW_CCM_BASE, SRAM_A1_ADDR_0,
 		SUNXI_UART0_BASE, SUNXI_GPA(4), MUX_2, FLAG_VAR0 },
-	{ 0x1681, "V3s", SUNXI_PIO_BASE, AW_CCM_BASE,
+	{ 0x1681, "V3s", SUNXI_PIO_BASE, AW_CCM_BASE, SRAM_A1_ADDR_0,
 		SUNXI_UART0_BASE, SUNXI_GPB(8), MUX_3 },
-	{ 0x1701, "R40", SUNXI_PIO_BASE, AW_CCM_BASE,
+	{ 0x1701, "R40", SUNXI_PIO_BASE, AW_CCM_BASE, SRAM_A1_ADDR_0,
 		SUNXI_UART0_BASE, SUNXI_GPB(22), MUX_2 },
-	{ 0x1708, "T7", H6_PIO_BASE, H6_CCM_BASE,
+	{ 0x1708, "T7", H6_PIO_BASE, H6_CCM_BASE, SRAM_A1_ADDR_20000,
 		H6_UART0_BASE, SUNXI_GPB(8), MUX_4, FLAG_NEW_CLOCK },
-	{ 0x1718, "H5", SUNXI_PIO_BASE, AW_CCM_BASE,
+	{ 0x1718, "H5", SUNXI_PIO_BASE, AW_CCM_BASE, SRAM_A1_ADDR_10000,
 		SUNXI_UART0_BASE, SUNXI_GPA(4), MUX_2 },
-	{ 0x1719, "A63", H6_PIO_BASE, H6_CCM_BASE,
+	{ 0x1719, "A63", H6_PIO_BASE, H6_CCM_BASE, SRAM_A1_ADDR_10000,
 		H6_UART0_BASE, SUNXI_GPB(9), MUX_4, FLAG_NEW_CLOCK },
-	{ 0x1721, "V5", H6_PIO_BASE, H6_CCM_BASE,
+	{ 0x1721, "V5", H6_PIO_BASE, H6_CCM_BASE, SRAM_A1_ADDR_20000,
 		H6_UART0_BASE, SUNXI_GPB(9), MUX_2, FLAG_NEW_CLOCK },
-	{ 0x1728, "H6", H6_PIO_BASE, H6_CCM_BASE,
+	{ 0x1728, "H6", H6_PIO_BASE, H6_CCM_BASE, SRAM_A1_ADDR_20000,
 		H6_UART0_BASE, SUNXI_GPH(0), MUX_2, FLAG_NEW_CLOCK },
-	{ 0x1817, "V831", H6_PIO_BASE, H6_CCM_BASE,
+	{ 0x1817, "V831", H6_PIO_BASE, H6_CCM_BASE, SRAM_A1_ADDR_20000,
 		H6_UART0_BASE, SUNXI_GPH(9), MUX_5, FLAG_NEW_CLOCK },
-	{ 0x1823, "H616", H6_PIO_BASE, H6_CCM_BASE,
+	{ 0x1823, "H616", H6_PIO_BASE, H6_CCM_BASE, SRAM_A1_ADDR_20000,
 		H6_UART0_BASE, SUNXI_GPH(0), MUX_2, FLAG_NEW_CLOCK },
-	{ 0x1851, "R329", R329_PIO_BASE, R329_CCM_BASE,
+	{ 0x1851, "R329", R329_PIO_BASE, R329_CCM_BASE, SRAM_A1_ADDR_100000,
 		R329_UART0_BASE, SUNXI_GPB(4), MUX_2, FLAG_NCAT2 },
-	{ 0x1859, "R528", V853_PIO_BASE, R329_CCM_BASE,
+	{ 0x1859, "R528", V853_PIO_BASE, R329_CCM_BASE, SRAM_A1_ADDR_20000,
 		R329_UART0_BASE, SUNXI_GPE(2), MUX_6, FLAG_NCAT2 },
-	{ 0x1886, "V853", V853_PIO_BASE, R329_CCM_BASE,
+	{ 0x1886, "V853", V853_PIO_BASE, R329_CCM_BASE, SRAM_A1_ADDR_20000,
 		R329_UART0_BASE, SUNXI_GPH(9), MUX_5, FLAG_NCAT2 },
 };
 
@@ -570,16 +577,9 @@ void __attribute__((section(".start"))) __attribute__((naked)) start(void)
 
 enum { BOOT_DEVICE_UNK, BOOT_DEVICE_FEL, BOOT_DEVICE_MMC0, BOOT_DEVICE_SPI };
 
-int get_boot_device(void)
+static int get_boot_device(const struct soc_info *soc)
 {
-	u32 *spl_signature = (void *)0x4;
-	if (soc_is_a64() || soc_is_a80() || soc_is_h5())
-		spl_signature = (void *)0x10004;
-	if (soc_is_h6() || soc_is_v831() || soc_is_h616() || soc_is_v853() ||
-	    soc_is_a63())
-		spl_signature = (void *)0x20004;
-	if (soc_is_r329())
-		spl_signature = (void *)0x100004;
+	u32 *spl_signature = (void *)soc->sram_a1_base + 0x4;
 
 	/* Check the eGON.BT0 magic in the SPL header */
 	if (spl_signature[0] != 0x4E4F4765 || spl_signature[1] != 0x3054422E)
@@ -608,7 +608,7 @@ int main(void)
 	uart0_puts(soc->soc_name);
 	uart0_puts("!\n");
 
-	switch (get_boot_device()) {
+	switch (get_boot_device(soc)) {
 	case BOOT_DEVICE_FEL:
 		uart0_puts("Returning back to FEL.\n");
 		return 0;
