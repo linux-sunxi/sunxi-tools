@@ -317,8 +317,6 @@ u32 sid_read_key(u32 sid_base, u32 offset)
 	return reg_val;
 }
 
-static u32 soc_id;
-
 /* A10s and A13 share the same ID, so we need a little more effort on those */
 static int sunxi_get_sun5i_variant(void)
 {
@@ -348,6 +346,7 @@ static int sunxi_get_h3_variant(void)
 static const struct soc_info *sunxi_detect_soc(void)
 {
 	int variant = 0;
+	u32 soc_id;
 	u32 midr;
 	u32 reg;
 
@@ -375,63 +374,6 @@ static const struct soc_info *sunxi_detect_soc(void)
 	}
 
 	return find_soc_info(soc_id, variant);
-}
-
-/* Most SoCs can reliably be distinguished by simply checking their ID value */
-
-#define soc_is_a10()	(soc_id == 0x1623)
-#define soc_is_a20()	(soc_id == 0x1651)
-#define soc_is_a31()	(soc_id == 0x1633)
-#define soc_is_a80()	(soc_id == 0x1639)
-#define soc_is_a64()	(soc_id == 0x1689)
-#define soc_is_h5()	(soc_id == 0x1718)
-#define soc_is_a63()	(soc_id == 0x1719)
-#define soc_is_h6()	(soc_id == 0x1728)
-#define soc_is_h616()	(soc_id == 0x1823)
-#define soc_is_r329()	(soc_id == 0x1851)
-#define soc_is_r40()	(soc_id == 0x1701)
-#define soc_is_t7()	(soc_id == 0x1708)
-#define soc_is_v3s()	(soc_id == 0x1681)
-#define soc_is_v831()	(soc_id == 0x1817)
-#define soc_is_v853()	(soc_id == 0x1886)
-#define soc_is_r528()	(soc_id == 0x1859)
-#define soc_is_v5()	(soc_id == 0x1721)
-#define soc_is_suniv()	(soc_id == 0x1663)
-
-/* A10s and A13 share the same ID, so we need a little more effort on those */
-
-int soc_is_a10s(void)
-{
-	return soc_id == 0x1625 &&
-	       (readl(SUN4I_SID_BASE + 8) & 0xf000) == 0x7000;
-}
-
-int soc_is_a13(void)
-{
-	return soc_id == 0x1625 &&
-	       (readl(SUN4I_SID_BASE + 8) & 0xf000) != 0x7000;
-}
-
-/* H2+ and H3 share the same ID, we can differentiate them by SID_RKEY0 */
-
-int soc_is_h2_plus(void)
-{
-	if (soc_id != 0x1680) return 0;
-
-	u32 sid0 = sid_read_key(SUN8I_SID_BASE, 0);
-	return (sid0 & 0xff) == 0x42 || (sid0 & 0xff) == 0x83;
-}
-
-int soc_is_h3(void)
-{
-	if (soc_id != 0x1680) return 0;
-
-	u32 sid0 = sid_read_key(SUN8I_SID_BASE, 0);
-	/*
-	 * Note: according to Allwinner sources, H3 is expected
-	 * to show up as 0x00, 0x81 or ("H3D") 0x58 here.
-	 */
-	return (sid0 & 0xff) != 0x42 && (sid0 & 0xff) != 0x83;
 }
 
 /*****************************************************************************
