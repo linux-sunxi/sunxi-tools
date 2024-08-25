@@ -67,6 +67,11 @@ typedef unsigned char u8;
 #define AW_CCM_BASE		0x01c20000
 #define AW_SRAMCTRL_BASE	0x01c00000
 
+#define A80_SRAMCTRL_BASE	0x00800000
+#define A80_CCM_BASE		0x06000000
+#define A80_PIO_BASE		0x06000800
+#define A80_UART0_BASE		0x07000000
+
 #define H6_UART0_BASE		0x05000000
 #define H6_PIO_BASE		0x0300B000
 #define H6_CCM_BASE		0x03001000
@@ -169,6 +174,7 @@ enum sunxi_gpio_number {
 #define FLAG_NEW_GPIO		BIT(2)
 #define FLAG_NEW_CLOCK		BIT(3)
 #define FLAG_UART_ON_APB1	BIT(4)
+#define FLAG_A80_CLOCK		BIT(5)
 
 #define FLAG_NCAT2		FLAG_NEW_GPIO | FLAG_NEW_CLOCK
 
@@ -191,6 +197,8 @@ static const struct soc_info {
 		SUNXI_UART0_BASE, SUNXI_GPB(19), MUX_2, FLAG_VAR1 | FLAG_UART_ON_PORTF },
 	{ 0x1633, "A31/A31s", SUNXI_PIO_BASE, AW_CCM_BASE, SRAM_A1_ADDR_0,
 		SUNXI_UART0_BASE, SUNXI_GPH(20), MUX_2, },
+	{ 0x1639, "A80", A80_PIO_BASE, A80_CCM_BASE, SRAM_A1_ADDR_10000,
+		A80_UART0_BASE, SUNXI_GPH(12), MUX_2, FLAG_A80_CLOCK },
 	{ 0x1651, "A20", SUNXI_PIO_BASE, AW_CCM_BASE, SRAM_A1_ADDR_0,
 		SUNXI_UART0_BASE, SUNXI_GPB(22), MUX_2 },
 	{ 0x1663, "F1C100s", SUNXI_PIO_BASE, AW_CCM_BASE, SRAM_A1_ADDR_0,
@@ -296,6 +304,7 @@ static int sunxi_gpio_set_pull(u32 pin, u32 val)
 
 #define VER_REG			(AW_SRAMCTRL_BASE + 0x24)
 #define H6_VER_REG		(H6_SRAMCTRL_BASE + 0x24)
+#define A80_VER_REG		(A80_SRAMCTRL_BASE + 0x24)
 #define SUN4I_SID_BASE		0x01C23800
 #define SUN8I_SID_BASE		0x01C14000
 
@@ -361,6 +370,8 @@ static const struct soc_info *sunxi_detect_soc(void)
 		reg = H6_VER_REG;
 	} else if ((readl(0x01c81008) & 0xfff) == 0x43b) {// GICD_IIDR @ legacy
 		reg = VER_REG;
+	} else if ((readl(0x01c41008) & 0xfff) == 0x43b) {// GICD_IIDR @ A80
+		reg = A80_VER_REG;
 	} else if ((readl(0x03400008) & 0xfff) == 0x43b) {// GICD_IIDR @ GIC-600
 		reg = H6_VER_REG;
 	} else {
@@ -407,6 +418,9 @@ static void clock_init_uart(const struct soc_info *soc)
 			bit = 20 + CONFIG_CONS_INDEX - 1;
 			gate_ofs = 0x068;
 			reset_ofs = 0x2d0;
+		} else if (soc->flags & FLAG_A80_CLOCK) {
+			gate_ofs = 0x594;
+			reset_ofs = 0x5b4;
 		}
 		/* Open the clock gate for UART0 */
 		set_wbit(soc->ccu_base + gate_ofs, 1U << bit);
