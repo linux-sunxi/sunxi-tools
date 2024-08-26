@@ -617,6 +617,7 @@ soc_info_t soc_info_table[] = {
 		.sid_offset   = 0x200,
 		.sid_sections = generic_2k_sid_maps,
 		.rvbar_reg    = 0x08000040,
+		.icache_fix   = true,
 		.watchdog     = &wd_a523_compat,
 	},{
 		.swap_buffers = NULL /* End of the table */
