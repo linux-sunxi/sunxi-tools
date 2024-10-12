@@ -48,7 +48,7 @@ def tool_exists(tool_name)
 end
 
 def parse_stack_usage(filename)
-  return unless File.exists?(filename)
+  return unless File.exist?(filename)
   File.read(filename).strip.split("\n").map do |l|
     if l =~ /\:([^\:\s]+)\s+(\d+)\s+(\S+)/
       if $3 != "static"
