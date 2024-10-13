@@ -89,4 +89,7 @@ bool aw_fel_remotefunc_prepare(feldev_handle *dev,
 			       uint32_t             *args);
 bool aw_fel_remotefunc_execute(feldev_handle *dev, uint32_t *result);
 
+/* check for virtual machine (USB emulation) */
+const char *fel_check_vm(void);
+
 #endif /* _SUNXI_TOOLS_FEL_LIB_H */
