@@ -627,6 +627,56 @@ int fel_read_sid(feldev_handle *dev, uint32_t *result,
 	return 0;
 }
 
+int fel_write_sid(feldev_handle *dev, uint32_t *data,
+		 unsigned int offset, unsigned int length)
+{
+	const soc_info_t *soc = dev->soc_info;
+
+	if (!soc->sid_base)			/* SID unavailable */
+		return -2;
+	if ((offset & 3) || (length & 3))	/* needs to be 32-bit aligned */
+		return -3;
+	
+	uint32_t arm_code[] = {
+		/* <sid_write>: */
+		htole32(0xe59f0044), /*    0:  ldr   r0, [pc, #68] @ 4c <sid_base> */
+		htole32(0xe59f1044), /*    4:  ldr   r1, [pc, #68] @ 50 <offset> */
+		htole32(0xe28f3048), /*    8:  add   r3, pc, #72 @ 0x48      */
+		/* <sid_write_loop>: */
+		htole32(0xe4932004), /*    c:  ldr   r2, [r3], #4            */
+		htole32(0xe5802050), /*   10:  str   r2, [r0, #80] @ 0x50    */
+		htole32(0xe1a02801), /*   14:  lsl   r2, r1, #16             */
+		htole32(0xe3822b2b), /*   18:  orr   r2, r2, #44032 @ 0xac00 */
+		htole32(0xe3822001), /*   1c:  orr   r2, r2, #1              */
+		htole32(0xe5802040), /*   20:  str   r2, [r0, #64] @ 0x40    */
+		/* <sid_write_wait>: */
+		htole32(0xe5902040), /*   24:  ldr   r2, [r0, #64] @ 0x40    */
+		htole32(0xe3120001), /*   28:  tst   r2, #1                  */
+		htole32(0x1afffffc), /*   2c:  bne   24 <sid_write_wait>     */
+		htole32(0xe2811004), /*   30:  add   r1, r1, #4              */
+		htole32(0xe59f2018), /*   34:  ldr   r2, [pc, #24] @ 54 <end> */
+		htole32(0xe1510002), /*   38:  cmp   r1, r2                  */
+		htole32(0x3afffff2), /*   3c:  bcc   c <sid_write_loop>      */
+		htole32(0xe3a02000), /*   40:  mov   r2, #0                  */
+		htole32(0xe5802040), /*   44:  str   r2, [r0, #64] @ 0x40    */
+		htole32(0xe12fff1e), /*   48:  bx    lr                      */
+		/* <sid_base>: */
+		htole32(dev->soc_info->sid_base),
+		/* <offset>: */
+		htole32(offset),
+		/* <end>: */
+		htole32(offset + length),
+		/* SID data to write should be here */
+	};
+
+	/* write code, write data and execute code */
+	aw_fel_write(dev, arm_code, dev->soc_info->scratch_addr, sizeof(arm_code));
+	aw_fel_write(dev, data, dev->soc_info->scratch_addr + sizeof(arm_code), length);
+	aw_fel_execute(dev, dev->soc_info->scratch_addr);
+
+	return 0;
+}
+
 /* general functions, "FEL device" management */
 
 static int feldev_get_endpoint(feldev_handle *dev)
