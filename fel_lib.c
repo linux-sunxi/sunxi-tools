@@ -201,7 +201,7 @@ static void aw_fel_get_version(feldev_handle *dev, struct aw_fel_version *buf)
 	buf->soc_id = (le32toh(buf->soc_id) >> 8) & 0xFFFF;
 	buf->unknown_0a = le32toh(buf->unknown_0a);
 	buf->protocol = le32toh(buf->protocol);
-	buf->scratchpad = le16toh(buf->scratchpad);
+	buf->scratchpad = le32toh(buf->scratchpad);
 	buf->pad[0] = le32toh(buf->pad[0]);
 	buf->pad[1] = le32toh(buf->pad[1]);
 }
