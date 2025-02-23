@@ -469,6 +469,19 @@ void aw_fel_dump_sid(feldev_handle *dev)
 	}
 }
 
+void aw_fel_writel_sid(feldev_handle *dev, uint32_t offset, uint32_t value)
+{
+	soc_info_t *soc_info = dev->soc_info;
+
+	if (!soc_info->sid_base || !soc_info->sid_sections) {
+		printf("SID memory maps for your SoC (%s) are unknown.\n",
+			dev->soc_name);
+		return;
+	}
+
+	fel_write_sid(dev, &value, offset, 4);
+}
+
 void aw_enable_l2_cache(feldev_handle *dev, soc_info_t *soc_info)
 {
 	uint32_t arm_code[] = {
@@ -1285,6 +1298,7 @@ void usage(const char *cmd) {
 		"	sid-registers			Retrieve and output 128-bit SID key,\n"
 		"					using the MMIO register read method\n"
 		"	sid-dump			Dump the content of all the SID eFuses\n"
+		"	sid-writel offset value		Write 32-bit value to SID eFuses\n"
 		"	clear address length		Clear memory\n"
 		"	fill address length value	Fill memory\n"
 		, cmd);
@@ -1423,6 +1437,9 @@ int main(int argc, char **argv)
 			aw_fel_print_sid(handle, true); /* enforce register access */
 		} else if (strcmp(argv[1], "sid-dump") == 0) {
 			aw_fel_dump_sid(handle);
+		} else if (strcmp(argv[1], "sid-writel") == 0 && argc > 3) {
+			aw_fel_writel_sid(handle, strtoul(argv[2], NULL, 0), strtoul(argv[3], NULL, 0));
+			skip = 3;
 		} else if (strcmp(argv[1], "write") == 0 && argc > 3) {
 			skip += 2 * file_upload(handle, 1, argc - 2, argv + 2,
 					pflag_active ? progress_bar : NULL);
