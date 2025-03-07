@@ -624,6 +624,19 @@ soc_info_t soc_info_table[] = {
 		.icache_fix   = true,
 		.watchdog     = &wd_a523_compat,
 	},{
+		.soc_id       = 0x1699, /* Allwinner B288 */
+		.name         = "B288",
+		.scratch_addr = 0x1000,
+		.mmu_tt_addr  = 0x8000,
+		.thunk_addr   = 0xA200, .thunk_size = 0x200,
+		.swap_buffers = a10_a13_a20_sram_swap_buffers,
+		.sid_base     = 0x01C14000,
+		.sid_sections = h3_sid_maps,
+		.watchdog     = &wd_h3_compat,
+		.sram_size    = 108 * 1024,
+		.sid_offset   = 0x200,
+		.sid_fix      = true,
+	},{
 		.swap_buffers = NULL /* End of the table */
 	}
 };
