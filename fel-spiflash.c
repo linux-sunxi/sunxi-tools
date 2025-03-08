@@ -87,6 +87,10 @@ void fel_writel(feldev_handle *dev, uint32_t addr, uint32_t val);
 #define H6_CCM_SPI_BGR              (0x03001000 + 0x96C)
 #define H6_CCM_SPI0_GATE_RESET      (1 << 0 | 1 << 16)
 
+#define V853_CCM_SPI0_CLK             (0x02001000 + 0x940)
+#define V853_CCM_SPI_BGR              (0x02001000 + 0x96C)
+#define V853_CCM_SPI0_GATE_RESET      (1 << 0 | 1 << 16)
+
 #define SUNIV_GPC_SPI0              (2)
 #define SUNXI_GPC_SPI0              (3)
 #define SUN50I_GPC_SPI0             (4)
@@ -117,6 +121,8 @@ void fel_writel(feldev_handle *dev, uint32_t addr, uint32_t val);
 #define SUN6I_SPI0_TXD              (spi_base(dev) + 0x200)
 #define SUN6I_SPI0_RXD              (spi_base(dev) + 0x300)
 
+#define V853_SPI_BA_CCR             (spi_base(dev) + 0x44)
+
 #define CCM_SPI0_CLK_DIV_BY_2       (0x1000)
 #define CCM_SPI0_CLK_DIV_BY_4       (0x1001)
 #define CCM_SPI0_CLK_DIV_BY_6       (0x1002)
@@ -126,6 +132,8 @@ static uint32_t gpio_base(feldev_handle *dev)
 {
 	soc_info_t *soc_info = dev->soc_info;
 	switch (soc_info->soc_id) {
+	case 0x1886: /* V853 */
+		return 0x02000018;
 	case 0x1816: /* V536 */
 	case 0x1817: /* V831 */
 	case 0x1728: /* H6 */
@@ -146,6 +154,8 @@ static uint32_t spi_base(feldev_handle *dev)
 	case 0x1663: /* F1C100s */
 	case 0x1701: /* R40 */
 		return 0x01C05000;
+	case 0x1886: /* V853 */
+		return 0x04025000;
 	case 0x1816: /* V536 */
 	case 0x1817: /* V831 */
 	case 0x1728: /* H6 */
@@ -166,7 +176,7 @@ static void gpio_set_cfgpin(feldev_handle *dev, int port_num, int pin_num,
 	uint32_t cfg_reg   = port_base + 4 * (pin_num / 8);
 	uint32_t pin_idx   = pin_num % 8;
 	uint32_t x = readl(cfg_reg);
-	x &= ~(0x7 << (pin_idx * 4));
+	x &= ~(0xF << (pin_idx * 4));
 	x |= val << (pin_idx * 4);
 	writel(x, cfg_reg);
 }
@@ -192,6 +202,7 @@ static bool soc_is_h6_style(feldev_handle *dev)
 	case 0x1817: /* V831 */
 	case 0x1728: /* H6 */
 	case 0x1823: /* H616 */
+	case 0x1886: /* V853 */
 		return true;
 	default:
 		return false;
@@ -244,6 +255,7 @@ static bool spi0_init(feldev_handle *dev)
 		break;
 	case 0x1816: /* Allwinner V536 */
 	case 0x1817: /* Allwinner V831 */
+	case 0x1886: /* Allwinner V853 */
 		gpio_set_cfgpin(dev, PC, 1, SUN50I_GPC_SPI0);	/* SPI0-CS */
 		/* fall-through */
 	case 0x1728: /* Allwinner H6 */
@@ -265,7 +277,11 @@ static bool spi0_init(feldev_handle *dev)
 		return false;
 	}
 
-	if (soc_is_h6_style(dev)) {
+	if (soc_info->soc_id == 0x1886) { /* V853 */
+		reg_val = readl(V853_CCM_SPI_BGR);
+		reg_val |= V853_CCM_SPI0_GATE_RESET;
+		writel(reg_val, V853_CCM_SPI_BGR);
+	} else if (soc_is_h6_style(dev)) {
 		reg_val = readl(H6_CCM_SPI_BGR);
 		reg_val |= H6_CCM_SPI0_GATE_RESET;
 		writel(reg_val, H6_CCM_SPI_BGR);
@@ -296,6 +312,11 @@ static bool spi0_init(feldev_handle *dev)
 		writel(0x00003180, SUNIV_AHB_APB_CFG);
 		/* divide by 32 */
 		writel(CCM_SPI0_CLK_DIV_BY_32, SUN6I_SPI0_CCTL);
+	} else if (soc_info->soc_id == 0x1886) { /* V853 */
+		/* Divide 24MHz OSC by 4 */
+		writel(CCM_SPI0_CLK_DIV_BY_4, V853_SPI_BA_CCR);
+		/* Choose 24MHz from OSC24M and enable clock */
+		writel((1U << 31), V853_CCM_SPI0_CLK);
 	} else {
 		/* divide 24MHz OSC by 4 */
 		writel(CCM_SPI0_CLK_DIV_BY_4,
