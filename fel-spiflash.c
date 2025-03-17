@@ -154,6 +154,8 @@ static uint32_t spi_base(feldev_handle *dev)
 	case 0x1728: /* H6 */
 	case 0x1823: /* H616 */
 		return 0x05010000;
+	case 0x1859: /* D1/D1s/R528/T113-S3 */
+		return 0x04025000;
 	default:
 		return 0x01C68000;
 	}
@@ -207,6 +209,7 @@ static bool soc_is_h6_style(feldev_handle *dev)
 	case 0x1817: /* V831 */
 	case 0x1728: /* H6 */
 	case 0x1823: /* H616 */
+	case 0x1859: /* D1/D1s/R528/T113-S3 */
 		return true;
 	default:
 		return false;
