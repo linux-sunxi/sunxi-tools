@@ -122,7 +122,7 @@ void fel_writel(feldev_handle *dev, uint32_t addr, uint32_t val);
 #define CCM_SPI0_CLK_DIV_BY_6       (0x1002)
 #define CCM_SPI0_CLK_DIV_BY_32      (0x100f)
 
-static uint32_t gpio_base(feldev_handle *dev)
+static uint32_t gpio_base(feldev_handle *dev, int port_num)
 {
 	soc_info_t *soc_info = dev->soc_info;
 	switch (soc_info->soc_id) {
@@ -130,9 +130,11 @@ static uint32_t gpio_base(feldev_handle *dev)
 	case 0x1817: /* V831 */
 	case 0x1728: /* H6 */
 	case 0x1823: /* H616 */
-		return 0x0300B000;
+		return 0x0300B000 + port_num * 0x24;
+	case 0x1859: /* D1/D1s/R528/T113-S3 */
+		return 0x02000000 + port_num * 0x30;
 	default:
-		return 0x01C20800;
+		return 0x01C20800 + port_num * 0x24;
 	}
 }
 
@@ -174,11 +176,11 @@ static uint32_t ccm_base(feldev_handle *dev)
 static void gpio_set_cfgpin(feldev_handle *dev, int port_num, int pin_num,
 			    int val)
 {
-	uint32_t port_base = gpio_base(dev) + port_num * 0x24;
+	uint32_t port_base = gpio_base(dev, port_num);
 	uint32_t cfg_reg   = port_base + 4 * (pin_num / 8);
 	uint32_t pin_idx   = pin_num % 8;
 	uint32_t x = readl(cfg_reg);
-	x &= ~(0x7 << (pin_idx * 4));
+	x &= ~(0xf << (pin_idx * 4));
 	x |= val << (pin_idx * 4);
 	writel(x, cfg_reg);
 }
