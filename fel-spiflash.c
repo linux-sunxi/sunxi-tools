@@ -90,6 +90,7 @@ void fel_writel(feldev_handle *dev, uint32_t addr, uint32_t val);
 #define SUNIV_GPC_SPI0              (2)
 #define SUNXI_GPC_SPI0              (3)
 #define SUN50I_GPC_SPI0             (4)
+#define SUN8I_GPC_SPI0				(2)
 
 #define SUN4I_CTL_ENABLE            (1 << 0)
 #define SUN4I_CTL_MASTER            (1 << 1)
@@ -272,6 +273,14 @@ static bool spi0_init(feldev_handle *dev)
 		gpio_set_cfgpin(dev, PC, 2, SUN50I_GPC_SPI0);	/* SPI0_MOSI */
 		gpio_set_cfgpin(dev, PC, 3, SUN50I_GPC_SPI0);	/* SPI0_CS0 */
 		gpio_set_cfgpin(dev, PC, 4, SUN50I_GPC_SPI0);	/* SPI0_MISO */
+		break;
+	case 0x1859: /* Allwinner D1/D1s/R528/T113-S3 */
+		gpio_set_cfgpin(dev, PC, 2, SUN8I_GPC_SPI0);	/* SPI0_CLK */
+		gpio_set_cfgpin(dev, PC, 4, SUN8I_GPC_SPI0);	/* SPI0_MOSI */
+		gpio_set_cfgpin(dev, PC, 3, SUN8I_GPC_SPI0);	/* SPI0_CS0 */
+		gpio_set_cfgpin(dev, PC, 5, SUN8I_GPC_SPI0);	/* SPI0_MISO */
+		gpio_set_cfgpin(dev, PC, 6, SUN8I_GPC_SPI0);	/* SPI0_WP */
+		gpio_set_cfgpin(dev, PC, 7, SUN8I_GPC_SPI0);	/* SPI0_HOLD */
 		break;
 	default: /* Unknown/Unsupported SoC */
 		printf("SPI support not implemented yet for %x (%s)!\n",
