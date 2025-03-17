@@ -83,8 +83,8 @@ void fel_writel(feldev_handle *dev, uint32_t addr, uint32_t val);
 #define SUNIV_PLL6_CTL              (0x01c20000 + 0x28)
 #define SUNIV_AHB_APB_CFG           (0x01c20000 + 0x54)
 
-#define H6_CCM_SPI0_CLK             (0x03001000 + 0x940)
-#define H6_CCM_SPI_BGR              (0x03001000 + 0x96C)
+#define H6_CCM_SPI0_CLK             (ccm_base(dev) + 0x940)
+#define H6_CCM_SPI_BGR              (ccm_base(dev) + 0x96C)
 #define H6_CCM_SPI0_GATE_RESET      (1 << 0 | 1 << 16)
 
 #define SUNIV_GPC_SPI0              (2)
@@ -153,6 +153,18 @@ static uint32_t spi_base(feldev_handle *dev)
 		return 0x05010000;
 	default:
 		return 0x01C68000;
+	}
+}
+
+static uint32_t ccm_base(feldev_handle *dev)
+{
+	soc_info_t *soc_info = dev->soc_info;
+	switch (soc_info->soc_id) {
+	case 0x1859: /* D1/D1s/R528/T113-S3 */
+		// CCU
+		return 0x02001000;
+	default:
+		return 0x03001000;
 	}
 }
 
