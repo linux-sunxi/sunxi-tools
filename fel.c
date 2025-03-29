@@ -1355,6 +1355,17 @@ int main(int argc, char **argv)
 		if (*argv[i] == '-')
 			pr_fatal("Invalid option %s\n", argv[i]);
 
+	/* Check for virtual machine */
+	const char *emulation = fel_check_vm();
+	if (emulation) {
+		/* print a warning message, but otherwise try to continue normally */
+		printf("Virtual machine detected! (%s)\n\n", emulation);
+		printf("The FEL protocol (handler in the BROM) is not very robust. Trying to use it\n"
+		       "via emulated USB is known to be problematic on some virtual machines. If you\n"
+		       "insist on doing this, expect spurious errors due to timing issues etc. These\n"
+		       "do _not_ mean that sunxi-fel is at fault, and it can't do anything about it.\n\n");
+	}
+
 	/* Process options that don't require a FEL device handle */
 	if (device_list)
 		felusb_list_devices(); /* and exit program afterwards */
