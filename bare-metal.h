@@ -186,15 +186,27 @@ enum sunxi_gpio_number {
 enum { BOOT_DEVICE_UNK, BOOT_DEVICE_FEL, BOOT_DEVICE_MMC0, BOOT_DEVICE_SPI };
 
 struct soc_info {
-	u16	soc_id;
-	char	soc_name[10];
-	u32	pio_base;
-	u32	ccu_base;
-	u32	sram_a1_base;
-	u32	uart0_base;
-	u16	uart0_tx_pin;
-	u8	uart0_pinmux;
+	u16	id;
+	char	name[10];
 	u8	flags;
+
+	const struct {
+		u32	base;
+	} pio;
+
+	const struct {
+		u32	base;
+	} ccu;
+
+	const struct {
+		u32	a1_base;
+	} sram;
+
+	const struct {
+		u32	base;
+		u16	pin_tx;
+		u8	pinmux;
+	} uart0;
 };
 
 const struct soc_info *sunxi_detect_soc(void);

@@ -53,64 +53,223 @@
 #include "bare-metal.h"
 
 static const struct soc_info soc_table[] = {
-	{ 0x1623, "A10", SUNXI_PIO_BASE, AW_CCM_BASE, SRAM_A1_ADDR_0,
-		SUNXI_UART0_BASE, SUNXI_GPB(22), MUX_2 },
-	{ 0x1625, "A10s", SUNXI_PIO_BASE, AW_CCM_BASE, SRAM_A1_ADDR_0,
-		SUNXI_UART0_BASE, SUNXI_GPB(19), MUX_2, FLAG_VAR0 },
-	{ 0x1625, "A13", SUNXI_PIO_BASE, AW_CCM_BASE, SRAM_A1_ADDR_0,
-		SUNXI_UART0_BASE, SUNXI_GPB(19), MUX_2, FLAG_VAR1 | FLAG_UART_ON_PORTF },
-	{ 0x1633, "A31/A31s", SUNXI_PIO_BASE, AW_CCM_BASE, SRAM_A1_ADDR_0,
-		SUNXI_UART0_BASE, SUNXI_GPH(20), MUX_2, },
-	{ 0x1639, "A80", A80_PIO_BASE, A80_CCM_BASE, SRAM_A1_ADDR_10000,
-		A80_UART0_BASE, SUNXI_GPH(12), MUX_2, FLAG_A80_CLOCK },
-	{ 0x1651, "A20", SUNXI_PIO_BASE, AW_CCM_BASE, SRAM_A1_ADDR_0,
-		SUNXI_UART0_BASE, SUNXI_GPB(22), MUX_2 },
-	{ 0x1663, "F1C100s", SUNXI_PIO_BASE, AW_CCM_BASE, SRAM_A1_ADDR_0,
-		SUNIV_UART0_BASE, SUNXI_GPE(0), MUX_5, FLAG_UART_ON_APB1 },
-	{ 0x1673, "A83T", SUNXI_PIO_BASE, AW_CCM_BASE, SRAM_A1_ADDR_0,
-		SUNXI_UART0_BASE, SUNXI_GPB(9), MUX_2 },
-	{ 0x1689, "A64", SUNXI_PIO_BASE, AW_CCM_BASE, SRAM_A1_ADDR_10000,
-		SUNXI_UART0_BASE, SUNXI_GPB(8), MUX_4 },
-	{ 0x1680, "H2+", SUNXI_PIO_BASE, AW_CCM_BASE, SRAM_A1_ADDR_0,
-		SUNXI_UART0_BASE, SUNXI_GPA(4), MUX_2, FLAG_VAR1 },
-	{ 0x1680, "H3", SUNXI_PIO_BASE, AW_CCM_BASE, SRAM_A1_ADDR_0,
-		SUNXI_UART0_BASE, SUNXI_GPA(4), MUX_2, FLAG_VAR0 },
-	{ 0x1681, "V3s", SUNXI_PIO_BASE, AW_CCM_BASE, SRAM_A1_ADDR_0,
-		SUNXI_UART0_BASE, SUNXI_GPB(8), MUX_3 },
-	{ 0x1701, "R40", SUNXI_PIO_BASE, AW_CCM_BASE, SRAM_A1_ADDR_0,
-		SUNXI_UART0_BASE, SUNXI_GPB(22), MUX_2 },
-	{ 0x1708, "T7", H6_PIO_BASE, H6_CCM_BASE, SRAM_A1_ADDR_20000,
-		H6_UART0_BASE, SUNXI_GPB(8), MUX_4, FLAG_NEW_CLOCK },
-	{ 0x1718, "H5", SUNXI_PIO_BASE, AW_CCM_BASE, SRAM_A1_ADDR_10000,
-		SUNXI_UART0_BASE, SUNXI_GPA(4), MUX_2 },
-	{ 0x1719, "A63", H6_PIO_BASE, H6_CCM_BASE, SRAM_A1_ADDR_10000,
-		H6_UART0_BASE, SUNXI_GPB(9), MUX_4, FLAG_NEW_CLOCK },
-	{ 0x1721, "V5", H6_PIO_BASE, H6_CCM_BASE, SRAM_A1_ADDR_20000,
-		H6_UART0_BASE, SUNXI_GPB(9), MUX_2, FLAG_NEW_CLOCK },
-	{ 0x1728, "H6", H6_PIO_BASE, H6_CCM_BASE, SRAM_A1_ADDR_20000,
-		H6_UART0_BASE, SUNXI_GPH(0), MUX_2, FLAG_NEW_CLOCK },
-	{ 0x1817, "V831", H6_PIO_BASE, H6_CCM_BASE, SRAM_A1_ADDR_20000,
-		H6_UART0_BASE, SUNXI_GPH(9), MUX_5, FLAG_NEW_CLOCK },
-	{ 0x1823, "H616", H6_PIO_BASE, H6_CCM_BASE, SRAM_A1_ADDR_20000,
-		H6_UART0_BASE, SUNXI_GPH(0), MUX_2, FLAG_NEW_CLOCK },
-	{ 0x1851, "R329", R329_PIO_BASE, R329_CCM_BASE, SRAM_A1_ADDR_100000,
-		R329_UART0_BASE, SUNXI_GPB(4), MUX_2, FLAG_NCAT2 },
-	{ 0x1855, "A133", H6_PIO_BASE, H6_CCM_BASE, SRAM_A1_ADDR_20000,
-		H6_UART0_BASE, SUNXI_GPB(9), MUX_2, FLAG_NEW_CLOCK },
-	{ 0x1859, "R528", V853_PIO_BASE, R329_CCM_BASE, SRAM_A1_ADDR_20000,
-		R329_UART0_BASE, SUNXI_GPE(2), MUX_6, FLAG_NCAT2 },
-	{ 0x1886, "V853", V853_PIO_BASE, R329_CCM_BASE, SRAM_A1_ADDR_20000,
-		R329_UART0_BASE, SUNXI_GPH(9), MUX_5, FLAG_NCAT2 },
-	{ 0x1890, "A523", V853_PIO_BASE, R329_CCM_BASE, SRAM_A1_ADDR_20000,
-		R329_UART0_BASE, SUNXI_GPB(9), MUX_2, FLAG_NCAT2 },
+	{
+		.id	= 0x1623,
+		.name	= "A10",
+		.pio	= { SUNXI_PIO_BASE },
+		.ccu	= { AW_CCM_BASE },
+		.sram	= { SRAM_A1_ADDR_0 },
+		.uart0	= { SUNXI_UART0_BASE, SUNXI_GPB(22), MUX_2 },
+	},
+	{
+		.id	= 0x1625,
+		.name	= "A10s",
+		.flags	= FLAG_VAR0,
+		.pio	= { SUNXI_PIO_BASE },
+		.ccu	= { AW_CCM_BASE },
+		.sram	= { SRAM_A1_ADDR_0 },
+		.uart0	= { SUNXI_UART0_BASE, SUNXI_GPB(19), MUX_2 },
+	},
+	{
+		.id	= 0x1625,
+		.name	= "A13",
+		.flags	= FLAG_VAR1 | FLAG_UART_ON_PORTF,
+		.pio	= { SUNXI_PIO_BASE },
+		.ccu	= { AW_CCM_BASE },
+		.sram	= { SRAM_A1_ADDR_0 },
+		.uart0	= { SUNXI_UART0_BASE, SUNXI_GPB(19), MUX_2 },
+	},
+	{
+		.id	= 0x1633,
+		.name	= "A31/A31s",
+		.flags	= FLAG_VAR1,
+		.pio	= { SUNXI_PIO_BASE },
+		.ccu	= { AW_CCM_BASE },
+		.sram	= { SRAM_A1_ADDR_0 },
+		.uart0	= { SUNXI_UART0_BASE, SUNXI_GPH(20), MUX_2 },
+	},
+	{
+		.id	= 0x1639,
+		.name	= "A80",
+		.flags	= FLAG_A80_CLOCK,
+		.pio	= { A80_PIO_BASE },
+		.ccu	= { A80_CCM_BASE },
+		.sram	= { SRAM_A1_ADDR_10000 },
+		.uart0	= { A80_UART0_BASE, SUNXI_GPH(12), MUX_2 },
+	},
+	{
+		.id	= 0x1651,
+		.name	= "A20",
+		.pio	= { SUNXI_PIO_BASE },
+		.ccu	= { AW_CCM_BASE },
+		.sram	= { SRAM_A1_ADDR_0 },
+		.uart0	= { SUNXI_UART0_BASE, SUNXI_GPB(22), MUX_2 },
+	},
+	{
+		.id	= 0x1663,
+		.name	= "F1C100s",
+		.flags	= FLAG_UART_ON_APB1,
+		.pio	= { SUNXI_PIO_BASE },
+		.ccu	= { AW_CCM_BASE },
+		.sram	= { SRAM_A1_ADDR_0 },
+		.uart0	= { SUNIV_UART0_BASE, SUNXI_GPE(0), MUX_5 },
+	},
+	{
+		.id	= 0x1673,
+		.name	= "A83T",
+		.pio	= { SUNXI_PIO_BASE },
+		.ccu	= { AW_CCM_BASE },
+		.sram	= { SRAM_A1_ADDR_0 },
+		.uart0	= { SUNXI_UART0_BASE, SUNXI_GPB(9), MUX_2 },
+	},
+	{
+		.id	= 0x1689,
+		.name	= "A64",
+		.pio	= { SUNXI_PIO_BASE },
+		.ccu	= { AW_CCM_BASE },
+		.sram	= { SRAM_A1_ADDR_10000 },
+		.uart0	= { SUNXI_UART0_BASE, SUNXI_GPB(8), MUX_4 },
+	},
+	{
+		.id	= 0x1680,
+		.name	= "H2+",
+		.flags	= FLAG_VAR1,
+		.pio	= { SUNXI_PIO_BASE },
+		.ccu	= { AW_CCM_BASE },
+		.sram	= { SRAM_A1_ADDR_0 },
+		.uart0	= { SUNXI_UART0_BASE, SUNXI_GPA(4), MUX_2 },
+	},
+	{
+		.id	= 0x1680,
+		.name	= "H3",
+		.flags	= FLAG_VAR0,
+		.pio	= { SUNXI_PIO_BASE },
+		.ccu	= { AW_CCM_BASE },
+		.sram	= { SRAM_A1_ADDR_0 },
+		.uart0	= { SUNXI_UART0_BASE, SUNXI_GPA(4), MUX_2 },
+	},
+	{
+		.id	= 0x1681,
+		.name	= "V3s",
+		.pio	= { SUNXI_PIO_BASE },
+		.ccu	= { AW_CCM_BASE },
+		.sram	= { SRAM_A1_ADDR_0 },
+		.uart0	= { SUNXI_UART0_BASE, SUNXI_GPB(8), MUX_3 },
+	},
+	{
+		.id	= 0x1701,
+		.name	= "R40",
+		.pio	= { SUNXI_PIO_BASE },
+		.ccu	= { AW_CCM_BASE },
+		.sram	= { SRAM_A1_ADDR_0 },
+		.uart0	= { SUNXI_UART0_BASE, SUNXI_GPB(22), MUX_2 },
+	},
+	{
+		.id	= 0x1708,
+		.name	= "T7",
+		.flags	= FLAG_NEW_CLOCK,
+		.pio	= { H6_PIO_BASE },
+		.ccu	= { H6_CCM_BASE },
+		.sram	= { SRAM_A1_ADDR_20000 },
+		.uart0	= { H6_UART0_BASE, SUNXI_GPB(8), MUX_4 },
+	},
+	{
+		.id	= 0x1718,
+		.name	= "H5",
+		.pio	= { SUNXI_PIO_BASE },
+		.ccu	= { AW_CCM_BASE },
+		.sram	= { SRAM_A1_ADDR_10000 },
+		.uart0	= { SUNXI_UART0_BASE, SUNXI_GPA(4), MUX_2 },
+	},
+	{
+		.id	= 0x1719,
+		.name	= "A63",
+		.flags	= FLAG_NEW_CLOCK,
+		.pio	= { H6_PIO_BASE },
+		.ccu	= { H6_CCM_BASE },
+		.sram	= { SRAM_A1_ADDR_10000 },
+		.uart0	= { H6_UART0_BASE, SUNXI_GPB(9), MUX_4 },
+	},
+	{
+		.id	= 0x1721,
+		.name	= "V5",
+		.flags	= FLAG_NEW_CLOCK,
+		.pio	= { H6_PIO_BASE },
+		.ccu	= { H6_CCM_BASE },
+		.sram	= { SRAM_A1_ADDR_20000 },
+		.uart0	= { H6_UART0_BASE, SUNXI_GPB(9), MUX_2 },
+	},
+	{
+		.id	= 0x1728,
+		.name	= "H6",
+		.flags	= FLAG_NEW_CLOCK,
+		.pio	= { H6_PIO_BASE },
+		.ccu	= { H6_CCM_BASE },
+		.sram	= { SRAM_A1_ADDR_20000 },
+		.uart0	= { H6_UART0_BASE, SUNXI_GPH(0), MUX_2 },
+	},
+	{
+		.id	= 0x1817,
+		.name	= "V831",
+		.flags	= FLAG_NEW_CLOCK,
+		.pio	= { H6_PIO_BASE },
+		.ccu	= { H6_CCM_BASE },
+		.sram	= { SRAM_A1_ADDR_20000 },
+		.uart0	= { H6_UART0_BASE, SUNXI_GPH(9), MUX_5 },
+	},
+	{
+		.id	= 0x1823,
+		.name	= "H616",
+		.flags	= FLAG_NEW_CLOCK,
+		.pio	= { H6_PIO_BASE },
+		.ccu	= { H6_CCM_BASE },
+		.sram	= { SRAM_A1_ADDR_20000 },
+		.uart0	= { H6_UART0_BASE, SUNXI_GPH(0), MUX_2 },
+	},
+	{
+		.id	= 0x1851,
+		.name	= "R329",
+		.flags	= FLAG_NCAT2,
+		.pio	= { R329_PIO_BASE },
+		.ccu	= { R329_CCM_BASE },
+		.sram	= { SRAM_A1_ADDR_100000 },
+		.uart0	= { R329_UART0_BASE, SUNXI_GPB(4), MUX_2 },
+	},
+	{
+		.id	= 0x1859,
+		.name	= "R528",
+		.flags	= FLAG_NCAT2,
+		.pio	= { V853_PIO_BASE },
+		.ccu	= { R329_CCM_BASE },
+		.sram	= { SRAM_A1_ADDR_20000 },
+		.uart0	= { R329_UART0_BASE, SUNXI_GPE(2), MUX_6 },
+	},
+	{
+		.id	= 0x1886,
+		.name	= "V853",
+		.flags	= FLAG_NCAT2,
+		.pio	= { V853_PIO_BASE },
+		.ccu	= { R329_CCM_BASE },
+		.sram	= { SRAM_A1_ADDR_20000 },
+		.uart0	= { R329_UART0_BASE, SUNXI_GPH(9), MUX_5 },
+	},
+	{
+		.id	= 0x1890,
+		.name	= "A523",
+		.flags	= FLAG_NCAT2,
+		.pio	= { V853_PIO_BASE },
+		.ccu	= { R329_CCM_BASE },
+		.sram	= { SRAM_A1_ADDR_20000 },
+		.uart0	= { R329_UART0_BASE, SUNXI_GPB(9), MUX_2 },
+	},
 };
 
-static const struct soc_info *find_soc_info(int soc_id, int variant)
+static const struct soc_info *find_soc_info(int id, int variant)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(soc_table); i++) {
-		if (soc_table[i].soc_id != soc_id)
+		if (soc_table[i].id != id)
 			continue;
 
 		if (variant == (soc_table[i].flags & FLAG_VAR1))
@@ -271,7 +430,7 @@ const struct soc_info *sunxi_detect_soc(void)
 static void clock_init_uart(const struct soc_info *soc)
 {
 	if (soc->flags & FLAG_NEW_CLOCK) {
-		set_wbit(soc->ccu_base + 0x90c,
+		set_wbit(soc->ccu.base + 0x90c,
 			 0x10001 << (CONFIG_CONS_INDEX - 1));
 	} else {
 		int bit = 16 + CONFIG_CONS_INDEX - 1;
@@ -287,9 +446,9 @@ static void clock_init_uart(const struct soc_info *soc)
 			reset_ofs = 0x5b4;
 		}
 		/* Open the clock gate for UART0 */
-		set_wbit(soc->ccu_base + gate_ofs, 1U << bit);
+		set_wbit(soc->ccu.base + gate_ofs, 1U << bit);
 		/* Deassert UART0 reset (not really needed on old SoCs) */
-		set_wbit(soc->ccu_base + reset_ofs, 1U << bit);
+		set_wbit(soc->ccu.base + reset_ofs, 1U << bit);
 	}
 }
 
@@ -301,7 +460,7 @@ static void clock_init_uart(const struct soc_info *soc)
 
 void gpio_init(const struct soc_info *soc)
 {
-	pio_base = soc->pio_base;
+	pio_base = soc->pio.base;
 
 	if (soc->flags & FLAG_NEW_GPIO) {
 		/* GPIO V2 */
@@ -317,17 +476,17 @@ void gpio_init(const struct soc_info *soc)
 
 	if (soc->flags & FLAG_UART_ON_PORTF) {
 		/* Disable normal UART0 pins to avoid conflict */
-		sunxi_gpio_set_cfgpin(soc->uart0_tx_pin, MUX_GPIO_INPUT);
-		sunxi_gpio_set_cfgpin(soc->uart0_tx_pin + 1, MUX_GPIO_INPUT);
+		sunxi_gpio_set_cfgpin(soc->uart0.pin_tx, MUX_GPIO_INPUT);
+		sunxi_gpio_set_cfgpin(soc->uart0.pin_tx + 1, MUX_GPIO_INPUT);
 
 		/* Use SD breakout board to access UART0 on MMC0 pins */
-		sunxi_gpio_set_cfgpin(SUNXI_GPF(2), soc->uart0_pinmux);
-		sunxi_gpio_set_cfgpin(SUNXI_GPF(4), soc->uart0_pinmux);
+		sunxi_gpio_set_cfgpin(SUNXI_GPF(2), soc->uart0.pinmux);
+		sunxi_gpio_set_cfgpin(SUNXI_GPF(4), soc->uart0.pinmux);
 		sunxi_gpio_set_pull(SUNXI_GPF(4), SUNXI_GPIO_PULL_UP);
 	} else {
-		sunxi_gpio_set_cfgpin(soc->uart0_tx_pin, soc->uart0_pinmux);
-		sunxi_gpio_set_cfgpin(soc->uart0_tx_pin + 1, soc->uart0_pinmux);
-		sunxi_gpio_set_pull(soc->uart0_tx_pin + 1, SUNXI_GPIO_PULL_UP);
+		sunxi_gpio_set_cfgpin(soc->uart0.pin_tx, soc->uart0.pinmux);
+		sunxi_gpio_set_cfgpin(soc->uart0.pin_tx + 1, soc->uart0.pinmux);
+		sunxi_gpio_set_pull(soc->uart0.pin_tx + 1, SUNXI_GPIO_PULL_UP);
 	}
 }
 
@@ -361,13 +520,13 @@ void uart0_init(const struct soc_info *soc)
 {
 	clock_init_uart(soc);
 
-	uart0_base = soc->uart0_base;
+	uart0_base = soc->uart0.base;
 
 	/* select dll dlh */
 	writel(0x80, UART0_LCR);
 	/* set baudrate */
 	writel(0, UART0_DLH);
-	if (soc->soc_id == 0x1663)
+	if (soc->id == 0x1663)
 		writel(BAUD_115200_SUNIV, UART0_DLL);
 	else
 		writel(BAUD_115200, UART0_DLL);
@@ -392,7 +551,7 @@ void uart0_puts(const char *s)
 
 int get_boot_device(const struct soc_info *soc)
 {
-	u32 *spl_signature = (void *)soc->sram_a1_base + 0x4;
+	u32 *spl_signature = (void *)soc->sram.a1_base + 0x4;
 
 	/* Check the eGON.BT0 magic in the SPL header */
 	if (spl_signature[0] != 0x4E4F4765 || spl_signature[1] != 0x3054422E)
