@@ -60,6 +60,8 @@ static const struct soc_info soc_table[] = {
 		.ccu	= { AW_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_0 },
 		.uart0	= { SUNXI_UART0_BASE, SUNXI_GPB(22), MUX_2 },
+		.jtag	= { SUNXI_GPF(0), SUNXI_GPF(1), SUNXI_GPF(3),
+			    SUNXI_GPF(5), MUX_4 },
 	},
 	{
 		.id	= 0x1625,
@@ -69,6 +71,8 @@ static const struct soc_info soc_table[] = {
 		.ccu	= { AW_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_0 },
 		.uart0	= { SUNXI_UART0_BASE, SUNXI_GPB(19), MUX_2 },
+		.jtag	= { SUNXI_GPF(0), SUNXI_GPF(1), SUNXI_GPF(3),
+			    SUNXI_GPF(5), MUX_4 },
 	},
 	{
 		.id	= 0x1625,
@@ -78,6 +82,8 @@ static const struct soc_info soc_table[] = {
 		.ccu	= { AW_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_0 },
 		.uart0	= { SUNXI_UART0_BASE, SUNXI_GPB(19), MUX_2 },
+		.jtag	= { SUNXI_GPF(0), SUNXI_GPF(1), SUNXI_GPF(3),
+			    SUNXI_GPF(5), MUX_4 },
 	},
 	{
 		.id	= 0x1633,
@@ -87,6 +93,8 @@ static const struct soc_info soc_table[] = {
 		.ccu	= { AW_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_0 },
 		.uart0	= { SUNXI_UART0_BASE, SUNXI_GPH(20), MUX_2 },
+		.jtag	= { SUNXI_GPF(0), SUNXI_GPF(1), SUNXI_GPF(3),
+			    SUNXI_GPF(5), MUX_4 },
 	},
 	{
 		.id	= 0x1639,
@@ -96,6 +104,8 @@ static const struct soc_info soc_table[] = {
 		.ccu	= { A80_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_10000 },
 		.uart0	= { A80_UART0_BASE, SUNXI_GPH(12), MUX_2 },
+		.jtag	= { SUNXI_GPF(0), SUNXI_GPF(1), SUNXI_GPF(3),
+			    SUNXI_GPF(5), MUX_4 },
 	},
 	{
 		.id	= 0x1651,
@@ -104,6 +114,8 @@ static const struct soc_info soc_table[] = {
 		.ccu	= { AW_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_0 },
 		.uart0	= { SUNXI_UART0_BASE, SUNXI_GPB(22), MUX_2 },
+		.jtag	= { SUNXI_GPF(5), SUNXI_GPF(3), SUNXI_GPF(1),
+			    SUNXI_GPF(0), MUX_4 },
 	},
 	{
 		.id	= 0x1663,
@@ -113,6 +125,8 @@ static const struct soc_info soc_table[] = {
 		.ccu	= { AW_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_0 },
 		.uart0	= { SUNIV_UART0_BASE, SUNXI_GPE(0), MUX_5 },
+		.jtag	= { SUNXI_GPF(0), SUNXI_GPF(1), SUNXI_GPF(3),
+			    SUNXI_GPF(5), MUX_3 },
 	},
 	{
 		.id	= 0x1673,
@@ -121,6 +135,8 @@ static const struct soc_info soc_table[] = {
 		.ccu	= { AW_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_0 },
 		.uart0	= { SUNXI_UART0_BASE, SUNXI_GPB(9), MUX_2 },
+		.jtag	= { SUNXI_GPF(0), SUNXI_GPF(1), SUNXI_GPF(3),
+			    SUNXI_GPF(5), MUX_3 },
 	},
 	{
 		.id	= 0x1689,
@@ -129,6 +145,8 @@ static const struct soc_info soc_table[] = {
 		.ccu	= { AW_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_10000 },
 		.uart0	= { SUNXI_UART0_BASE, SUNXI_GPB(8), MUX_4 },
+		.jtag	= { SUNXI_GPF(0), SUNXI_GPF(1), SUNXI_GPF(3),
+			    SUNXI_GPF(5), MUX_3 },
 	},
 	{
 		.id	= 0x1680,
@@ -138,6 +156,8 @@ static const struct soc_info soc_table[] = {
 		.ccu	= { AW_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_0 },
 		.uart0	= { SUNXI_UART0_BASE, SUNXI_GPA(4), MUX_2 },
+		.jtag	= { SUNXI_GPF(0), SUNXI_GPF(1), SUNXI_GPF(3),
+			    SUNXI_GPF(5), MUX_3 },
 	},
 	{
 		.id	= 0x1680,
@@ -147,6 +167,8 @@ static const struct soc_info soc_table[] = {
 		.ccu	= { AW_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_0 },
 		.uart0	= { SUNXI_UART0_BASE, SUNXI_GPA(4), MUX_2 },
+		.jtag	= { SUNXI_GPF(0), SUNXI_GPF(1), SUNXI_GPF(3),
+			    SUNXI_GPF(5), MUX_3 },
 	},
 	{
 		.id	= 0x1681,
@@ -155,6 +177,8 @@ static const struct soc_info soc_table[] = {
 		.ccu	= { AW_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_0 },
 		.uart0	= { SUNXI_UART0_BASE, SUNXI_GPB(8), MUX_3 },
+		.jtag	= { SUNXI_GPF(0), SUNXI_GPF(1), SUNXI_GPF(3),
+			    SUNXI_GPF(5), MUX_3 },
 	},
 	{
 		.id	= 0x1701,
@@ -163,6 +187,8 @@ static const struct soc_info soc_table[] = {
 		.ccu	= { AW_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_0 },
 		.uart0	= { SUNXI_UART0_BASE, SUNXI_GPB(22), MUX_2 },
+		.jtag	= { SUNXI_GPF(0), SUNXI_GPF(1), SUNXI_GPF(3),
+			    SUNXI_GPF(5), MUX_4 },
 	},
 	{
 		.id	= 0x1708,
@@ -172,6 +198,8 @@ static const struct soc_info soc_table[] = {
 		.ccu	= { H6_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_20000 },
 		.uart0	= { H6_UART0_BASE, SUNXI_GPB(8), MUX_4 },
+		.jtag	= { SUNXI_GPF(0), SUNXI_GPF(1), SUNXI_GPF(3),
+			    SUNXI_GPF(5), MUX_3 },
 	},
 	{
 		.id	= 0x1718,
@@ -180,6 +208,8 @@ static const struct soc_info soc_table[] = {
 		.ccu	= { AW_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_10000 },
 		.uart0	= { SUNXI_UART0_BASE, SUNXI_GPA(4), MUX_2 },
+		.jtag	= { SUNXI_GPF(0), SUNXI_GPF(1), SUNXI_GPF(3),
+			    SUNXI_GPF(5), MUX_3 },
 	},
 	{
 		.id	= 0x1719,
@@ -189,6 +219,8 @@ static const struct soc_info soc_table[] = {
 		.ccu	= { H6_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_10000 },
 		.uart0	= { H6_UART0_BASE, SUNXI_GPB(9), MUX_4 },
+		.jtag	= { SUNXI_GPF(0), SUNXI_GPF(1), SUNXI_GPF(3),
+			    SUNXI_GPF(5), MUX_3 },
 	},
 	{
 		.id	= 0x1721,
@@ -198,6 +230,8 @@ static const struct soc_info soc_table[] = {
 		.ccu	= { H6_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_20000 },
 		.uart0	= { H6_UART0_BASE, SUNXI_GPB(9), MUX_2 },
+		.jtag	= { SUNXI_GPF(0), SUNXI_GPF(1), SUNXI_GPF(3),
+			    SUNXI_GPF(5), MUX_3 },
 	},
 	{
 		.id	= 0x1728,
@@ -207,6 +241,8 @@ static const struct soc_info soc_table[] = {
 		.ccu	= { H6_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_20000 },
 		.uart0	= { H6_UART0_BASE, SUNXI_GPH(0), MUX_2 },
+		.jtag	= { SUNXI_GPF(0), SUNXI_GPF(1), SUNXI_GPF(3),
+			    SUNXI_GPF(5), MUX_3 },
 	},
 	{
 		.id	= 0x1817,
@@ -216,6 +252,8 @@ static const struct soc_info soc_table[] = {
 		.ccu	= { H6_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_20000 },
 		.uart0	= { H6_UART0_BASE, SUNXI_GPH(9), MUX_5 },
+		.jtag	= { SUNXI_GPF(0), SUNXI_GPF(1), SUNXI_GPF(3),
+			    SUNXI_GPF(5), MUX_3 },
 	},
 	{
 		.id	= 0x1823,
@@ -225,6 +263,8 @@ static const struct soc_info soc_table[] = {
 		.ccu	= { H6_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_20000 },
 		.uart0	= { H6_UART0_BASE, SUNXI_GPH(0), MUX_2 },
+		.jtag	= { SUNXI_GPF(0), SUNXI_GPF(1), SUNXI_GPF(3),
+			    SUNXI_GPF(5), MUX_3 },
 	},
 	{
 		.id	= 0x1851,
@@ -234,6 +274,8 @@ static const struct soc_info soc_table[] = {
 		.ccu	= { R329_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_100000 },
 		.uart0	= { R329_UART0_BASE, SUNXI_GPB(4), MUX_2 },
+		.jtag	= { SUNXI_GPF(0), SUNXI_GPF(1), SUNXI_GPF(3),
+			    SUNXI_GPF(5), MUX_4 },
 	},
 	{
 		.id	= 0x1859,
@@ -243,6 +285,8 @@ static const struct soc_info soc_table[] = {
 		.ccu	= { R329_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_20000 },
 		.uart0	= { R329_UART0_BASE, SUNXI_GPE(2), MUX_6 },
+		.jtag	= { SUNXI_GPF(0), SUNXI_GPF(1), SUNXI_GPF(3),
+			    SUNXI_GPF(5), MUX_3 },
 	},
 	{
 		.id	= 0x1886,
@@ -252,6 +296,8 @@ static const struct soc_info soc_table[] = {
 		.ccu	= { R329_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_20000 },
 		.uart0	= { R329_UART0_BASE, SUNXI_GPH(9), MUX_5 },
+		.jtag	= { SUNXI_GPF(0), SUNXI_GPF(1), SUNXI_GPF(3),
+			    SUNXI_GPF(5), MUX_3 },
 	},
 	{
 		.id	= 0x1890,
@@ -261,6 +307,8 @@ static const struct soc_info soc_table[] = {
 		.ccu	= { R329_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_20000 },
 		.uart0	= { R329_UART0_BASE, SUNXI_GPB(9), MUX_2 },
+		.jtag	= { SUNXI_GPF(0), SUNXI_GPF(1), SUNXI_GPF(3),
+			    SUNXI_GPF(5), MUX_3 },
 	},
 };
 
@@ -487,6 +535,18 @@ void gpio_init(const struct soc_info *soc)
 		sunxi_gpio_set_cfgpin(soc->uart0.pin_tx, soc->uart0.pinmux);
 		sunxi_gpio_set_cfgpin(soc->uart0.pin_tx + 1, soc->uart0.pinmux);
 		sunxi_gpio_set_pull(soc->uart0.pin_tx + 1, SUNXI_GPIO_PULL_UP);
+	}
+}
+
+void jtag_init(const struct soc_info *soc)
+{
+	pio_base = soc->pio.base;
+
+	if (soc->jtag.pinmux) {
+		sunxi_gpio_set_cfgpin(soc->jtag.pin_tck, soc->jtag.pinmux);
+		sunxi_gpio_set_cfgpin(soc->jtag.pin_tdo, soc->jtag.pinmux);
+		sunxi_gpio_set_cfgpin(soc->jtag.pin_tdi, soc->jtag.pinmux);
+		sunxi_gpio_set_cfgpin(soc->jtag.pin_tms, soc->jtag.pinmux);
 	}
 }
 

@@ -207,10 +207,19 @@ struct soc_info {
 		u16	pin_tx;
 		u8	pinmux;
 	} uart0;
+
+	const struct {
+		u16	pin_tms;
+		u16	pin_tdi;
+		u16	pin_tdo;
+		u16	pin_tck;
+		u8	pinmux;
+	} jtag;
 };
 
 const struct soc_info *sunxi_detect_soc(void);
 void gpio_init(const struct soc_info *soc);
+void jtag_init(const struct soc_info *soc);
 void uart0_init(const struct soc_info *soc);
 void uart0_putc(char c);
 void uart0_puts(const char *s);
