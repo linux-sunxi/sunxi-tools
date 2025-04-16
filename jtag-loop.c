@@ -18,19 +18,32 @@
  * MA 02111-1307 USA
  */
 
-/*
+#include "bare-metal.h"
 
-Build instructions:
-
-arm-none-linux-gnueabi-gcc  -g -fno-common -ffixed-r8 -msoft-float -fno-builtin -ffreestanding -nostdinc -mno-thumb-interwork -Wall -Wstrict-prototypes -fno-stack-protector -Wno-format-nonliteral -Wno-format-security -fno-toplevel-reorder -Os jtag-loop.c -c
-
-arm-none-linux-gnueabi-objcopy -O binary jtag-loop.o jtag-loop.bin
-
-mksunxiboot jtag-loop.bin jtag-loop.sunxi
-*/
-
-void _start(void)
+int main(void)
 {
-	*(volatile unsigned long *)0x01c208b4 = 0x00444444;
+	const struct soc_info *soc = sunxi_detect_soc();
+
+	if (soc == NULL)
+		return 0;
+
+	gpio_init(soc);
+	jtag_init(soc);
+	uart0_init(soc);
+
+	uart0_puts("\nJTAG loop for Allwinner ");
+	uart0_puts(soc->name);
+	uart0_puts("!\n");
+
+	if (!soc->jtag.pinmux) {
+		uart0_puts("No JTAG pins defined for this SoC!\n");
+		uart0_puts("Returning back to FEL.\n");
+		return 0;
+	}
+
+	uart0_puts("JTAG pinmux set, entering loop.\n");
+
 	while(1);
+
+	return 0;
 }
