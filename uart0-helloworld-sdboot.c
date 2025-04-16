@@ -63,7 +63,7 @@ int main(void)
 	uart0_init(soc);
 
 	uart0_puts("\nHello from Allwinner ");
-	uart0_puts(soc->soc_name);
+	uart0_puts(soc->name);
 	uart0_puts("!\n");
 
 	switch (get_boot_device(soc)) {
