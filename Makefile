@@ -168,22 +168,22 @@ ARM_ELF_FLAGS += -mno-thumb-interwork -fno-stack-protector -fno-toplevel-reorder
 ARM_ELF_FLAGS += -Wstrict-prototypes -Wno-format-nonliteral -Wno-format-security
 
 jtag-loop.elf: jtag-loop.c jtag-loop.lds
-	$(CROSS_CC) -g $(ARM_ELF_FLAGS) $< -nostdlib -o $@ -T jtag-loop.lds -Wl,-N
+	$(CROSS_CC) -march=armv5te -g $(ARM_ELF_FLAGS) $< -nostdlib -o $@ -T $(lastword $^) -Wl,-N
 
 fel-sdboot.elf: fel-sdboot.S fel-sdboot.lds
-	$(CROSS_CC) -march=armv5te -g $(ARM_ELF_FLAGS) $< -nostdlib -o $@ -T fel-sdboot.lds -Wl,-N
+	$(CROSS_CC) -march=armv5te -g $(ARM_ELF_FLAGS) $< -nostdlib -o $@ -T $(lastword $^) -Wl,-N
 
 uart0-helloworld-sdboot.elf: uart0-helloworld-sdboot.c uart0-helloworld-sdboot.lds
-	$(CROSS_CC) -march=armv5te -g $(ARM_ELF_FLAGS) $< -nostdlib -o $@ -T uart0-helloworld-sdboot.lds -Wl,-N
+	$(CROSS_CC) -march=armv5te -g $(ARM_ELF_FLAGS) $< -nostdlib -o $@ -T $(lastword $^) -Wl,-N
 
 boot_head_sun3i.elf: boot_head.S boot_head.lds
-	$(CROSS_CC) -g $(ARM_ELF_FLAGS) $< -nostdlib -o $@ -T boot_head.lds -Wl,-N -DMACHID=0x1094
+	$(CROSS_CC) -g $(ARM_ELF_FLAGS) $< -nostdlib -o $@ -T $(lastword $^) -Wl,-N -DMACHID=0x1094
 
 boot_head_sun4i.elf: boot_head.S boot_head.lds
-	$(CROSS_CC) -g $(ARM_ELF_FLAGS) $< -nostdlib -o $@ -T boot_head.lds -Wl,-N -DMACHID=0x1008
+	$(CROSS_CC) -g $(ARM_ELF_FLAGS) $< -nostdlib -o $@ -T $(lastword $^) -Wl,-N -DMACHID=0x1008
 
 boot_head_sun5i.elf: boot_head.S boot_head.lds
-	$(CROSS_CC) -g $(ARM_ELF_FLAGS) $< -nostdlib -o $@ -T boot_head.lds -Wl,-N -DMACHID=0x102A
+	$(CROSS_CC) -g $(ARM_ELF_FLAGS) $< -nostdlib -o $@ -T $(lastword $^) -Wl,-N -DMACHID=0x102A
 
 sunxi-bootinfo: bootinfo.c
 
