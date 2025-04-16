@@ -167,8 +167,8 @@ ARM_ELF_FLAGS += -fno-common -fno-builtin -ffreestanding -nostdinc -fno-strict-a
 ARM_ELF_FLAGS += -mno-thumb-interwork -fno-stack-protector -fno-toplevel-reorder
 ARM_ELF_FLAGS += -Wstrict-prototypes -Wno-format-nonliteral -Wno-format-security
 
-jtag-loop.elf: jtag-loop.c jtag-loop.lds
-	$(CROSS_CC) -march=armv5te -g $(ARM_ELF_FLAGS) $< -nostdlib -o $@ -T $(lastword $^) -Wl,-N
+jtag-loop.elf: jtag-loop.c bare-metal.c bare-metal.lds
+	$(CROSS_CC) -march=armv5te -g $(ARM_ELF_FLAGS) $(filter %.c,$^) -nostdlib -o $@ -T $(lastword $^) -Wl,-N
 
 fel-sdboot.elf: fel-sdboot.S fel-sdboot.lds
 	$(CROSS_CC) -march=armv5te -g $(ARM_ELF_FLAGS) $< -nostdlib -o $@ -T $(lastword $^) -Wl,-N
