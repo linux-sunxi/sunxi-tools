@@ -609,6 +609,24 @@ void uart0_puts(const char *s)
 	}
 }
 
+void uart0_puthex(unsigned long hex)
+{
+	unsigned int chunks = sizeof(hex) * 2;
+	unsigned int i;
+
+	uart0_puts("0x");
+
+	for (i = 0; i < chunks; i++) {
+		unsigned int offset = (chunks - 1 - i) * 4;
+		unsigned int extract = (hex & (0xf << offset)) >> offset;
+
+		if (extract >= 0xa)
+			uart0_putc('a' + (extract - 0xa));
+		else
+			uart0_putc('0' + extract);
+	}
+}
+
 int get_boot_device(const struct soc_info *soc)
 {
 	u32 *spl_signature = (void *)soc->sram.a1_base + 0x4;

@@ -223,6 +223,7 @@ void jtag_init(const struct soc_info *soc);
 void uart0_init(const struct soc_info *soc);
 void uart0_putc(char c);
 void uart0_puts(const char *s);
+void uart0_puthex(unsigned long hex);
 int get_boot_device(const struct soc_info *soc);
 
 #endif
