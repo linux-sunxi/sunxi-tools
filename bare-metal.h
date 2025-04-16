@@ -56,6 +56,7 @@
 typedef unsigned int u32;
 typedef unsigned short int u16;
 typedef unsigned char u8;
+typedef int bool;
 
 #ifndef NULL
 #define NULL ((void*)0)
@@ -219,6 +220,7 @@ void jtag_init(const struct soc_info *soc);
 void uart0_init(const struct soc_info *soc);
 void uart0_putc(char c);
 void uart0_puts(const char *s);
+void uart0_puthex(unsigned long hex, bool new_line);
 int get_boot_device(const struct soc_info *soc);
 
 #endif
