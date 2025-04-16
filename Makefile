@@ -173,8 +173,8 @@ jtag-loop.elf: jtag-loop.c jtag-loop.lds
 fel-sdboot.elf: fel-sdboot.S fel-sdboot.lds
 	$(CROSS_CC) -march=armv5te -g $(ARM_ELF_FLAGS) $< -nostdlib -o $@ -T $(lastword $^) -Wl,-N
 
-uart0-helloworld-sdboot.elf: uart0-helloworld-sdboot.c uart0-helloworld-sdboot.lds
-	$(CROSS_CC) -march=armv5te -g $(ARM_ELF_FLAGS) $< -nostdlib -o $@ -T $(lastword $^) -Wl,-N
+uart0-helloworld-sdboot.elf: uart0-helloworld-sdboot.c bare-metal.c bare-metal.lds
+	$(CROSS_CC) -march=armv5te -g $(ARM_ELF_FLAGS) $(filter %.c,$^) -nostdlib -o $@ -T $(lastword $^) -Wl,-N
 
 boot_head_sun3i.elf: boot_head.S boot_head.lds
 	$(CROSS_CC) -g $(ARM_ELF_FLAGS) $< -nostdlib -o $@ -T $(lastword $^) -Wl,-N -DMACHID=0x1094
