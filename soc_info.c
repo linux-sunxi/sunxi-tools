@@ -332,9 +332,9 @@ soc_info_t soc_info_table[] = {
 		.thunk_addr   = 0xA200, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.sram_size    = 48 * 1024,
-		.needs_l2en   = true,
 		.sid_base     = 0x01C23800,
 		.watchdog     = &wd_a10_compat,
+		.flags        = NEEDS_L2EN,
 	},{
 		.soc_id       = 0x1625, /* Allwinner A10s, A13, R8 */
 		.name         = "A13",
@@ -342,9 +342,9 @@ soc_info_t soc_info_table[] = {
 		.thunk_addr   = 0xA200, .thunk_size = 0x200,
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.sram_size    = 48 * 1024,
-		.needs_l2en   = true,
 		.sid_base     = 0x01C23800,
 		.watchdog     = &wd_a10_compat,
+		.flags        = NEEDS_L2EN,
 	},{
 		.soc_id       = 0x1651, /* Allwinner A20 */
 		.name         = "A20",
@@ -441,11 +441,11 @@ soc_info_t soc_info_table[] = {
 		.sram_size    = 108 * 1024,
 		.sid_base     = 0x01C14000,
 		.sid_offset   = 0x200,
-		.sid_fix      = true,
 		.sid_sections = h3_sid_maps,
 		/* Check L.NOP in the OpenRISC reset vector */
 		.needs_smc_workaround_if_zero_word_at_addr = 0x40004,
 		.watchdog     = &wd_h3_compat,
+		.flags        = NEEDS_SID_FIX,
 	},{
 		.soc_id       = 0x1681, /* Allwinner V3s */
 		.name         = "V3s",
@@ -587,8 +587,8 @@ soc_info_t soc_info_table[] = {
 		.sid_base     = 0x03006000,
 		.sid_offset   = 0x200,
 		.sid_sections = generic_2k_sid_maps,
-		.icache_fix   = true,
 		.watchdog     = &wd_v853_compat,
+		.flags        = NEEDS_ICACHE_FIX,
 	},{
 		.soc_id       = 0x1859, /* Allwinner D1/D1s/R528/T113-S3 */
 		.name         = "R528",
@@ -600,8 +600,8 @@ soc_info_t soc_info_table[] = {
 		.sid_base     = 0x03006000,
 		.sid_offset   = 0x200,
 		.sid_sections = generic_2k_sid_maps,
-		.icache_fix   = true,
 		.watchdog     = &wd_v853_compat,
+		.flags        = NEEDS_ICACHE_FIX,
 	},{
 		.soc_id       = 0x1721, /* Allwinner V5 */
 		.name         = "V5",
@@ -626,8 +626,8 @@ soc_info_t soc_info_table[] = {
 		.sid_offset   = 0x200,
 		.sid_sections = generic_2k_sid_maps,
 		.rvbar_reg    = 0x08000040,
-		.icache_fix   = true,
 		.watchdog     = &wd_a523_compat,
+		.flags        = NEEDS_ICACHE_FIX,
 	},{
 		.soc_id       = 0x1855, /* Allwinner A133 */
 		.name         = "A133",
