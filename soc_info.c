@@ -334,6 +334,8 @@ soc_info_t soc_info_table[] = {
 		.sram_size    = 48 * 1024,
 		.sid_base     = 0x01C23800,
 		.watchdog     = &wd_a10_compat,
+		.gpio_base    = SUNXI_PIO_BASE,
+		.ccu_base     = AW_CCM_BASE,
 		.flags        = NEEDS_L2EN,
 	},{
 		.soc_id       = 0x1625, /* Allwinner A10s, A13, R8 */
@@ -344,6 +346,8 @@ soc_info_t soc_info_table[] = {
 		.sram_size    = 48 * 1024,
 		.sid_base     = 0x01C23800,
 		.watchdog     = &wd_a10_compat,
+		.gpio_base    = SUNXI_PIO_BASE,
+		.ccu_base     = AW_CCM_BASE,
 		.flags        = NEEDS_L2EN,
 	},{
 		.soc_id       = 0x1651, /* Allwinner A20 */
@@ -355,6 +359,8 @@ soc_info_t soc_info_table[] = {
 		.sid_base     = 0x01C23800,
 		.sid_sections = generic_2k_sid_maps,
 		.watchdog     = &wd_a10_compat,
+		.gpio_base    = SUNXI_PIO_BASE,
+		.ccu_base     = AW_CCM_BASE,
 	},{
 		.soc_id       = 0x1650, /* Allwinner A23 */
 		.name         = "A23",
@@ -365,6 +371,8 @@ soc_info_t soc_info_table[] = {
 		.sid_base     = 0x01C23800,
 		.sid_sections = generic_2k_sid_maps,
 		.watchdog     = &wd_h3_compat,
+		.gpio_base    = SUNXI_PIO_BASE,
+		.ccu_base     = AW_CCM_BASE,
 	},{
 		.soc_id       = 0x1633, /* Allwinner A31 */
 		.name         = "A31",
@@ -373,6 +381,8 @@ soc_info_t soc_info_table[] = {
 		.swap_buffers = a31_sram_swap_buffers,
 		.sram_size    = 32 * 1024,
 		.watchdog     = &wd_h3_compat,
+		.gpio_base    = SUNXI_PIO_BASE,
+		.ccu_base     = AW_CCM_BASE,
 	},{
 		.soc_id       = 0x1667, /* Allwinner A33, R16 */
 		.name         = "A33",
@@ -384,6 +394,8 @@ soc_info_t soc_info_table[] = {
 		.sid_base     = 0x01C23800,
 		.sid_sections = generic_2k_sid_maps,
 		.watchdog     = &wd_h3_compat,
+		.gpio_base    = SUNXI_PIO_BASE,
+		.ccu_base     = AW_CCM_BASE,
 	},{
 		.soc_id       = 0x1689, /* Allwinner A64 */
 		.name         = "A64",
@@ -400,6 +412,8 @@ soc_info_t soc_info_table[] = {
 		/* Check L.NOP in the OpenRISC reset vector */
 		.sec_mem_addr = 0x40004,
 		.watchdog     = &wd_h3_compat,
+		.gpio_base    = SUNXI_PIO_BASE,
+		.ccu_base     = AW_CCM_BASE,
 	},{
 		.soc_id       = 0x1639, /* Allwinner A80 */
 		.name         = "A80",
@@ -412,6 +426,8 @@ soc_info_t soc_info_table[] = {
 		.sid_offset   = 0x200,
 		.sid_sections = generic_2k_sid_maps,
 		.watchdog     = &wd_a80,
+		.gpio_base    = A80_PIO_BASE,
+		.ccu_base     = A80_CCM_BASE,
 	},{
 		.soc_id       = 0x1663, /* Allwinner F1C100s (all new sun3i?) */
 		.name         = "F1C100s",
@@ -421,6 +437,8 @@ soc_info_t soc_info_table[] = {
 		.sram_size    = 32 * 1024,
 		/* No SID */
 		.watchdog     = &wd_h3_compat,
+		.gpio_base    = SUNXI_PIO_BASE,
+		.ccu_base     = AW_CCM_BASE,
 	},{
 		.soc_id       = 0x1673, /* Allwinner A83T */
 		.name         = "A83T",
@@ -433,6 +451,8 @@ soc_info_t soc_info_table[] = {
 		.sid_offset   = 0x200,
 		.sid_sections = generic_2k_sid_maps,
 		.watchdog     = &wd_h3_compat,
+		.gpio_base    = SUNXI_PIO_BASE,
+		.ccu_base     = AW_CCM_BASE,
 	},{
 		.soc_id       = 0x1680, /* Allwinner H3, H2+ */
 		.name         = "H3",
@@ -448,6 +468,8 @@ soc_info_t soc_info_table[] = {
 		/* Check L.NOP in the OpenRISC reset vector */
 		.sec_mem_addr = 0x40004,
 		.watchdog     = &wd_h3_compat,
+		.gpio_base    = SUNXI_PIO_BASE,
+		.ccu_base     = AW_CCM_BASE,
 		.flags        = NEEDS_SID_FIX,
 	},{
 		.soc_id       = 0x1681, /* Allwinner V3s */
@@ -460,6 +482,8 @@ soc_info_t soc_info_table[] = {
 		.sid_base     = 0x01C23800,
 		.sid_sections = generic_2k_sid_maps,
 		.watchdog     = &wd_h3_compat,
+		.gpio_base    = SUNXI_PIO_BASE,
+		.ccu_base     = AW_CCM_BASE,
 	},{
 		.soc_id       = 0x1699, /* Allwinner B288 */
 		.name         = "B288",
@@ -472,6 +496,8 @@ soc_info_t soc_info_table[] = {
 		.sid_base     = 0x01C14000,
 		.sid_sections = generic_2k_sid_maps,
 		.watchdog     = &wd_h3_compat,
+		.gpio_base    = SUNXI_PIO_BASE,
+		.ccu_base     = AW_CCM_BASE,
 	},{
 		.soc_id       = 0x1708, /* Allwinner T7 */
 		.name         = "T7",
@@ -484,6 +510,9 @@ soc_info_t soc_info_table[] = {
 		.sid_offset   = 0x200,
 		.sid_sections = t7_sid_maps,
 		.watchdog     = &wd_h6_compat,
+		.gpio_base    = H6_PIO_BASE,
+		.ccu_base     = H6_CCM_BASE,
+		.flags        = H6_STYLE_CLOCKS,
 	},{
 		.soc_id       = 0x1718, /* Allwinner H5 */
 		.name         = "H5",
@@ -500,6 +529,8 @@ soc_info_t soc_info_table[] = {
 		/* Check L.NOP in the OpenRISC reset vector */
 		.sec_mem_addr = 0x40004,
 		.watchdog     = &wd_h3_compat,
+		.gpio_base    = SUNXI_PIO_BASE,
+		.ccu_base     = AW_CCM_BASE,
 	},{
 		.soc_id       = 0x1701, /* Allwinner R40 */
 		.name         = "R40",
@@ -511,6 +542,8 @@ soc_info_t soc_info_table[] = {
 		.sid_offset   = 0x200,
 		.sid_sections = r40_sid_maps,
 		.watchdog     = &wd_a10_compat,
+		.gpio_base    = SUNXI_PIO_BASE,
+		.ccu_base     = AW_CCM_BASE,
 	},{
 		.soc_id       = 0x1719, /* Allwinner A63 */
 		.name         = "A63",
@@ -524,6 +557,9 @@ soc_info_t soc_info_table[] = {
 		.sid_sections = generic_2k_sid_maps,
 		.rvbar_reg    = 0x09010040,
 		.watchdog     = &wd_h6_compat,
+		.gpio_base    = H6_PIO_BASE,
+		.ccu_base     = H6_CCM_BASE,
+		.flags        = H6_STYLE_CLOCKS,
 	},{
 		.soc_id       = 0x1728, /* Allwinner H6 */
 		.name         = "H6",
@@ -540,6 +576,9 @@ soc_info_t soc_info_table[] = {
 		/* Check L.NOP in the OpenRISC reset vector */
 		.sec_mem_addr = 0x100004,
 		.watchdog     = &wd_h6_compat,
+		.gpio_base    = H6_PIO_BASE,
+		.ccu_base     = H6_CCM_BASE,
+		.flags        = H6_STYLE_CLOCKS,
 	},{
 		.soc_id       = 0x1816, /* Allwinner V536 */
 		.name         = "V536",
@@ -552,6 +591,9 @@ soc_info_t soc_info_table[] = {
 		.sid_offset   = 0x200,
 		.sid_sections = generic_2k_sid_maps,
 		.watchdog     = &wd_h6_compat,
+		.gpio_base    = H6_PIO_BASE,
+		.ccu_base     = H6_CCM_BASE,
+		.flags        = H6_STYLE_CLOCKS,
 	},{
 		.soc_id       = 0x1817, /* Allwinner V831 */
 		.name         = "V831",
@@ -564,6 +606,9 @@ soc_info_t soc_info_table[] = {
 		.sid_offset   = 0x200,
 		.sid_sections = generic_2k_sid_maps,
 		.watchdog     = &wd_h6_compat,
+		.gpio_base    = H6_PIO_BASE,
+		.ccu_base     = H6_CCM_BASE,
+		.flags        = H6_STYLE_CLOCKS,
 	},{
 		.soc_id       = 0x1823, /* Allwinner H616 */
 		.name         = "H616",
@@ -580,6 +625,9 @@ soc_info_t soc_info_table[] = {
 		.sec_boot_wa  = SECURE_BOOT_MONITOR_H6,
 		.ver_reg      = 0x03000024,
 		.watchdog     = &wd_h6_compat,
+		.gpio_base    = H6_PIO_BASE,
+		.ccu_base     = H6_CCM_BASE,
+		.flags        = H6_STYLE_CLOCKS,
 	},{
 		.soc_id       = 0x1851, /* Allwinner R329 */
 		.name         = "R329",
@@ -594,6 +642,9 @@ soc_info_t soc_info_table[] = {
 		.sid_sections = generic_2k_sid_maps,
 		.rvbar_reg    = 0x08100040,
 		.watchdog     = &wd_h6_compat,
+		.gpio_base    = R329_PIO_BASE,
+		.ccu_base     = R329_CCM_BASE,
+		.flags        = FLAGS_NCAT2,
 	},{
 		.soc_id       = 0x1886, /* Allwinner V853 */
 		.name         = "V853",
@@ -606,7 +657,9 @@ soc_info_t soc_info_table[] = {
 		.sid_offset   = 0x200,
 		.sid_sections = generic_2k_sid_maps,
 		.watchdog     = &wd_v853_compat,
-		.flags        = NEEDS_ICACHE_FIX,
+		.gpio_base    = V853_PIO_BASE,
+		.ccu_base     = R329_CCM_BASE,
+		.flags        = NEEDS_ICACHE_FIX | FLAGS_NCAT2,
 	},{
 		.soc_id       = 0x1859, /* Allwinner D1/D1s/R528/T113-S3 */
 		.name         = "R528",
@@ -619,7 +672,9 @@ soc_info_t soc_info_table[] = {
 		.sid_offset   = 0x200,
 		.sid_sections = generic_2k_sid_maps,
 		.watchdog     = &wd_v853_compat,
-		.flags        = NEEDS_ICACHE_FIX,
+		.gpio_base    = V853_PIO_BASE,
+		.ccu_base     = R329_CCM_BASE,
+		.flags        = NEEDS_ICACHE_FIX | FLAGS_NCAT2,
 	},{
 		.soc_id       = 0x1721, /* Allwinner V5 */
 		.name         = "V5",
@@ -632,6 +687,9 @@ soc_info_t soc_info_table[] = {
 		.sid_offset   = 0x200,
 		.sid_sections = generic_2k_sid_maps,
 		.watchdog     = &wd_h6_compat,
+		.gpio_base    = H6_PIO_BASE,
+		.ccu_base     = H6_CCM_BASE,
+		.flags        = H6_STYLE_CLOCKS,
 	},{
 		.soc_id       = 0x1890, /* Allwinner A523 */
 		.name         = "A523",
@@ -645,7 +703,9 @@ soc_info_t soc_info_table[] = {
 		.sid_sections = generic_2k_sid_maps,
 		.rvbar_reg    = 0x08000040,
 		.watchdog     = &wd_a523_compat,
-		.flags        = NEEDS_ICACHE_FIX,
+		.gpio_base    = V853_PIO_BASE,
+		.ccu_base     = R329_CCM_BASE,
+		.flags        = NEEDS_ICACHE_FIX | FLAGS_NCAT2,
 	},{
 		.soc_id       = 0x1855, /* Allwinner A133 */
 		.name         = "A133",
@@ -660,6 +720,9 @@ soc_info_t soc_info_table[] = {
 		.rvbar_reg    = 0x08100040,
 		.sec_boot_wa  = SECURE_BOOT_MONITOR_H6,
 		.watchdog     = &wd_h6_compat,
+		.gpio_base    = H6_PIO_BASE,
+		.ccu_base     = H6_CCM_BASE,
+		.flags        = H6_STYLE_CLOCKS,
 	},{
 		.swap_buffers = NULL /* End of the table */
 	}
