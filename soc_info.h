@@ -82,6 +82,14 @@ enum secure_boot_workaround {
 	SECURE_BOOT_MONITOR_H6, /* SMC returns in monitor mode, needs fixing. */
 };
 
+#define BIT(x)		(1U << (x))
+
+enum soc_flags {
+	NEEDS_L2EN		= BIT(0),
+	NEEDS_SID_FIX		= BIT(1),
+	NEEDS_ICACHE_FIX	= BIT(2),
+};
+
 /*
  * Each SoC variant may have its own list of memory buffers to be exchanged
  * and the information about the placement of the thunk code, which handles
@@ -126,7 +134,6 @@ typedef struct {
 	uint32_t           scratch_addr; /* A safe place to upload & run code */
 	uint32_t           thunk_addr;   /* Address of the thunk code */
 	uint32_t           thunk_size;   /* Maximal size of the thunk code */
-	bool               needs_l2en;   /* Set the L2EN bit */
 	uint32_t           mmu_tt_addr;  /* MMU translation table address */
 	uint32_t           sid_base;     /* base address for SID registers */
 	uint32_t           sid_offset;   /* offset for SID_KEY[0-3], "root key" */
@@ -135,14 +142,13 @@ typedef struct {
 	uint32_t           rvbar_reg_alt;/* alternative MMIO address of RVBARADDR0_L register */
 	uint32_t           ver_reg;      /* MMIO address of "Version Register" */
 	const watchdog_info *watchdog;   /* Used for reset */
-	bool               sid_fix;      /* Use SID workaround (read via register) */
 	/* Use I$ workaround (disable I$ before first write to prevent stale thunk */
-	bool               icache_fix;
 	enum secure_boot_workaround	sec_boot_wa;
 	/* A secure-only memory address with non-zero content */
 	uint32_t           sec_mem_addr;
 	uint32_t           sram_size;	/* Usable contiguous SRAM at spl_addr */
 	sram_swap_buffers *swap_buffers;
+	uint32_t           flags;
 } soc_info_t;
 
 
