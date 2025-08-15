@@ -82,7 +82,21 @@ enum soc_flags {
 	NEEDS_L2EN		= BIT(0),
 	NEEDS_SID_FIX		= BIT(1),
 	NEEDS_ICACHE_FIX	= BIT(2),
+	H6_STYLE_CLOCKS		= BIT(3),
+	GPIO_NCAT2		= BIT(4),
 };
+
+#define FLAGS_NCAT2		(GPIO_NCAT2 | H6_STYLE_CLOCKS)
+
+#define AW_CCM_BASE		0x01c20000
+#define SUNXI_PIO_BASE		0x01c20800
+#define A80_CCM_BASE		0x06000000
+#define A80_PIO_BASE		0x06000800
+#define H6_PIO_BASE		0x0300b000
+#define H6_CCM_BASE		0x03001000
+#define V853_PIO_BASE		0x02000000
+#define R329_PIO_BASE		0x02000400
+#define R329_CCM_BASE		0x02001000
 
 /*
  * Each SoC variant may have its own list of memory buffers to be exchanged
@@ -142,6 +156,8 @@ typedef struct {
 	uint32_t           needs_smc_workaround_if_zero_word_at_addr;
 	uint32_t           sram_size;	/* Usable contiguous SRAM at spl_addr */
 	sram_swap_buffers *swap_buffers;
+	uint32_t           gpio_base;
+	uint32_t           ccu_base;
 	uint32_t           flags;
 } soc_info_t;
 
