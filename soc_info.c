@@ -336,6 +336,7 @@ soc_info_t soc_info_table[] = {
 		.watchdog     = &wd_a10_compat,
 		.gpio_base    = SUNXI_PIO_BASE,
 		.ccu_base     = AW_CCM_BASE,
+		.spi_base     = SUN4I_SPI_BASE,
 		.flags        = NEEDS_L2EN,
 	},{
 		.soc_id       = 0x1625, /* Allwinner A10s, A13, R8 */
@@ -348,6 +349,7 @@ soc_info_t soc_info_table[] = {
 		.watchdog     = &wd_a10_compat,
 		.gpio_base    = SUNXI_PIO_BASE,
 		.ccu_base     = AW_CCM_BASE,
+		.spi_base     = SUN4I_SPI_BASE,
 		.flags        = NEEDS_L2EN,
 	},{
 		.soc_id       = 0x1651, /* Allwinner A20 */
@@ -361,6 +363,7 @@ soc_info_t soc_info_table[] = {
 		.watchdog     = &wd_a10_compat,
 		.gpio_base    = SUNXI_PIO_BASE,
 		.ccu_base     = AW_CCM_BASE,
+		.spi_base     = SUN4I_SPI_BASE,
 	},{
 		.soc_id       = 0x1650, /* Allwinner A23 */
 		.name         = "A23",
@@ -412,6 +415,7 @@ soc_info_t soc_info_table[] = {
 		.watchdog     = &wd_h3_compat,
 		.gpio_base    = SUNXI_PIO_BASE,
 		.ccu_base     = AW_CCM_BASE,
+		.spi_base     = SUN6I_SPI_BASE,
 	},{
 		.soc_id       = 0x1639, /* Allwinner A80 */
 		.name         = "A80",
@@ -437,6 +441,7 @@ soc_info_t soc_info_table[] = {
 		.watchdog     = &wd_h3_compat,
 		.gpio_base    = SUNXI_PIO_BASE,
 		.ccu_base     = AW_CCM_BASE,
+		.spi_base     = SUN4I_SPI_BASE,
 	},{
 		.soc_id       = 0x1673, /* Allwinner A83T */
 		.name         = "A83T",
@@ -467,6 +472,7 @@ soc_info_t soc_info_table[] = {
 		.watchdog     = &wd_h3_compat,
 		.gpio_base    = SUNXI_PIO_BASE,
 		.ccu_base     = AW_CCM_BASE,
+		.spi_base     = SUN6I_SPI_BASE,
 		.flags        = NEEDS_SID_FIX,
 	},{
 		.soc_id       = 0x1681, /* Allwinner V3s */
@@ -481,6 +487,7 @@ soc_info_t soc_info_table[] = {
 		.watchdog     = &wd_h3_compat,
 		.gpio_base    = SUNXI_PIO_BASE,
 		.ccu_base     = AW_CCM_BASE,
+		.spi_base     = SUN6I_SPI_BASE,
 	},{
 		.soc_id       = 0x1708, /* Allwinner T7 */
 		.name         = "T7",
@@ -513,6 +520,7 @@ soc_info_t soc_info_table[] = {
 		.watchdog     = &wd_h3_compat,
 		.gpio_base    = SUNXI_PIO_BASE,
 		.ccu_base     = AW_CCM_BASE,
+		.spi_base     = SUN6I_SPI_BASE,
 	},{
 		.soc_id       = 0x1701, /* Allwinner R40 */
 		.name         = "R40",
@@ -526,6 +534,7 @@ soc_info_t soc_info_table[] = {
 		.watchdog     = &wd_a10_compat,
 		.gpio_base    = SUNXI_PIO_BASE,
 		.ccu_base     = AW_CCM_BASE,
+		.spi_base     = SUN4I_SPI_BASE,
 	},{
 		.soc_id       = 0x1719, /* Allwinner A63 */
 		.name         = "A63",
@@ -559,6 +568,7 @@ soc_info_t soc_info_table[] = {
 		.watchdog     = &wd_h6_compat,
 		.gpio_base    = H6_PIO_BASE,
 		.ccu_base     = H6_CCM_BASE,
+		.spi_base     = H6_SPI_BASE,
 		.flags        = H6_STYLE_CLOCKS,
 	},{
 		.soc_id       = 0x1816, /* Allwinner V536 */
@@ -574,6 +584,7 @@ soc_info_t soc_info_table[] = {
 		.watchdog     = &wd_h6_compat,
 		.gpio_base    = H6_PIO_BASE,
 		.ccu_base     = H6_CCM_BASE,
+		.spi_base     = H6_SPI_BASE,
 		.flags        = H6_STYLE_CLOCKS,
 	},{
 		.soc_id       = 0x1817, /* Allwinner V831 */
@@ -589,6 +600,7 @@ soc_info_t soc_info_table[] = {
 		.watchdog     = &wd_h6_compat,
 		.gpio_base    = H6_PIO_BASE,
 		.ccu_base     = H6_CCM_BASE,
+		.spi_base     = H6_SPI_BASE,
 		.flags        = H6_STYLE_CLOCKS,
 	},{
 		.soc_id       = 0x1823, /* Allwinner H616 */
@@ -607,6 +619,7 @@ soc_info_t soc_info_table[] = {
 		.watchdog     = &wd_h6_compat,
 		.gpio_base    = H6_PIO_BASE,
 		.ccu_base     = H6_CCM_BASE,
+		.spi_base     = H6_SPI_BASE,
 		.flags        = H6_STYLE_CLOCKS,
 	},{
 		.soc_id       = 0x1851, /* Allwinner R329 */

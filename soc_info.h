@@ -97,6 +97,9 @@ enum soc_flags {
 #define V853_PIO_BASE		0x02000000
 #define R329_PIO_BASE		0x02000400
 #define R329_CCM_BASE		0x02001000
+#define SUN4I_SPI_BASE		0x01c05000
+#define SUN6I_SPI_BASE		0x01c68000
+#define H6_SPI_BASE		0x05010000
 
 /*
  * Each SoC variant may have its own list of memory buffers to be exchanged
@@ -158,6 +161,7 @@ typedef struct {
 	sram_swap_buffers *swap_buffers;
 	uint32_t           gpio_base;
 	uint32_t           ccu_base;
+	uint32_t           spi_base;
 	uint32_t           flags;
 } soc_info_t;
 

@@ -124,22 +124,7 @@ void fel_writel(feldev_handle *dev, uint32_t addr, uint32_t val);
 
 static uint32_t spi_base(feldev_handle *dev)
 {
-	soc_info_t *soc_info = dev->soc_info;
-	switch (soc_info->soc_id) {
-	case 0x1623: /* A10 */
-	case 0x1625: /* A13 */
-	case 0x1651: /* A20 */
-	case 0x1663: /* F1C100s */
-	case 0x1701: /* R40 */
-		return 0x01C05000;
-	case 0x1816: /* V536 */
-	case 0x1817: /* V831 */
-	case 0x1728: /* H6 */
-	case 0x1823: /* H616 */
-		return 0x05010000;
-	default:
-		return 0x01C68000;
-	}
+	return dev->soc_info->spi_base;
 }
 
 /*
