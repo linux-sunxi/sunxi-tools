@@ -75,16 +75,16 @@ void fel_writel(feldev_handle *dev, uint32_t addr, uint32_t val);
 #define PB                          (1)
 #define PC                          (2)
 
-#define CCM_SPI0_CLK                (0x01C20000 + 0xA0)
-#define CCM_AHB_GATING0             (0x01C20000 + 0x60)
+#define CCM_SPI0_CLK_OFF            0xa0
+#define CCM_AHB_GATING0_OFF         0x60
 #define CCM_AHB_GATE_SPI0           (1 << 20)
-#define SUN6I_BUS_SOFT_RST_REG0     (0x01C20000 + 0x2C0)
+#define SUN6I_BUS_SOFT_RST_REG0_OFF 0x2c0
 #define SUN6I_SPI0_RST              (1 << 20)
-#define SUNIV_PLL6_CTL              (0x01c20000 + 0x28)
-#define SUNIV_AHB_APB_CFG           (0x01c20000 + 0x54)
+#define SUNIV_PLL6_CTL_OFF          0x28
+#define SUNIV_AHB_APB_CFG_OFF       0x54
 
-#define H6_CCM_SPI0_CLK             (0x03001000 + 0x940)
-#define H6_CCM_SPI_BGR              (0x03001000 + 0x96C)
+#define H6_CCM_SPI0_CLK_OFF         0x940
+#define H6_CCM_SPI_BGR_OFF          0x96c
 #define H6_CCM_SPI0_GATE_RESET      (1 << 0 | 1 << 16)
 
 #define SUNIV_GPC_SPI0              (2)
@@ -122,20 +122,6 @@ void fel_writel(feldev_handle *dev, uint32_t addr, uint32_t val);
 #define CCM_SPI0_CLK_DIV_BY_6       (0x1002)
 #define CCM_SPI0_CLK_DIV_BY_32      (0x100f)
 
-static uint32_t gpio_base(feldev_handle *dev)
-{
-	soc_info_t *soc_info = dev->soc_info;
-	switch (soc_info->soc_id) {
-	case 0x1816: /* V536 */
-	case 0x1817: /* V831 */
-	case 0x1728: /* H6 */
-	case 0x1823: /* H616 */
-		return 0x0300B000;
-	default:
-		return 0x01C20800;
-	}
-}
-
 static uint32_t spi_base(feldev_handle *dev)
 {
 	soc_info_t *soc_info = dev->soc_info;
@@ -162,13 +148,21 @@ static uint32_t spi_base(feldev_handle *dev)
 static void gpio_set_cfgpin(feldev_handle *dev, int port_num, int pin_num,
 			    int val)
 {
-	uint32_t port_base = gpio_base(dev) + port_num * 0x24;
-	uint32_t cfg_reg   = port_base + 4 * (pin_num / 8);
-	uint32_t pin_idx   = pin_num % 8;
-	uint32_t x = readl(cfg_reg);
-	x &= ~(0x7 << (pin_idx * 4));
-	x |= val << (pin_idx * 4);
-	writel(x, cfg_reg);
+	uint32_t cfg_reg;
+	uint32_t pin_idx = pin_num % 8;
+	uint32_t reg;
+
+	cfg_reg = dev->soc_info->gpio_base;
+	if (dev->soc_info->flags & GPIO_NCAT2)
+		cfg_reg += port_num * 0x30;
+	else
+		cfg_reg += port_num * 0x24;
+	cfg_reg += 4 * (pin_num / 8);
+
+	reg = readl(cfg_reg);
+	reg &= ~(0xf << (pin_idx * 4));
+	reg |= val << (pin_idx * 4);
+	writel(reg, cfg_reg);
 }
 
 static bool spi_is_sun6i(feldev_handle *dev)
@@ -184,20 +178,6 @@ static bool spi_is_sun6i(feldev_handle *dev)
 	}
 }
 
-static bool soc_is_h6_style(feldev_handle *dev)
-{
-	soc_info_t *soc_info = dev->soc_info;
-	switch (soc_info->soc_id) {
-	case 0x1816: /* V536 */
-	case 0x1817: /* V831 */
-	case 0x1728: /* H6 */
-	case 0x1823: /* H616 */
-		return true;
-	default:
-		return false;
-	}
-}
-
 /*
  * Init the SPI0 controller and setup pins muxing.
  */
@@ -205,6 +185,8 @@ static bool spi0_init(feldev_handle *dev)
 {
 	uint32_t reg_val;
 	soc_info_t *soc_info = dev->soc_info;
+	uint32_t ccu_base;
+
 	if (!soc_info) {
 		printf("Unable to fetch device information. "
 		       "Possibly unknown device.\n");
@@ -265,21 +247,22 @@ static bool spi0_init(feldev_handle *dev)
 		return false;
 	}
 
-	if (soc_is_h6_style(dev)) {
-		reg_val = readl(H6_CCM_SPI_BGR);
+	ccu_base = dev->soc_info->ccu_base;
+	if (dev->soc_info->flags & H6_STYLE_CLOCKS) {
+		reg_val = readl(ccu_base + H6_CCM_SPI_BGR_OFF);
 		reg_val |= H6_CCM_SPI0_GATE_RESET;
-		writel(reg_val, H6_CCM_SPI_BGR);
+		writel(reg_val, ccu_base + H6_CCM_SPI_BGR_OFF);
 	} else {
 		if (spi_is_sun6i(dev)) {
 			/* Deassert SPI0 reset */
-			reg_val = readl(SUN6I_BUS_SOFT_RST_REG0);
+			reg_val = readl(ccu_base + SUN6I_BUS_SOFT_RST_REG0_OFF);
 			reg_val |= SUN6I_SPI0_RST;
-			writel(reg_val, SUN6I_BUS_SOFT_RST_REG0);
+			writel(reg_val, ccu_base + SUN6I_BUS_SOFT_RST_REG0_OFF);
 		}
 
-		reg_val = readl(CCM_AHB_GATING0);
+		reg_val = readl(ccu_base + CCM_AHB_GATING0_OFF);
 		reg_val |= CCM_AHB_GATE_SPI0;
-		writel(reg_val, CCM_AHB_GATING0);
+		writel(reg_val, ccu_base + CCM_AHB_GATING0_OFF);
 	}
 
 	if (soc_info->soc_id == 0x1663) {	/* suniv F1C100s */
@@ -291,9 +274,9 @@ static bool spi0_init(feldev_handle *dev)
 		 */
 
 		/* Set PLL6 to 600MHz */
-		writel(0x80041801, SUNIV_PLL6_CTL);
+		writel(0x80041801, ccu_base + SUNIV_PLL6_CTL_OFF);
 		/* PLL6:AHB:APB = 6:2:1 */
-		writel(0x00003180, SUNIV_AHB_APB_CFG);
+		writel(0x00003180, ccu_base + SUNIV_AHB_APB_CFG_OFF);
 		/* divide by 32 */
 		writel(CCM_SPI0_CLK_DIV_BY_32, SUN6I_SPI0_CCTL);
 	} else {
@@ -301,8 +284,10 @@ static bool spi0_init(feldev_handle *dev)
 		writel(CCM_SPI0_CLK_DIV_BY_4,
 		       spi_is_sun6i(dev) ? SUN6I_SPI0_CCTL : SUN4I_SPI0_CCTL);
 		/* Choose 24MHz from OSC24M and enable clock */
-		writel(1U << 31,
-		       soc_is_h6_style(dev) ? H6_CCM_SPI0_CLK : CCM_SPI0_CLK);
+		if (dev->soc_info->flags & H6_STYLE_CLOCKS)
+			writel(1U << 31, ccu_base + H6_CCM_SPI0_CLK_OFF);
+		else
+			writel(1U << 31, ccu_base + CCM_SPI0_CLK_OFF);
 	}
 
 	if (spi_is_sun6i(dev)) {
