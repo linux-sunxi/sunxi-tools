@@ -87,10 +87,6 @@ void fel_writel(feldev_handle *dev, uint32_t addr, uint32_t val);
 #define H6_CCM_SPI_BGR_OFF          0x96c
 #define H6_CCM_SPI0_GATE_RESET      (1 << 0 | 1 << 16)
 
-#define SUNIV_GPC_SPI0              (2)
-#define SUNXI_GPC_SPI0              (3)
-#define SUN50I_GPC_SPI0             (4)
-
 #define SUN4I_CTL_ENABLE            (1 << 0)
 #define SUN4I_CTL_MASTER            (1 << 1)
 #define SUN4I_CTL_TF_RST            (1 << 8)
@@ -163,6 +159,14 @@ static bool spi_is_sun6i(feldev_handle *dev)
 	}
 }
 
+/* Extract a pin number from the packed representation (one byte per pin) */
+static uint8_t spi_pin(soc_info_t *soc_info, int pin)
+{
+	int shift = (pin - 1) * 8;
+
+	return (soc_info->spi_pins >> shift) & 0xff;
+}
+
 /*
  * Init the SPI0 controller and setup pins muxing.
  */
@@ -178,59 +182,17 @@ static bool spi0_init(feldev_handle *dev)
 		return false;
 	}
 
-	/* Setup SPI0 pins muxing */
-	switch (soc_info->soc_id) {
-	case 0x1663: /* Allwinner F1C100s/F1C600/R6/F1C100A/F1C500 */
-		gpio_set_cfgpin(dev, PC, 0, SUNIV_GPC_SPI0);
-		gpio_set_cfgpin(dev, PC, 1, SUNIV_GPC_SPI0);
-		gpio_set_cfgpin(dev, PC, 2, SUNIV_GPC_SPI0);
-		gpio_set_cfgpin(dev, PC, 3, SUNIV_GPC_SPI0);
-		break;
-	case 0x1625: /* Allwinner A13 */
-	case 0x1680: /* Allwinner H3 */
-	case 0x1681: /* Allwinner V3s */
-	case 0x1718: /* Allwinner H5 */
-		gpio_set_cfgpin(dev, PC, 0, SUNXI_GPC_SPI0);
-		gpio_set_cfgpin(dev, PC, 1, SUNXI_GPC_SPI0);
-		gpio_set_cfgpin(dev, PC, 2, SUNXI_GPC_SPI0);
-		gpio_set_cfgpin(dev, PC, 3, SUNXI_GPC_SPI0);
-		break;
-	case 0x1623: /* Allwinner A10 */
-	case 0x1651: /* Allwinner A20 */
-	case 0x1701: /* Allwinner R40 */
-		gpio_set_cfgpin(dev, PC, 0, SUNXI_GPC_SPI0);
-		gpio_set_cfgpin(dev, PC, 1, SUNXI_GPC_SPI0);
-		gpio_set_cfgpin(dev, PC, 2, SUNXI_GPC_SPI0);
-		gpio_set_cfgpin(dev, PC, 23, SUNXI_GPC_SPI0);
-		break;
-	case 0x1689: /* Allwinner A64 */
-		gpio_set_cfgpin(dev, PC, 0, SUN50I_GPC_SPI0);
-		gpio_set_cfgpin(dev, PC, 1, SUN50I_GPC_SPI0);
-		gpio_set_cfgpin(dev, PC, 2, SUN50I_GPC_SPI0);
-		gpio_set_cfgpin(dev, PC, 3, SUN50I_GPC_SPI0);
-		break;
-	case 0x1816: /* Allwinner V536 */
-	case 0x1817: /* Allwinner V831 */
-		gpio_set_cfgpin(dev, PC, 1, SUN50I_GPC_SPI0);	/* SPI0-CS */
-		/* fall-through */
-	case 0x1728: /* Allwinner H6 */
-		gpio_set_cfgpin(dev, PC, 0, SUN50I_GPC_SPI0);
-		gpio_set_cfgpin(dev, PC, 2, SUN50I_GPC_SPI0);
-		gpio_set_cfgpin(dev, PC, 3, SUN50I_GPC_SPI0);
-		/* PC5 is SPI0-CS on the H6, and SPI0-HOLD on the V831 */
-		gpio_set_cfgpin(dev, PC, 5, SUN50I_GPC_SPI0);
-		break;
-	case 0x1823: /* Allwinner H616 */
-		gpio_set_cfgpin(dev, PC, 0, SUN50I_GPC_SPI0);	/* SPI0_CLK */
-		gpio_set_cfgpin(dev, PC, 2, SUN50I_GPC_SPI0);	/* SPI0_MOSI */
-		gpio_set_cfgpin(dev, PC, 3, SUN50I_GPC_SPI0);	/* SPI0_CS0 */
-		gpio_set_cfgpin(dev, PC, 4, SUN50I_GPC_SPI0);	/* SPI0_MISO */
-		break;
-	default: /* Unknown/Unsupported SoC */
+	if (!soc_info->spi_base) {
 		printf("SPI support not implemented yet for %x (%s)!\n",
 		       soc_info->soc_id, soc_info->name);
 		return false;
 	}
+
+	/* Setup SPI0 pins muxing */
+	gpio_set_cfgpin(dev, PC, spi_pin(soc_info, 1), soc_info->spi_pinmux);
+	gpio_set_cfgpin(dev, PC, spi_pin(soc_info, 2), soc_info->spi_pinmux);
+	gpio_set_cfgpin(dev, PC, spi_pin(soc_info, 3), soc_info->spi_pinmux);
+	gpio_set_cfgpin(dev, PC, spi_pin(soc_info, 4), soc_info->spi_pinmux);
 
 	ccu_base = dev->soc_info->ccu_base;
 	if (dev->soc_info->flags & H6_STYLE_CLOCKS) {
