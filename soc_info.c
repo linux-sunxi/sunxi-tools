@@ -324,6 +324,10 @@ static const sid_section generic_2k_sid_maps[] = {
 	SID_SECTION(NULL, 0, 0),
 };
 
+/* Pack four pin numbers into one uint32_t, using one byte per pin */
+#define SPI_PINS(p1, p2, p3, p4)	\
+	((p1) << 0 | (p2) << 8 | (p3) << 16 | (p4) << 24)
+
 soc_info_t soc_info_table[] = {
 	{
 		.soc_id       = 0x1623, /* Allwinner A10 */
@@ -337,6 +341,8 @@ soc_info_t soc_info_table[] = {
 		.gpio_base    = SUNXI_PIO_BASE,
 		.ccu_base     = AW_CCM_BASE,
 		.spi_base     = SUN4I_SPI_BASE,
+		.spi_pins     = SPI_PINS(0, 1, 2, 23),
+		.spi_pinmux   = SUNXI_GPC_SPI0,
 		.flags        = NEEDS_L2EN,
 	},{
 		.soc_id       = 0x1625, /* Allwinner A10s, A13, R8 */
@@ -350,6 +356,8 @@ soc_info_t soc_info_table[] = {
 		.gpio_base    = SUNXI_PIO_BASE,
 		.ccu_base     = AW_CCM_BASE,
 		.spi_base     = SUN4I_SPI_BASE,
+		.spi_pins     = SPI_PINS(0, 1, 2, 3),
+		.spi_pinmux   = SUNXI_GPC_SPI0,
 		.flags        = NEEDS_L2EN,
 	},{
 		.soc_id       = 0x1651, /* Allwinner A20 */
@@ -364,6 +372,8 @@ soc_info_t soc_info_table[] = {
 		.gpio_base    = SUNXI_PIO_BASE,
 		.ccu_base     = AW_CCM_BASE,
 		.spi_base     = SUN4I_SPI_BASE,
+		.spi_pins     = SPI_PINS(0, 1, 2, 23),
+		.spi_pinmux   = SUNXI_GPC_SPI0,
 	},{
 		.soc_id       = 0x1650, /* Allwinner A23 */
 		.name         = "A23",
@@ -416,6 +426,8 @@ soc_info_t soc_info_table[] = {
 		.gpio_base    = SUNXI_PIO_BASE,
 		.ccu_base     = AW_CCM_BASE,
 		.spi_base     = SUN6I_SPI_BASE,
+		.spi_pins     = SPI_PINS(0, 1, 2, 3),
+		.spi_pinmux   = SUN50I_GPC_SPI0,
 	},{
 		.soc_id       = 0x1639, /* Allwinner A80 */
 		.name         = "A80",
@@ -442,6 +454,8 @@ soc_info_t soc_info_table[] = {
 		.gpio_base    = SUNXI_PIO_BASE,
 		.ccu_base     = AW_CCM_BASE,
 		.spi_base     = SUN4I_SPI_BASE,
+		.spi_pins     = SPI_PINS(0, 1, 2, 3),
+		.spi_pinmux   = SUNIV_GPC_SPI0,
 	},{
 		.soc_id       = 0x1673, /* Allwinner A83T */
 		.name         = "A83T",
@@ -473,6 +487,8 @@ soc_info_t soc_info_table[] = {
 		.gpio_base    = SUNXI_PIO_BASE,
 		.ccu_base     = AW_CCM_BASE,
 		.spi_base     = SUN6I_SPI_BASE,
+		.spi_pins     = SPI_PINS(0, 1, 2, 3),
+		.spi_pinmux   = SUNXI_GPC_SPI0,
 		.flags        = NEEDS_SID_FIX,
 	},{
 		.soc_id       = 0x1681, /* Allwinner V3s */
@@ -488,6 +504,8 @@ soc_info_t soc_info_table[] = {
 		.gpio_base    = SUNXI_PIO_BASE,
 		.ccu_base     = AW_CCM_BASE,
 		.spi_base     = SUN6I_SPI_BASE,
+		.spi_pins     = SPI_PINS(0, 1, 2, 3),
+		.spi_pinmux   = SUNXI_GPC_SPI0,
 	},{
 		.soc_id       = 0x1708, /* Allwinner T7 */
 		.name         = "T7",
@@ -521,6 +539,8 @@ soc_info_t soc_info_table[] = {
 		.gpio_base    = SUNXI_PIO_BASE,
 		.ccu_base     = AW_CCM_BASE,
 		.spi_base     = SUN6I_SPI_BASE,
+		.spi_pins     = SPI_PINS(0, 1, 2, 3),
+		.spi_pinmux   = SUNXI_GPC_SPI0,
 	},{
 		.soc_id       = 0x1701, /* Allwinner R40 */
 		.name         = "R40",
@@ -535,6 +555,8 @@ soc_info_t soc_info_table[] = {
 		.gpio_base    = SUNXI_PIO_BASE,
 		.ccu_base     = AW_CCM_BASE,
 		.spi_base     = SUN4I_SPI_BASE,
+		.spi_pins     = SPI_PINS(0, 1, 2, 23),
+		.spi_pinmux   = SUNXI_GPC_SPI0,
 	},{
 		.soc_id       = 0x1719, /* Allwinner A63 */
 		.name         = "A63",
@@ -569,6 +591,8 @@ soc_info_t soc_info_table[] = {
 		.gpio_base    = H6_PIO_BASE,
 		.ccu_base     = H6_CCM_BASE,
 		.spi_base     = H6_SPI_BASE,
+		.spi_pins     = SPI_PINS(0, 2, 3, 5),
+		.spi_pinmux   = SUN50I_GPC_SPI0,
 		.flags        = H6_STYLE_CLOCKS,
 	},{
 		.soc_id       = 0x1816, /* Allwinner V536 */
@@ -585,6 +609,8 @@ soc_info_t soc_info_table[] = {
 		.gpio_base    = H6_PIO_BASE,
 		.ccu_base     = H6_CCM_BASE,
 		.spi_base     = H6_SPI_BASE,
+		.spi_pins     = SPI_PINS(0, 1, 2, 3),
+		.spi_pinmux   = SUN50I_GPC_SPI0,
 		.flags        = H6_STYLE_CLOCKS,
 	},{
 		.soc_id       = 0x1817, /* Allwinner V831 */
@@ -601,6 +627,8 @@ soc_info_t soc_info_table[] = {
 		.gpio_base    = H6_PIO_BASE,
 		.ccu_base     = H6_CCM_BASE,
 		.spi_base     = H6_SPI_BASE,
+		.spi_pins     = SPI_PINS(0, 1, 2, 3),
+		.spi_pinmux   = SUN50I_GPC_SPI0,
 		.flags        = H6_STYLE_CLOCKS,
 	},{
 		.soc_id       = 0x1823, /* Allwinner H616 */
@@ -620,6 +648,8 @@ soc_info_t soc_info_table[] = {
 		.gpio_base    = H6_PIO_BASE,
 		.ccu_base     = H6_CCM_BASE,
 		.spi_base     = H6_SPI_BASE,
+		.spi_pins     = SPI_PINS(0, 2, 3, 4),
+		.spi_pinmux   = SUN50I_GPC_SPI0,
 		.flags        = H6_STYLE_CLOCKS,
 	},{
 		.soc_id       = 0x1851, /* Allwinner R329 */

@@ -101,6 +101,10 @@ enum soc_flags {
 #define SUN6I_SPI_BASE		0x01c68000
 #define H6_SPI_BASE		0x05010000
 
+#define SUNIV_GPC_SPI0		2
+#define SUNXI_GPC_SPI0		3
+#define SUN50I_GPC_SPI0		4
+
 /*
  * Each SoC variant may have its own list of memory buffers to be exchanged
  * and the information about the placement of the thunk code, which handles
@@ -162,6 +166,8 @@ typedef struct {
 	uint32_t           gpio_base;
 	uint32_t           ccu_base;
 	uint32_t           spi_base;
+	uint32_t           spi_pins;	/* PC offset for 4 pins, 1 byte each */
+	uint8_t            spi_pinmux;
 	uint32_t           flags;
 } soc_info_t;
 
