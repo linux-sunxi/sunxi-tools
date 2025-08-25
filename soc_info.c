@@ -189,6 +189,12 @@ sram_swap_buffers a523_sram_swap_buffers[] = {
 	{ .buf1 = 0x45000, .buf2 = 0x40200, .size = 0x0400 },
 	{ .size = 0 }  /* End of the table */
 };
+
+sram_swap_buffers a733_sram_swap_buffers[] = {
+	{ .buf1 = 0x47000, .buf2 = 0x72400, .size = 0x1C00 },
+	{ .size = 0 }  /* End of the table */
+};
+
 /*
  * Some SoCs put both stacks, BSS and data segments at the end of a comparably
  * large SRAM, so we don't need to move anything around.
@@ -642,6 +648,20 @@ soc_info_t soc_info_table[] = {
 		.rvbar_reg    = 0x08100040,
 		.needs_smc_workaround_if_zero_word_at_addr = 0x100004,
 		.watchdog     = &wd_h6_compat,
+	},{
+		.soc_id       = 0x1903, /* Allwinner A733 */
+		.name         = "A733",
+		.spl_addr     = 0x47000,
+		.scratch_addr = 0x71000,
+		.thunk_addr   = 0x72000, .thunk_size = 0x200,
+		.swap_buffers = a733_sram_swap_buffers,
+		.sram_size    = 180 * 1024,
+		.sid_base     = 0x03006000,
+		.sid_offset   = 0x200,
+		.sid_sections = generic_2k_sid_maps,
+		.rvbar_reg    = 0x08001004,
+		.icache_fix   = true,
+		.watchdog     = &wd_a523_compat,
 	},{
 		.swap_buffers = NULL /* End of the table */
 	}
