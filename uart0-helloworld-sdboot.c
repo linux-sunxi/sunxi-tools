@@ -80,6 +80,7 @@ typedef unsigned char u8;
 #define R329_UART0_BASE		0x02500000
 #define R329_PIO_BASE		0x02000400
 #define R329_CCM_BASE		0x02001000
+#define A733_CCM_BASE		0x02002000
 
 #define V853_PIO_BASE		0x02000000
 
@@ -175,8 +176,11 @@ enum sunxi_gpio_number {
 #define FLAG_NEW_CLOCK		BIT(3)
 #define FLAG_UART_ON_APB1	BIT(4)
 #define FLAG_A80_CLOCK		BIT(5)
+#define FLAG_A733_GPIO		BIT(6)
+#define FLAG_A733_CLOCK		BIT(7)
 
 #define FLAG_NCAT2		FLAG_NEW_GPIO | FLAG_NEW_CLOCK
+#define FLAG_NCAT3		FLAG_A733_GPIO | FLAG_A733_CLOCK
 
 static const struct soc_info {
 	u16	soc_id;
@@ -239,6 +243,8 @@ static const struct soc_info {
 		R329_UART0_BASE, SUNXI_GPH(9), MUX_5, FLAG_NCAT2 },
 	{ 0x1890, "A523", V853_PIO_BASE, R329_CCM_BASE, SRAM_A1_ADDR_20000,
 		R329_UART0_BASE, SUNXI_GPB(9), MUX_2, FLAG_NCAT2 },
+	{ 0x1903, "A733", V853_PIO_BASE, A733_CCM_BASE, SRAM_A1_ADDR_20000,
+		R329_UART0_BASE, SUNXI_GPB(9), MUX_2, FLAG_NCAT3 },
 };
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
@@ -259,6 +265,7 @@ static const struct soc_info *find_soc_info(int soc_id, int variant)
 }
 
 static u32 pio_base;
+static u32 pio_bank_a_offset;
 static u32 pio_bank_size, pio_dat_off, pio_pull_off;
 
 static int sunxi_gpio_set_cfgpin(u32 pin, u32 val)
@@ -411,6 +418,9 @@ static void clock_init_uart(const struct soc_info *soc)
 	if (soc->flags & FLAG_NEW_CLOCK) {
 		set_wbit(soc->ccu_base + 0x90c,
 			 0x10001 << (CONFIG_CONS_INDEX - 1));
+	} else if (soc->flags & FLAG_A733_CLOCK) {
+		set_wbit(soc->ccu_base + 0xe00 + (CONFIG_CONS_INDEX - 1) * 4,
+			 0x10001);
 	} else {
 		int bit = 16 + CONFIG_CONS_INDEX - 1;
 		int gate_ofs = 0x06c;
@@ -439,19 +449,25 @@ static void clock_init_uart(const struct soc_info *soc)
 
 static void gpio_init(const struct soc_info *soc)
 {
-	pio_base = soc->pio_base;
-
 	if (soc->flags & FLAG_NEW_GPIO) {
 		/* GPIO V2 */
 		pio_bank_size = 0x30;
 		pio_dat_off = 0x10;
 		pio_pull_off = 0x24;
+	} else if (soc->flags & FLAG_A733_GPIO) {
+		/* Bank A Offset = 0x80 */
+		pio_bank_a_offset = 0x80;
+		pio_bank_size = 0x80;
+		pio_dat_off = 0x10;
+		pio_pull_off = 0x30;
 	} else {
 		/* GPIO V1 */
 		pio_bank_size = 0x24;
 		pio_dat_off = 0x10;
 		pio_pull_off = 0x1c;
 	}
+
+	pio_base = soc->pio_base + pio_bank_a_offset;
 
 	if (soc->flags & FLAG_UART_ON_PORTF) {
 		/* Disable normal UART0 pins to avoid conflict */
