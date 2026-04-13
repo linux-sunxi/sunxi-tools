@@ -904,7 +904,8 @@ uint32_t aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t l
  * U-Boot entry point (offset) and size values.
  */
 static void aw_fel_write_uboot_image(feldev_handle *dev, uint8_t *buf,
-				     size_t len, const char *dt_name)
+				     size_t len, const char *dt_name,
+				     progress_cb_t progress)
 {
 	if (len <= HEADER_SIZE)
 		return; /* Insufficient size (no actual data), just bail out */
@@ -963,7 +964,10 @@ static void aw_fel_write_uboot_image(feldev_handle *dev, uint8_t *buf,
 	pr_info("Writing image \"%.*s\", %u bytes @ 0x%08X.\n",
 		IH_NMLEN, buf + HEADER_NAME_OFFSET, data_size, load_addr);
 
-	aw_write_buffer(dev, buf + HEADER_SIZE, load_addr, data_size, false);
+	if (progress)
+		progress_start(progress, data_size);
+
+	aw_write_buffer(dev, buf + HEADER_SIZE, load_addr, data_size, progress != NULL);
 
 	/* keep track of U-Boot memory region in global vars */
 	uboot_entry = load_addr;
@@ -995,7 +999,8 @@ static const char *spl_get_dtb_name(uint8_t *spl_buf)
 /*
  * This function handles the common part of both "spl" and "uboot" commands.
  */
-void aw_fel_process_spl_and_uboot(feldev_handle *dev, const char *filename)
+void aw_fel_process_spl_and_uboot(feldev_handle *dev, const char *filename,
+				  progress_cb_t progress)
 {
 	size_t size;
 	uint32_t offset;
@@ -1012,7 +1017,7 @@ void aw_fel_process_spl_and_uboot(feldev_handle *dev, const char *filename)
 		if (offset < SPL_MIN_OFFSET)
 			offset = SPL_MIN_OFFSET;
 		aw_fel_write_uboot_image(dev, buf + offset, size - offset,
-					 dt_name);
+					 dt_name, progress);
 	}
 	free(buf);
 }
@@ -1468,10 +1473,12 @@ int main(int argc, char **argv)
 			aw_fel_fill(handle, strtoul(argv[2], NULL, 0), strtoul(argv[3], NULL, 0), (unsigned char)strtoul(argv[4], NULL, 0));
 			skip=4;
 		} else if (strcmp(argv[1], "spl") == 0 && argc > 2) {
-			aw_fel_process_spl_and_uboot(handle, argv[2]);
+			aw_fel_process_spl_and_uboot(handle, argv[2],
+						     pflag_active ? progress_bar : NULL);
 			skip=2;
 		} else if (strcmp(argv[1], "uboot") == 0 && argc > 2) {
-			aw_fel_process_spl_and_uboot(handle, argv[2]);
+			aw_fel_process_spl_and_uboot(handle, argv[2],
+						     pflag_active ? progress_bar : NULL);
 			uboot_autostart = (uboot_entry > 0 && uboot_size > 0);
 			if (!uboot_autostart)
 				printf("Warning: \"uboot\" command failed to detect image! Can't execute U-Boot.\n");
