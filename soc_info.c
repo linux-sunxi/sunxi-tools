@@ -382,6 +382,8 @@ soc_info_t soc_info_table[] = {
 		.sram_size    = 32 * 1024,
 		.sid_base     = 0x01C23800,
 		.sid_sections = generic_2k_sid_maps,
+		.usb_musb_base= 0x01c19000,
+		.fel_endpoint_state_ptr_addr = 0x00007d00,
 		.watchdog     = &wd_h3_compat,
 	},{
 		.soc_id       = 0x1689, /* Allwinner A64 */
@@ -395,6 +397,8 @@ soc_info_t soc_info_table[] = {
 		.sid_offset   = 0x200,
 		.sid_sections = h3_sid_maps,
 		.rvbar_reg    = 0x017000A0,
+		.usb_musb_base= 0x01c19000,
+		.fel_endpoint_state_ptr_addr = 0x00017d00,
 		.sec_boot_wa  = SECURE_BOOT_SMC,
 		/* Check L.NOP in the OpenRISC reset vector */
 		.sec_mem_addr = 0x40004,
@@ -444,6 +448,8 @@ soc_info_t soc_info_table[] = {
 		.sid_offset   = 0x200,
 		.sid_fix      = true,
 		.sid_sections = h3_sid_maps,
+		.usb_musb_base= 0x01c19000,
+		.fel_endpoint_state_ptr_addr = 0x00007d00,
 		.sec_boot_wa  = SECURE_BOOT_SMC,
 		/* Check L.NOP in the OpenRISC reset vector */
 		.sec_mem_addr = 0x40004,
@@ -495,6 +501,8 @@ soc_info_t soc_info_table[] = {
 		.sid_offset   = 0x200,
 		.sid_sections = h3_sid_maps,
 		.rvbar_reg    = 0x017000A0,
+		.usb_musb_base= 0x01c19000,
+		.fel_endpoint_state_ptr_addr = 0x00017d00,
 		.sec_boot_wa  = SECURE_BOOT_SMC,
 		/* Check L.NOP in the OpenRISC reset vector */
 		.sec_mem_addr = 0x40004,
@@ -522,6 +530,8 @@ soc_info_t soc_info_table[] = {
 		.sid_offset   = 0x200,
 		.sid_sections = generic_2k_sid_maps,
 		.rvbar_reg    = 0x09010040,
+		.usb_musb_base= 0x05100000,
+		.fel_endpoint_state_ptr_addr = 0x00027d00,
 		.watchdog     = &wd_h6_compat,
 	},{
 		.soc_id       = 0x1728, /* Allwinner H6 */
@@ -535,6 +545,8 @@ soc_info_t soc_info_table[] = {
 		.sid_offset   = 0x200,
 		.sid_sections = h6_sid_maps,
 		.rvbar_reg    = 0x09010040,
+		.usb_musb_base= 0x05100000,
+		.fel_endpoint_state_ptr_addr = 0x00027d00,
 		.sec_boot_wa  = SECURE_BOOT_SMC,
 		/* Check L.NOP in the OpenRISC reset vector */
 		.sec_mem_addr = 0x100004,
@@ -578,6 +590,8 @@ soc_info_t soc_info_table[] = {
 		.rvbar_reg_alt= 0x08100040,
 		.sec_boot_wa  = SECURE_BOOT_MONITOR_H6,
 		.ver_reg      = 0x03000024,
+		.usb_musb_base= 0x05100000,
+		.fel_endpoint_state_ptr_addr = 0x00057d08,
 		.watchdog     = &wd_h6_compat,
 	},{
 		.soc_id       = 0x1851, /* Allwinner R329 */
@@ -604,10 +618,12 @@ soc_info_t soc_info_table[] = {
 		.sid_base     = 0x03006000,
 		.sid_offset   = 0x200,
 		.sid_sections = generic_2k_sid_maps,
+		.usb_musb_base= 0x04100000,
+		.fel_endpoint_state_ptr_addr = 0x0004080c,
 		.icache_fix   = true,
 		.watchdog     = &wd_v853_compat,
 	},{
-		.soc_id       = 0x1859, /* Allwinner D1/D1s/R528/T113-S3 */
+		.soc_id       = 0x1859, /* Allwinner D1/D1s/R528/T113-S3/T528 */
 		.name         = "R528",
 		.spl_addr     = 0x20000,
 		.scratch_addr = 0x21000,
@@ -617,6 +633,8 @@ soc_info_t soc_info_table[] = {
 		.sid_base     = 0x03006000,
 		.sid_offset   = 0x200,
 		.sid_sections = generic_2k_sid_maps,
+		.usb_musb_base= 0x04100000,
+		.fel_endpoint_state_ptr_addr = 0x00047d08,
 		.icache_fix   = true,
 		.watchdog     = &wd_v853_compat,
 	},{
@@ -630,6 +648,8 @@ soc_info_t soc_info_table[] = {
 		.sid_base     = 0x03006000,
 		.sid_offset   = 0x200,
 		.sid_sections = generic_2k_sid_maps,
+		.usb_musb_base= 0x05100000,
+		.fel_endpoint_state_ptr_addr = 0x00027d04,
 		.watchdog     = &wd_h6_compat,
 	},{
 		.soc_id       = 0x1890, /* Allwinner A523 */
@@ -643,6 +663,8 @@ soc_info_t soc_info_table[] = {
 		.sid_offset   = 0x200,
 		.sid_sections = generic_2k_sid_maps,
 		.rvbar_reg    = 0x08000040,
+		.usb_musb_base= 0x04100000,
+		.fel_endpoint_state_ptr_addr = 0x00063d04,
 		.icache_fix   = true,
 		.watchdog     = &wd_a523_compat,
 	},{
@@ -658,6 +680,8 @@ soc_info_t soc_info_table[] = {
 		.sid_sections = generic_2k_sid_maps,
 		.rvbar_reg    = 0x08100040,
 		.sec_boot_wa  = SECURE_BOOT_MONITOR_H6,
+		.usb_musb_base= 0x05100000,
+		.fel_endpoint_state_ptr_addr = 0x00044d0c,
 		.watchdog     = &wd_h6_compat,
 	},{
 		.swap_buffers = NULL /* End of the table */
