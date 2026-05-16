@@ -32,6 +32,7 @@
 #include <string.h>
 
 #define USB_TIMEOUT	10000 /* 10 seconds */
+#define USB_DISCONNECT_TIMEOUT	250 /* 250 milliseconds */
 
 static bool fel_lib_initialized = false;
 
@@ -112,6 +113,45 @@ static void usb_bulk_recv(libusb_device_handle *usb, int ep, void *data,
 	}
 }
 
+static bool is_disconnect_error(int rc)
+{
+	return rc == LIBUSB_ERROR_IO || rc == LIBUSB_ERROR_NO_DEVICE ||
+	       rc == LIBUSB_ERROR_NOT_FOUND || rc == LIBUSB_ERROR_TIMEOUT ||
+	       rc == LIBUSB_ERROR_OVERFLOW || rc == LIBUSB_ERROR_PIPE;
+}
+
+static bool usb_bulk_send_may_disconnect(libusb_device_handle *usb, int ep,
+					 const void *data, size_t length)
+{
+	int rc, sent;
+
+	rc = libusb_bulk_transfer(usb, ep, (void *)data, length, &sent,
+				  USB_DISCONNECT_TIMEOUT);
+	if (rc) {
+		if (is_disconnect_error(rc))
+			return false;
+		usb_error(rc, "usb_bulk_send()", 2);
+	}
+
+	return sent == (int)length;
+}
+
+static bool usb_bulk_recv_may_disconnect(libusb_device_handle *usb, int ep,
+					 void *data, int length)
+{
+	int rc, recv;
+
+	rc = libusb_bulk_transfer(usb, ep, data, length, &recv,
+				  USB_DISCONNECT_TIMEOUT);
+	if (rc) {
+		if (is_disconnect_error(rc))
+			return false;
+		usb_error(rc, "usb_bulk_recv()", 2);
+	}
+
+	return recv == length;
+}
+
 struct aw_usb_request {
 	char signature[8];
 	uint32_t length;
@@ -150,12 +190,50 @@ static void aw_send_usb_request(feldev_handle *dev, int type, int length)
 		      &req, sizeof(req), false);
 }
 
+static bool aw_send_usb_request_may_disconnect(feldev_handle *dev, int type,
+					       int length)
+{
+	struct aw_usb_request req = {
+		.signature = "AWUC",
+		.request = htole16(type),
+		.length = htole32(length),
+		.unknown1 = htole32(0x0c000000)
+	};
+	req.length2 = req.length;
+	return usb_bulk_send_may_disconnect(dev->usb->handle,
+					    dev->usb->endpoint_out,
+					    &req, sizeof(req));
+}
+
 static void aw_read_usb_response(feldev_handle *dev)
 {
 	char buf[13];
 	usb_bulk_recv(dev->usb->handle, dev->usb->endpoint_in,
 		      buf, sizeof(buf));
 	assert(strcmp(buf, "AWUS") == 0);
+}
+
+static bool aw_read_usb_response_may_disconnect(feldev_handle *dev)
+{
+	char buf[13];
+
+	if (!usb_bulk_recv_may_disconnect(dev->usb->handle,
+					  dev->usb->endpoint_in,
+					  buf, sizeof(buf)))
+		return false;
+	assert(strcmp(buf, "AWUS") == 0);
+	return true;
+}
+
+static bool aw_usb_read_may_disconnect(feldev_handle *dev, void *data,
+				       size_t len)
+{
+	if (!aw_send_usb_request_may_disconnect(dev, AW_USB_READ, len))
+		return false;
+	if (!usb_bulk_recv_may_disconnect(dev->usb->handle,
+					  dev->usb->endpoint_in, data, len))
+		return false;
+	return aw_read_usb_response_may_disconnect(dev);
 }
 
 static void aw_usb_write(feldev_handle *dev, const void *data, size_t len,
@@ -165,6 +243,17 @@ static void aw_usb_write(feldev_handle *dev, const void *data, size_t len,
 	usb_bulk_send(dev->usb->handle, dev->usb->endpoint_out,
 		      data, len, progress);
 	aw_read_usb_response(dev);
+}
+
+static bool aw_usb_write_may_disconnect(feldev_handle *dev, const void *data,
+					size_t len)
+{
+	if (!aw_send_usb_request_may_disconnect(dev, AW_USB_WRITE, len))
+		return false;
+	if (!usb_bulk_send_may_disconnect(dev->usb->handle,
+					  dev->usb->endpoint_out, data, len))
+		return false;
+	return aw_read_usb_response_may_disconnect(dev);
 }
 
 static void aw_usb_read(feldev_handle *dev, void *data, size_t len)
@@ -185,10 +274,39 @@ static void aw_send_fel_request(feldev_handle *dev, int type,
 	aw_usb_write(dev, &req, sizeof(req), false);
 }
 
+static bool aw_send_fel_request_may_disconnect(feldev_handle *dev, int type,
+					       uint32_t addr, uint32_t length)
+{
+	struct aw_fel_request req = {
+		.request = htole32(type),
+		.address = htole32(addr),
+		.length = htole32(length)
+	};
+
+	return aw_usb_write_may_disconnect(dev, &req, sizeof(req));
+}
+
 static void aw_read_fel_status(feldev_handle *dev)
 {
 	char buf[8];
 	aw_usb_read(dev, buf, sizeof(buf));
+}
+
+static bool aw_read_fel_status_may_disconnect(feldev_handle *dev)
+{
+	char buf[8];
+
+	return aw_usb_read_may_disconnect(dev, buf, sizeof(buf));
+}
+
+static void aw_normalize_fel_version(struct aw_fel_version *buf)
+{
+	buf->soc_id = (le32toh(buf->soc_id) >> 8) & 0xFFFF;
+	buf->unknown_0a = le32toh(buf->unknown_0a);
+	buf->protocol = le32toh(buf->protocol);
+	buf->scratchpad = le32toh(buf->scratchpad);
+	buf->pad[0] = le32toh(buf->pad[0]);
+	buf->pad[1] = le32toh(buf->pad[1]);
 }
 
 /* AW_FEL_VERSION request */
@@ -197,13 +315,20 @@ static void aw_fel_get_version(feldev_handle *dev, struct aw_fel_version *buf)
 	aw_send_fel_request(dev, AW_FEL_VERSION, 0, 0);
 	aw_usb_read(dev, buf, sizeof(*buf));
 	aw_read_fel_status(dev);
+	aw_normalize_fel_version(buf);
+}
 
-	buf->soc_id = (le32toh(buf->soc_id) >> 8) & 0xFFFF;
-	buf->unknown_0a = le32toh(buf->unknown_0a);
-	buf->protocol = le32toh(buf->protocol);
-	buf->scratchpad = le32toh(buf->scratchpad);
-	buf->pad[0] = le32toh(buf->pad[0]);
-	buf->pad[1] = le32toh(buf->pad[1]);
+static bool aw_fel_get_version_may_disconnect(feldev_handle *dev,
+					      struct aw_fel_version *buf)
+{
+	if (!aw_send_fel_request_may_disconnect(dev, AW_FEL_VERSION, 0, 0))
+		return false;
+	if (!aw_usb_read_may_disconnect(dev, buf, sizeof(*buf)))
+		return false;
+	if (!aw_read_fel_status_may_disconnect(dev))
+		return false;
+	aw_normalize_fel_version(buf);
+	return true;
 }
 
 /* AW_FEL_1_READ request */
@@ -230,6 +355,12 @@ void aw_fel_execute(feldev_handle *dev, uint32_t offset)
 {
 	aw_send_fel_request(dev, AW_FEL_1_EXEC, offset, 0);
 	aw_read_fel_status(dev);
+}
+
+void aw_fel_execute_may_disconnect(feldev_handle *dev, uint32_t offset)
+{
+	if (aw_send_fel_request_may_disconnect(dev, AW_FEL_1_EXEC, offset, 0))
+		(void)aw_read_fel_status_may_disconnect(dev);
 }
 
 static void aw_disable_icache(feldev_handle *dev)
@@ -670,7 +801,7 @@ static int feldev_get_endpoint(feldev_handle *dev)
 }
 
 /* claim USB interface associated with the libusb handle for a FEL device */
-static void feldev_claim(feldev_handle *dev)
+static int feldev_claim(feldev_handle *dev)
 {
 	int rc = libusb_claim_interface(dev->usb->handle, 0);
 #if defined(__linux__)
@@ -681,11 +812,9 @@ static void feldev_claim(feldev_handle *dev)
 	}
 #endif
 	if (rc)
-		usb_error(rc, "libusb_claim_interface()", 1);
+		return rc;
 
-	rc = feldev_get_endpoint(dev);
-	if (rc)
-		usb_error(rc, "FAILED to get FEL mode endpoint addresses!", 1);
+	return feldev_get_endpoint(dev);
 }
 
 /* release USB interface associated with the libusb handle for a FEL device */
@@ -698,9 +827,9 @@ static void feldev_release(feldev_handle *dev)
 #endif
 }
 
-/* open handle to desired FEL device */
-feldev_handle *feldev_open(int busnum, int devnum,
-			   uint16_t vendor_id, uint16_t product_id)
+static feldev_handle *feldev_open_internal(int busnum, int devnum,
+					   uint16_t vendor_id,
+					   uint16_t product_id, bool fatal)
 {
 	if (!fel_lib_initialized) /* if not already done: auto-initialize */
 		feldev_init();
@@ -723,6 +852,8 @@ feldev_handle *feldev_open(int busnum, int devnum,
 		 */
 		result->usb->handle = libusb_open_device_with_vid_pid(NULL, vendor_id, product_id);
 		if (!result->usb->handle) {
+			if (!fatal)
+				goto err_free;
 			switch (errno) {
 			case EACCES:
 				fprintf(stderr, "ERROR: You don't have permission to access Allwinner USB FEL device\n");
@@ -757,28 +888,61 @@ feldev_handle *feldev_open(int busnum, int devnum,
 				}
 				/* open handle to this specific device (incrementing its refcount) */
 				rc = libusb_open(list[i], &result->usb->handle);
-				if (rc != 0)
+				if (rc != 0) {
+					if (!fatal) {
+						libusb_free_device_list(list, true);
+						goto err_free;
+					}
 					usb_error(rc, "libusb_open()", 1);
+				}
 				break;
 			}
 		}
 		libusb_free_device_list(list, true);
 
 		if (!found) {
+			if (!fatal)
+				goto err_free;
 			fprintf(stderr, "ERROR: Bus %03d Device %03d not found in libusb device list\n",
 				busnum, devnum);
 			exit(1);
 		}
 	}
 
-	feldev_claim(result); /* claim interface, detect USB endpoints */
+	int rc = feldev_claim(result); /* claim interface, detect USB endpoints */
+	if (rc) {
+		if (!fatal)
+			goto err_close;
+		usb_error(rc, "libusb_claim_interface()", 1);
+	}
 
 	/* retrieve BROM version and SoC information */
-	aw_fel_get_version(result, &result->soc_version);
+	if (fatal)
+		aw_fel_get_version(result, &result->soc_version);
+	else if (!aw_fel_get_version_may_disconnect(result,
+						   &result->soc_version))
+		goto err_release;
 	get_soc_name_from_id(result->soc_name, result->soc_version.soc_id);
 	result->soc_info = get_soc_info_from_version(&result->soc_version);
 
 	return result;
+
+err_release:
+	feldev_release(result);
+err_close:
+	if (result->usb->handle)
+		libusb_close(result->usb->handle);
+err_free:
+	free(result->usb);
+	free(result);
+	return NULL;
+}
+
+/* open handle to desired FEL device */
+feldev_handle *feldev_open(int busnum, int devnum,
+			   uint16_t vendor_id, uint16_t product_id)
+{
+	return feldev_open_internal(busnum, devnum, vendor_id, product_id, true);
 }
 
 /* close FEL device (optional, dev may be NULL) */
@@ -786,11 +950,18 @@ void feldev_close(feldev_handle *dev)
 {
 	if (dev) {
 		if (dev->usb->handle) {
-			feldev_release(dev);
+			if (!dev->disconnected)
+				feldev_release(dev);
 			libusb_close(dev->usb->handle);
 		}
 		free(dev->usb); /* release memory allocated for felusb_handle */
 	}
+}
+
+void feldev_mark_disconnected(feldev_handle *dev)
+{
+	if (dev)
+		dev->disconnected = true;
 }
 
 void feldev_init(void)
@@ -803,9 +974,14 @@ void feldev_init(void)
 
 void feldev_done(feldev_handle *dev)
 {
+	bool disconnected = dev && dev->disconnected;
+
 	feldev_close(dev);
 	free(dev);
-	if (fel_lib_initialized) libusb_exit(NULL);
+	if (fel_lib_initialized && !disconnected) {
+		libusb_exit(NULL);
+		fel_lib_initialized = false;
+	}
 }
 
 /*
@@ -846,13 +1022,19 @@ feldev_list_entry *list_fel_devices(size_t *count)
 		    || desc.idProduct != AW_USB_PRODUCT_ID)
 		continue; /* not an Allwinner FEL device */
 
+		int busnum = libusb_get_bus_number(usb[i]);
+		int devnum = libusb_get_device_address(usb[i]);
+
+		dev = feldev_open_internal(busnum, devnum,
+					   AW_USB_VENDOR_ID,
+					   AW_USB_PRODUCT_ID, false);
+		if (!dev)
+			continue;
+
 		entry = list + devices; /* pointer to current feldev_list_entry */
 		devices += 1;
-
-		entry->busnum = libusb_get_bus_number(usb[i]);
-		entry->devnum = libusb_get_device_address(usb[i]);
-		dev = feldev_open(entry->busnum, entry->devnum,
-				  AW_USB_VENDOR_ID, AW_USB_PRODUCT_ID);
+		entry->busnum = busnum;
+		entry->devnum = devnum;
 
 		/* copy relevant fields */
 		entry->soc_version = dev->soc_version;
