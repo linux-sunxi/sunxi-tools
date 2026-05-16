@@ -70,6 +70,25 @@ typedef struct {
 	uint32_t	size_bits;
 } sid_section;
 
+typedef enum {
+	FEL_RX_DMA_IRQ_NONE,
+	FEL_RX_DMA_IRQ_GICV2,
+	FEL_RX_DMA_IRQ_GICV3,
+} fel_rx_dma_irq_type;
+
+typedef struct {
+	uint32_t           thunk_addr;
+	uint32_t           l1_tt_addr;
+	uint32_t           l2_tt_addr;
+	uint32_t           brom_hook_addr;
+	uint32_t           brom_hook_shadow_addr;
+	uint32_t           dma_max_len;
+	fel_rx_dma_irq_type irq_type;
+	uint32_t           gicc_base;    /* GICv2 CPU interface base */
+	uint32_t           gicd_base;    /* GIC distributor base */
+	uint32_t           gic_irq_id;   /* GIC INTID, not raw SPI number */
+} fel_rx_dma_info;
+
 #define SID_SECTION(_name, _offset, _size_bits) {	\
 	.name = _name,					\
 	.offset = _offset,				\
@@ -136,6 +155,7 @@ typedef struct {
 	uint32_t           ver_reg;      /* MMIO address of "Version Register" */
 	uint32_t           usb_musb_base;/* base address of the USB OTG controller */
 	uint32_t           fel_endpoint_state_ptr_addr; /* addr holding FEL state pointer */
+	fel_rx_dma_info    fel_rx_dma;   /* BROM RX FIFO copy DMA patch */
 	const watchdog_info *watchdog;   /* Used for reset */
 	bool               sid_fix;      /* Use SID workaround (read via register) */
 	/* Use I$ workaround (disable I$ before first write to prevent stale thunk */
