@@ -36,7 +36,6 @@ bool verbose = false; /* If set, makes the 'fel' tool more talkative */
 static uint32_t uboot_entry = 0; /* entry point (address) of U-Boot */
 static uint32_t uboot_size  = 0; /* size of U-Boot binary */
 static bool enter_in_aarch64 = false;
-static bool fel_usb_high_speed_enabled = false;
 
 #define FEL_REENUM_TIMEOUT_MS		5000
 #define FEL_REENUM_RETRY_MS		100
@@ -1118,6 +1117,7 @@ uint32_t aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t l
 	/* re-enable the MMU if it was enabled by BROM */
 	if (tt != NULL)
 		aw_restore_and_enable_mmu(dev, soc_info, tt);
+	dev->dram_ready = true;
 
 	return spl_len;
 }
@@ -1650,7 +1650,7 @@ void usage(const char *cmd) {
 		"	-h, --help			Print this usage summary and exit\n"
 		"	-v, --verbose			Verbose logging\n"
 		"	-p, --progress			\"write\" transfers show a progress bar\n"
-		"	    --no-high-speed		Disable high-speed USB\n"
+		"	    --no-high-speed		Disable high-speed USB and fast writes\n"
 		"	-l, --list			Enumerate all (USB) FEL devices and exit\n"
 		"	-d, --dev bus:devnum		Use specific USB bus and device number\n"
 		"	    --sid SID			Select device by SID key (exact match)\n"
@@ -1790,10 +1790,11 @@ int main(int argc, char **argv)
 	 */
 	handle = feldev_open(busnum, devnum, AW_USB_VENDOR_ID, AW_USB_PRODUCT_ID);
 
-	fel_usb_high_speed_enabled = high_speed &&
-				     handle->soc_info->usb_musb_base != 0;
+	handle->verbose = verbose;
+	handle->usb_high_speed = high_speed &&
+				 handle->soc_info->usb_musb_base != 0;
 	reenum_sid_arg = sid_arg;
-	if (fel_usb_high_speed_enabled && !reenum_sid_arg &&
+	if (handle->usb_high_speed && !reenum_sid_arg &&
 	    read_device_sid(handle, reenum_sid)) {
 		reenum_sid_arg = reenum_sid;
 		pr_info("Tracking FEL device by SID %s\n", reenum_sid_arg);
@@ -1820,8 +1821,9 @@ int main(int argc, char **argv)
 
 		handle = feldev_open(busnum, devnum, AW_USB_VENDOR_ID,
 				     AW_USB_PRODUCT_ID);
-		fel_usb_high_speed_enabled = high_speed &&
-					     handle->soc_info->usb_musb_base != 0;
+		handle->verbose = verbose;
+		handle->usb_high_speed = high_speed &&
+					 handle->soc_info->usb_musb_base != 0;
 	}
 
 	/* Some SoCs need the SMC workaround to enter secure state. */

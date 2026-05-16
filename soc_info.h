@@ -70,6 +70,15 @@ typedef struct {
 	uint32_t	size_bits;
 } sid_section;
 
+typedef struct {
+	uint32_t           thunk_addr;
+	uint32_t           l1_tt_addr;
+	uint32_t           l2_tt_addr;
+	uint32_t           brom_hook_addr;
+	uint32_t           brom_hook_shadow_addr;
+	uint32_t           dma_max_len;
+} fel_rx_dma_info;
+
 #define SID_SECTION(_name, _offset, _size_bits) {	\
 	.name = _name,					\
 	.offset = _offset,				\
@@ -149,6 +158,7 @@ typedef struct {
 	uint32_t           ver_reg;      /* MMIO address of "Version Register" */
 	uint32_t           usb_musb_base;/* base address of the USB OTG controller */
 	uint32_t           fel_endpoint_table_addr; /* BROM FEL endpoint table */
+	fel_rx_dma_info    fel_rx_dma;   /* BROM RX FIFO copy DMA patch */
 	const watchdog_info *watchdog;   /* Used for reset */
 	bool               sid_fix;      /* Use SID workaround (read via register) */
 	/* Use I$ workaround (disable I$ before first write to prevent stale thunk */

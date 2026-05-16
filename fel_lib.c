@@ -22,6 +22,7 @@
  **********************************************************************/
 
 #include "portable_endian.h"
+#include "common.h"
 #include "fel_lib.h"
 #include <libusb.h>
 
@@ -70,19 +71,25 @@ static void usb_error(int rc, const char *caption, int exitcode)
  * timeout, and "slow" transfers take place at approx. 64 KiB/sec - so we can
  * expect the maximum chunk being transmitted within 8 seconds or less.
  */
-static const int AW_USB_MAX_BULK_SEND = 512 * 1024; /* 512 KiB per bulk request */
+static const int AW_USB_MAX_BULK_SEND = 512 * 1024;
+static const int AW_USB_PROGRESS_BULK_SEND = 128 * 1024;
+static const int AW_USB_FAST_PROGRESS_BULK_SEND = 1024 * 1024;
 
+#define	DRAM_BASE		0x40000000
+#define	DRAM_SIZE		0x80000000
+#define	DRAM_END		(DRAM_BASE + DRAM_SIZE)
+
+static uint32_t fel_rx_dma_thunk[] = {
+	#include "thunks/fel-rx-dma-thunk.h"
+};
+
+/*
+ * Keep progress updates frequent enough for slow BROM PIO transfers. Once an
+ * RX-DMA thunk is installed, 1 MiB chunks avoid host-side progress overhead.
+ */
 static void usb_bulk_send(libusb_device_handle *usb, int ep, const void *data,
-			  size_t length, bool progress)
+			  size_t length, size_t max_chunk, bool progress)
 {
-	/*
-	 * With no progress notifications, we'll use the maximum chunk size.
-	 * Otherwise, it's useful to lower the size (have more chunks) to get
-	 * more frequent status updates. 128 KiB per request seem suitable.
-	 * (Worst case of "slow" transfers -> one update every two seconds.)
-	 */
-	size_t max_chunk = progress ? 128 * 1024 : AW_USB_MAX_BULK_SEND;
-
 	size_t chunk;
 	int rc, sent;
 	while (length > 0) {
@@ -187,7 +194,7 @@ static void aw_send_usb_request(feldev_handle *dev, int type, int length)
 	};
 	req.length2 = req.length;
 	usb_bulk_send(dev->usb->handle, dev->usb->endpoint_out,
-		      &req, sizeof(req), false);
+		      &req, sizeof(req), AW_USB_MAX_BULK_SEND, false);
 }
 
 static bool aw_send_usb_request_may_disconnect(feldev_handle *dev, int type,
@@ -239,9 +246,18 @@ static bool aw_usb_read_may_disconnect(feldev_handle *dev, void *data,
 static void aw_usb_write(feldev_handle *dev, const void *data, size_t len,
 			 bool progress)
 {
+	size_t max_chunk = AW_USB_MAX_BULK_SEND;
+
+	if (progress) {
+		if (dev->rx_dma_patched)
+			max_chunk = AW_USB_FAST_PROGRESS_BULK_SEND;
+		else
+			max_chunk = AW_USB_PROGRESS_BULK_SEND;
+	}
+
 	aw_send_usb_request(dev, AW_USB_WRITE, len);
 	usb_bulk_send(dev->usb->handle, dev->usb->endpoint_out,
-		      data, len, progress);
+		      data, len, max_chunk, progress);
 	aw_read_usb_response(dev);
 }
 
@@ -363,6 +379,49 @@ void aw_fel_execute_may_disconnect(feldev_handle *dev, uint32_t offset)
 		(void)aw_read_fel_status_may_disconnect(dev);
 }
 
+static void aw_fel_install_rx_dma_thunk(feldev_handle *dev)
+{
+	const fel_rx_dma_info *dma = &dev->soc_info->fel_rx_dma;
+	uint32_t params[6], param_offset;
+	size_t i;
+
+	if (dev->rx_dma_patched || !dma->thunk_addr)
+		return;
+
+	param_offset = fel_rx_dma_thunk[1];
+	if (param_offset % sizeof(*fel_rx_dma_thunk) ||
+	    param_offset + sizeof(params) > sizeof(fel_rx_dma_thunk))
+		pr_fatal("RX DMA thunk: bad parameter offset 0x%x\n",
+			 param_offset);
+
+	uint32_t thunk_buf[ARRAY_SIZE(fel_rx_dma_thunk)];
+
+	if (dev->verbose)
+		printf("Patching BROM RX FIFO copy to use DMA.\n");
+	for (i = 0; i < sizeof(thunk_buf) / sizeof(*thunk_buf); i++)
+		thunk_buf[i] = htole32(fel_rx_dma_thunk[i]);
+	params[0] = htole32(dma->l1_tt_addr);
+	params[1] = htole32(dma->l2_tt_addr);
+	params[2] = htole32(dma->brom_hook_addr);
+	params[3] = htole32(dma->brom_hook_shadow_addr);
+	params[4] = htole32(dev->soc_info->usb_musb_base);
+	params[5] = htole32(dma->dma_max_len);
+	memcpy((uint8_t *)thunk_buf + param_offset, params, sizeof(params));
+
+	aw_fel_write(dev, thunk_buf, dma->thunk_addr, sizeof(thunk_buf));
+
+	aw_fel_execute(dev, dma->thunk_addr + fel_rx_dma_thunk[0]);
+	dev->rx_dma_patched = true;
+}
+
+static void aw_fel_prepare_fast_dram_write(feldev_handle *dev,
+					   uint32_t offset)
+{
+	if (dev->usb_high_speed && dev->dram_ready &&
+	    offset >= DRAM_BASE && offset < DRAM_END)
+		aw_fel_install_rx_dma_thunk(dev);
+}
+
 static void aw_disable_icache(feldev_handle *dev)
 {
 	soc_info_t *soc_info = dev->soc_info;
@@ -401,6 +460,7 @@ void aw_fel_write_buffer(feldev_handle *dev, const void *buf, uint32_t offset,
 	if (len == 0)
 		return;
 
+	aw_fel_prepare_fast_dram_write(dev, offset);
 	aw_send_fel_request(dev, AW_FEL_1_WRITE, offset, len);
 	aw_usb_write(dev, buf, len, progress);
 	aw_read_fel_status(dev);
