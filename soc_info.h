@@ -147,6 +147,8 @@ typedef struct {
 	uint32_t           rvbar_reg;    /* MMIO address of RVBARADDR0_L register */
 	uint32_t           rvbar_reg_alt;/* alternative MMIO address of RVBARADDR0_L register */
 	uint32_t           ver_reg;      /* MMIO address of "Version Register" */
+	uint32_t           usb_musb_base;/* base address of the USB OTG controller */
+	uint32_t           fel_endpoint_table_addr; /* BROM FEL endpoint table */
 	const watchdog_info *watchdog;   /* Used for reset */
 	bool               sid_fix;      /* Use SID workaround (read via register) */
 	/* Use I$ workaround (disable I$ before first write to prevent stale thunk */

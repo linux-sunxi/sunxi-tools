@@ -34,6 +34,7 @@ typedef struct {
 	struct aw_fel_version soc_version;
 	soc_name_t soc_name;
 	soc_info_t *soc_info;
+	bool disconnected;
 } feldev_handle;
 
 /* list_fel_devices() will return an array of this type */
@@ -49,6 +50,7 @@ typedef struct {
 
 void feldev_init(void);
 void feldev_done(feldev_handle *dev);
+void feldev_mark_disconnected(feldev_handle *dev);
 
 feldev_handle *feldev_open(int busnum, int devnum,
 			   uint16_t vendor_id, uint16_t product_id);
@@ -63,6 +65,7 @@ void aw_fel_write(feldev_handle *dev, const void *buf, uint32_t offset, size_t l
 void aw_fel_write_buffer(feldev_handle *dev, const void *buf, uint32_t offset,
 			 size_t len, bool progress);
 void aw_fel_execute(feldev_handle *dev, uint32_t offset);
+void aw_fel_execute_may_disconnect(feldev_handle *dev, uint32_t offset);
 
 void fel_readl_n(feldev_handle *dev, uint32_t addr, uint32_t *dst, size_t count);
 void fel_writel_n(feldev_handle *dev, uint32_t addr, uint32_t *src, size_t count);
