@@ -25,6 +25,12 @@
 #include <stdio.h>
 #include <string.h>
 
+#define FEL_RX_DMA_MAX_LEN	0x0003fe00
+#define GICD_BASE_LEGACY	0x01c81000
+#define GICC_BASE_LEGACY	0x01c82000
+#define GICD_BASE_NCAT		0x03021000
+#define GICC_BASE_NCAT		0x03022000
+
 /*
  * The FEL code from BROM in A10/A13/A20 sets up two stacks for itself. One
  * at 0x2000 (and growing down) for the IRQ handler. And another one at 0x7000
@@ -385,6 +391,18 @@ soc_info_t soc_info_table[] = {
 		.sid_sections = generic_2k_sid_maps,
 		.usb_musb_base= 0x01c19000,
 		.fel_endpoint_state_ptr_addr = 0x00007d00,
+		.fel_rx_dma = {
+			.thunk_addr = 0x0004e000,
+			.l1_tt_addr = 0x00048000,
+			.l2_tt_addr = 0x0004c000,
+			.brom_hook_addr = 0xffff2588,
+			.brom_hook_shadow_addr = 0x0004d000,
+			.dma_max_len = FEL_RX_DMA_MAX_LEN,
+			.irq_type = FEL_RX_DMA_IRQ_GICV2,
+			.gicc_base = GICC_BASE_LEGACY,
+			.gicd_base = GICD_BASE_LEGACY,
+			.gic_irq_id = 103,
+		},
 		.watchdog     = &wd_h3_compat,
 	},{
 		.soc_id       = 0x1689, /* Allwinner A64 */
@@ -400,6 +418,18 @@ soc_info_t soc_info_table[] = {
 		.rvbar_reg    = 0x017000A0,
 		.usb_musb_base= 0x01c19000,
 		.fel_endpoint_state_ptr_addr = 0x00017d00,
+		.fel_rx_dma = {
+			.thunk_addr = 0x00022000,
+			.l1_tt_addr = 0x0002c000,
+			.l2_tt_addr = 0x00031000,
+			.brom_hook_addr = 0x00002670,
+			.brom_hook_shadow_addr = 0x00030000,
+			.dma_max_len = FEL_RX_DMA_MAX_LEN,
+			.irq_type = FEL_RX_DMA_IRQ_GICV2,
+			.gicc_base = GICC_BASE_LEGACY,
+			.gicd_base = GICD_BASE_LEGACY,
+			.gic_irq_id = 103,
+		},
 		.sec_boot_wa  = SECURE_BOOT_SMC,
 		/* Check L.NOP in the OpenRISC reset vector */
 		.sec_mem_addr = 0x40004,
@@ -451,6 +481,18 @@ soc_info_t soc_info_table[] = {
 		.sid_sections = h3_sid_maps,
 		.usb_musb_base= 0x01c19000,
 		.fel_endpoint_state_ptr_addr = 0x00007d00,
+		.fel_rx_dma = {
+			.thunk_addr = 0x0000e000,
+			.l1_tt_addr = 0x00008000,
+			.l2_tt_addr = 0x0000c000,
+			.brom_hook_addr = 0xffff2680,
+			.brom_hook_shadow_addr = 0x0000d000,
+			.dma_max_len = FEL_RX_DMA_MAX_LEN,
+			.irq_type = FEL_RX_DMA_IRQ_GICV2,
+			.gicc_base = GICC_BASE_LEGACY,
+			.gicd_base = GICD_BASE_LEGACY,
+			.gic_irq_id = 103,
+		},
 		.sec_boot_wa  = SECURE_BOOT_SMC,
 		/* Check L.NOP in the OpenRISC reset vector */
 		.sec_mem_addr = 0x40004,
@@ -504,6 +546,18 @@ soc_info_t soc_info_table[] = {
 		.rvbar_reg    = 0x017000A0,
 		.usb_musb_base= 0x01c19000,
 		.fel_endpoint_state_ptr_addr = 0x00017d00,
+		.fel_rx_dma = {
+			.thunk_addr = 0x00022000,
+			.l1_tt_addr = 0x0002c000,
+			.l2_tt_addr = 0x00031000,
+			.brom_hook_addr = 0x0000205c,
+			.brom_hook_shadow_addr = 0x00030000,
+			.dma_max_len = FEL_RX_DMA_MAX_LEN,
+			.irq_type = FEL_RX_DMA_IRQ_GICV2,
+			.gicc_base = GICC_BASE_LEGACY,
+			.gicd_base = GICD_BASE_LEGACY,
+			.gic_irq_id = 103,
+		},
 		.sec_boot_wa  = SECURE_BOOT_SMC,
 		/* Check L.NOP in the OpenRISC reset vector */
 		.sec_mem_addr = 0x40004,
@@ -533,6 +587,18 @@ soc_info_t soc_info_table[] = {
 		.rvbar_reg    = 0x09010040,
 		.usb_musb_base= 0x05100000,
 		.fel_endpoint_state_ptr_addr = 0x00027d00,
+		.fel_rx_dma = {
+			.thunk_addr = 0x00022000,
+			.l1_tt_addr = 0x00038000,
+			.l2_tt_addr = 0x0003d000,
+			.brom_hook_addr = 0x000021ac,
+			.brom_hook_shadow_addr = 0x0003c000,
+			.dma_max_len = FEL_RX_DMA_MAX_LEN,
+			.irq_type = FEL_RX_DMA_IRQ_GICV2,
+			.gicc_base = GICC_BASE_NCAT,
+			.gicd_base = GICD_BASE_NCAT,
+			.gic_irq_id = 54,
+		},
 		.watchdog     = &wd_h6_compat,
 	},{
 		.soc_id       = 0x1728, /* Allwinner H6 */
@@ -548,6 +614,18 @@ soc_info_t soc_info_table[] = {
 		.rvbar_reg    = 0x09010040,
 		.usb_musb_base= 0x05100000,
 		.fel_endpoint_state_ptr_addr = 0x00027d00,
+		.fel_rx_dma = {
+			.thunk_addr = 0x00022000,
+			.l1_tt_addr = 0x00038000,
+			.l2_tt_addr = 0x0003d000,
+			.brom_hook_addr = 0x00002300,
+			.brom_hook_shadow_addr = 0x0003c000,
+			.dma_max_len = FEL_RX_DMA_MAX_LEN,
+			.irq_type = FEL_RX_DMA_IRQ_GICV2,
+			.gicc_base = GICC_BASE_NCAT,
+			.gicd_base = GICD_BASE_NCAT,
+			.gic_irq_id = 55,
+		},
 		.sec_boot_wa  = SECURE_BOOT_SMC,
 		/* Check L.NOP in the OpenRISC reset vector */
 		.sec_mem_addr = 0x100004,
@@ -593,6 +671,18 @@ soc_info_t soc_info_table[] = {
 		.ver_reg      = 0x03000024,
 		.usb_musb_base= 0x05100000,
 		.fel_endpoint_state_ptr_addr = 0x00057d08,
+		.fel_rx_dma = {
+			.thunk_addr = 0x00022000,
+			.l1_tt_addr = 0x0004c000,
+			.l2_tt_addr = 0x00051000,
+			.brom_hook_addr = 0x0000a17c,
+			.brom_hook_shadow_addr = 0x00050000,
+			.dma_max_len = FEL_RX_DMA_MAX_LEN,
+			.irq_type = FEL_RX_DMA_IRQ_GICV2,
+			.gicc_base = GICC_BASE_NCAT,
+			.gicd_base = GICD_BASE_NCAT,
+			.gic_irq_id = 57,
+		},
 		.watchdog     = &wd_h6_compat,
 	},{
 		.soc_id       = 0x1851, /* Allwinner R329 */
@@ -621,6 +711,18 @@ soc_info_t soc_info_table[] = {
 		.sid_sections = generic_2k_sid_maps,
 		.usb_musb_base= 0x04100000,
 		.fel_endpoint_state_ptr_addr = 0x0004080c,
+		.fel_rx_dma = {
+			.thunk_addr = 0x00022000,
+			.l1_tt_addr = 0x00038000,
+			.l2_tt_addr = 0x0003d000,
+			.brom_hook_addr = 0x0000aff0,
+			.brom_hook_shadow_addr = 0x0003c000,
+			.dma_max_len = FEL_RX_DMA_MAX_LEN,
+			.irq_type = FEL_RX_DMA_IRQ_GICV2,
+			.gicc_base = GICC_BASE_NCAT,
+			.gicd_base = GICD_BASE_NCAT,
+			.gic_irq_id = 61,
+		},
 		.icache_fix   = true,
 		.watchdog     = &wd_v853_compat,
 	},{
@@ -636,6 +738,18 @@ soc_info_t soc_info_table[] = {
 		.sid_sections = generic_2k_sid_maps,
 		.usb_musb_base= 0x04100000,
 		.fel_endpoint_state_ptr_addr = 0x00047d08,
+		.fel_rx_dma = {
+			.thunk_addr = 0x00022000,
+			.l1_tt_addr = 0x00030000,
+			.l2_tt_addr = 0x00035000,
+			.brom_hook_addr = 0x000094c8,
+			.brom_hook_shadow_addr = 0x00034000,
+			.dma_max_len = FEL_RX_DMA_MAX_LEN,
+			.irq_type = FEL_RX_DMA_IRQ_GICV2,
+			.gicc_base = GICC_BASE_NCAT,
+			.gicd_base = GICD_BASE_NCAT,
+			.gic_irq_id = 61,
+		},
 		.icache_fix   = true,
 		.watchdog     = &wd_v853_compat,
 	},{
@@ -651,6 +765,18 @@ soc_info_t soc_info_table[] = {
 		.sid_sections = generic_2k_sid_maps,
 		.usb_musb_base= 0x05100000,
 		.fel_endpoint_state_ptr_addr = 0x00027d04,
+		.fel_rx_dma = {
+			.thunk_addr = 0x00022000,
+			.l1_tt_addr = 0x00038000,
+			.l2_tt_addr = 0x0003d000,
+			.brom_hook_addr = 0x000036ec,
+			.brom_hook_shadow_addr = 0x0003c000,
+			.dma_max_len = FEL_RX_DMA_MAX_LEN,
+			.irq_type = FEL_RX_DMA_IRQ_GICV2,
+			.gicc_base = GICC_BASE_NCAT,
+			.gicd_base = GICD_BASE_NCAT,
+			.gic_irq_id = 96,
+		},
 		.watchdog     = &wd_h6_compat,
 	},{
 		.soc_id       = 0x1890, /* Allwinner A523 */
@@ -666,6 +792,17 @@ soc_info_t soc_info_table[] = {
 		.rvbar_reg    = 0x08000040,
 		.usb_musb_base= 0x04100000,
 		.fel_endpoint_state_ptr_addr = 0x00063d04,
+		.fel_rx_dma = {
+			.thunk_addr = 0x00041000,
+			.l1_tt_addr = 0x00050000,
+			.l2_tt_addr = 0x00055000,
+			.brom_hook_addr = 0x00017574,
+			.brom_hook_shadow_addr = 0x00054000,
+			.dma_max_len = FEL_RX_DMA_MAX_LEN,
+			.irq_type = FEL_RX_DMA_IRQ_GICV3,
+			.gicd_base = 0x03400000,
+			.gic_irq_id = 61,
+		},
 		.icache_fix   = true,
 		.watchdog     = &wd_a523_compat,
 	},{
@@ -683,6 +820,18 @@ soc_info_t soc_info_table[] = {
 		.sec_boot_wa  = SECURE_BOOT_MONITOR_H6,
 		.usb_musb_base= 0x05100000,
 		.fel_endpoint_state_ptr_addr = 0x00044d0c,
+		.fel_rx_dma = {
+			.thunk_addr = 0x00022000,
+			.l1_tt_addr = 0x00038000,
+			.l2_tt_addr = 0x0003d000,
+			.brom_hook_addr = 0x0000b698,
+			.brom_hook_shadow_addr = 0x0003c000,
+			.dma_max_len = FEL_RX_DMA_MAX_LEN,
+			.irq_type = FEL_RX_DMA_IRQ_GICV2,
+			.gicc_base = GICC_BASE_NCAT,
+			.gicd_base = GICD_BASE_NCAT,
+			.gic_irq_id = 64,
+		},
 		.watchdog     = &wd_h6_compat,
 	},{
 		.swap_buffers = NULL /* End of the table */
