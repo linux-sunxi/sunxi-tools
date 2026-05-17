@@ -564,31 +564,38 @@ void aw_set_sctlr(feldev_handle *dev, soc_info_t *soc_info,
 	aw_write_arm_cp_reg(dev, soc_info, 15, 0, 1, 0, 0, sctlr);
 }
 
+static bool aw_fel_needs_smc_workaround(feldev_handle *dev)
+{
+	soc_info_t *soc_info = dev->soc_info;
+	uint32_t val;
+
+	/* Return if the SoC does not need this workaround */
+	if (!soc_info->needs_smc_workaround_if_zero_word_at_addr)
+		return false;
+
+	/* This has less overhead than fel_readl_n() and may be good enough */
+	aw_fel_read(dev, soc_info->needs_smc_workaround_if_zero_word_at_addr,
+	            &val, sizeof(val));
+
+	return val == 0;
+}
+
 /*
  * Issue a "smc #0" instruction. This brings a SoC booted in "secure boot"
  * state from the default non-secure FEL into secure FEL.
  * This crashes on devices using "non-secure boot", as the BROM does not
  * provide a handler address in MVBAR. So we have a runtime check.
  */
-void aw_apply_smc_workaround(feldev_handle *dev)
+static void aw_apply_smc_workaround(feldev_handle *dev)
 {
 	soc_info_t *soc_info = dev->soc_info;
-	uint32_t val;
 	uint32_t arm_code[] = {
 		htole32(0xe1600070), /* smc	#0	*/
 		htole32(0xe12fff1e), /* bx	lr	*/
 	};
 
-	/* Return if the SoC does not need this workaround */
-	if (!soc_info->needs_smc_workaround_if_zero_word_at_addr)
-		return;
-
-	/* This has less overhead than fel_readl_n() and may be good enough */
-	aw_fel_read(dev, soc_info->needs_smc_workaround_if_zero_word_at_addr,
-	            &val, sizeof(val));
-
 	/* Return if the workaround is not needed or has been already applied */
-	if (val != 0)
+	if (!aw_fel_needs_smc_workaround(dev))
 		return;
 
 	pr_info("Applying SMC workaround... ");
