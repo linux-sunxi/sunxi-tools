@@ -3,6 +3,7 @@
 #
 
 SPL_THUNK := fel-to-spl-thunk.h
+SPL_THUNK += fel-to-secure-svc-smc-thunk.h
 THUNKS := clrsetbits.h
 THUNKS += memcpy.h
 THUNKS += readl_writel.h
