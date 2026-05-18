@@ -53,6 +53,10 @@ MISC_TOOLS = phoenix_info sunxi-nand-image-builder
 # ARM binaries and images
 # Note: To use this target, set/adjust CROSS_COMPILE and MKSUNXIBOOT if needed
 BINFILES = jtag-loop.sunxi fel-sdboot.sunxi uart0-helloworld-sdboot.sunxi
+BINFILE_ELFS = $(BINFILES:.sunxi=.elf)
+BINFILE_BINS = $(BINFILES:.sunxi=.bin)
+BOOT_HEAD_ELFS = boot_head_sun3i.elf boot_head_sun4i.elf boot_head_sun5i.elf
+CLEANFILES = $(BINFILES) $(BINFILE_ELFS) $(BINFILE_BINS) $(BOOT_HEAD_ELFS)
 
 MKSUNXIBOOT ?= mksunxiboot
 PATH_DIRS := $(shell echo $$PATH | sed -e 's/:/ /g')
@@ -107,7 +111,7 @@ install-misc: $(MISC_TOOLS)
 clean:
 	make -C tests/ clean
 	@rm -vf $(TOOLS) $(FEXC_LINKS) $(TARGET_TOOLS) $(MISC_TOOLS)
-	@rm -vf version.h *.o *.elf *.sunxi *.bin *.nm *.orig
+	@rm -vf version.h *.o $(CLEANFILES)
 
 $(TOOLS) $(TARGET_TOOLS) $(MISC_TOOLS): Makefile common.h version.h
 
