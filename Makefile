@@ -51,7 +51,7 @@ TARGET_TOOLS = sunxi-meminfo
 MISC_TOOLS = phoenix_info sunxi-nand-image-builder
 
 # ARM binaries and images
-# Note: To use this target, set/adjust CROSS_COMPILE and MKSUNXIBOOT if needed
+# Note: To use this target, set/adjust CROSS_COMPILE, MKIMAGE and MKSUNXIBOOT if needed
 BINFILES = jtag-loop.sunxi fel-sdboot.sunxi uart0-helloworld-sdboot.sunxi
 BINFILE_ELFS = $(BINFILES:.sunxi=.elf)
 BINFILE_BINS = $(BINFILES:.sunxi=.bin)
@@ -59,6 +59,9 @@ BOOT_HEAD_ELFS = boot_head_sun3i.elf boot_head_sun4i.elf boot_head_sun5i.elf
 CLEANFILES = $(BINFILES) $(BINFILE_ELFS) $(BINFILE_BINS) $(BOOT_HEAD_ELFS)
 
 MKSUNXIBOOT ?= mksunxiboot
+MKIMAGE ?= mkimage
+MKIMAGE_SUNXI_EGON = $(shell $(MKIMAGE) -T list 2>&1 | grep -q 'sunxi_egon' && echo y)
+SUNXI_BOOT_IMAGE = $(if $(MKIMAGE_SUNXI_EGON),$(MKIMAGE) -T sunxi_egon -d,$(MKSUNXIBOOT))
 PATH_DIRS := $(shell echo $$PATH | sed -e 's/:/ /g')
 # Try to guess a suitable default ARM cross toolchain
 CROSS_DEFAULT := arm-none-eabi-
@@ -164,7 +167,7 @@ phoenix_info: phoenix_info.c
 	$(CROSS_COMPILE)objcopy -O binary $< $@
 
 %.sunxi: %.bin
-	$(MKSUNXIBOOT) $< $@
+	$(SUNXI_BOOT_IMAGE) $< $@
 
 ARM_ELF_FLAGS = -Os -marm -fpic -Wall
 ARM_ELF_FLAGS += -fno-common -fno-builtin -ffreestanding -nostdinc -fno-strict-aliasing
