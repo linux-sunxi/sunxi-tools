@@ -96,7 +96,8 @@ install-tools: $(TOOLS)
 	@set -ex ; for l in $(FEXC_LINKS) ; do \
 		ln -nfs sunxi-fexc $(DESTDIR)$(BINDIR)/$$l ; \
 	done
-	install -D -m0644 -t $(DESTDIR)$(MANDIR) sunxi-fel.1
+	install -d $(DESTDIR)$(MANDIR)
+	install -m0644 sunxi-fel.1 $(DESTDIR)$(MANDIR)/sunxi-fel.1
 
 install-target-tools: $(TARGET_TOOLS)
 	install -d $(DESTDIR)$(BINDIR)
