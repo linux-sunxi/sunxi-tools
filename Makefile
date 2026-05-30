@@ -180,10 +180,14 @@ phoenix_info: phoenix_info.c
 %.sunxi: %.bin
 	$(SUNXI_BOOT_IMAGE) $< $@
 
+
+CROSS_CC_INSTALL = $(shell LANG=C $(CROSS_CC) -print-search-dirs | sed -n -e 's/install: \(.*\)/\1/p')
+
 ARM_ELF_FLAGS = -Os -marm -fpic -Wall
 ARM_ELF_FLAGS += -fno-common -fno-builtin -ffreestanding -nostdinc -fno-strict-aliasing
 ARM_ELF_FLAGS += -mno-thumb-interwork -fno-stack-protector -fno-toplevel-reorder
 ARM_ELF_FLAGS += -Wstrict-prototypes -Wno-format-nonliteral -Wno-format-security
+ARM_ELF_FLAGS += -isystem $(CROSS_CC_INSTALL)/include
 
 jtag-loop.elf: jtag-loop.c bare-metal.c bare-metal.lds
 	$(CROSS_CC) -march=armv5te -g $(ARM_ELF_FLAGS) $(filter %.c,$^) -nostdlib -o $@ -T $(lastword $^) -Wl,-N

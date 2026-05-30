@@ -53,10 +53,11 @@
 #ifndef _BARE_METAL_H_
 #define _BARE_METAL_H_
 
+#include <stdbool.h>
+
 typedef unsigned int u32;
 typedef unsigned short int u16;
 typedef unsigned char u8;
-typedef int bool;
 
 #ifndef NULL
 #define NULL ((void*)0)
