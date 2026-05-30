@@ -181,7 +181,7 @@ phoenix_info: phoenix_info.c
 	$(SUNXI_BOOT_IMAGE) $< $@
 
 ARM_ELF_FLAGS = -Os -marm -fpic -Wall
-ARM_ELF_FLAGS += -fno-common -fno-builtin -ffreestanding -nostdinc -fno-strict-aliasing
+ARM_ELF_FLAGS += -fno-common -fno-builtin -ffreestanding -fno-strict-aliasing
 ARM_ELF_FLAGS += -mno-thumb-interwork -fno-stack-protector -fno-toplevel-reorder
 ARM_ELF_FLAGS += -Wstrict-prototypes -Wno-format-nonliteral -Wno-format-security
 
