@@ -594,7 +594,7 @@ void uart0_puts(const char *s)
 	}
 }
 
-void uart0_puthex(unsigned long hex, bool new_line)
+void uart0_puthex(unsigned long hex, int new_line)
 {
 	unsigned int chunks = sizeof(hex) * 2;
 	unsigned int i;
