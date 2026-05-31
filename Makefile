@@ -72,8 +72,9 @@ DESTDIR ?=
 PREFIX  ?= /usr/local
 BINDIR  ?= $(PREFIX)/bin
 MANDIR  ?= $(PREFIX)/share/man/man1
+APPSTREAM_METAINFODIR ?= $(PREFIX)/share/metainfo
 
-.PHONY: all clean tools target-tools install install-tools install-target-tools
+.PHONY: all clean tools target-tools install install-tools install-target-tools install-appstream-metainfo
 .PHONY: check
 
 tools: $(TOOLS) $(FEXC_LINKS)
@@ -111,6 +112,10 @@ install-misc: $(MISC_TOOLS)
 		install -m0755 $$t $(DESTDIR)$(BINDIR)/$$t ; \
 	done
 
+install-appstream-metainfo: $(APPSTREAM_METAINFO)
+	install -d $(DESTDIR)$(APPSTREAM_METAINFODIR)
+	install -m0644 org.linux_sunxi.sunxi-tools.metainfo.xml \
+		$(DESTDIR)$(APPSTREAM_METAINFODIR)
 
 clean:
 	make -C tests/ clean

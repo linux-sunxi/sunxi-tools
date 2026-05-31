@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="console-application">
+  <id>org.linux_sunxi.sunxi-tools</id>
+  <metadata_license>MIT</metadata_license>
+  <project_license>GPL-2.0+</project_license>
+  <name>sunxi-tools</name>
+  <summary>Tools for working with Allwinner (sunxi) ARM processors</summary>
+  <description>
+    <p>This package contains various tools for working with devices
+    based around the Allwinner sunxi processors (A10/A13/A20/A31
+    etc). Utilities include tools to:</p>
+    <ul>
+      <li>interact with the processors' lowlevel bootrom (AKA FEL mode).</li>
+      <li>boot over the USB OTG port.</li>
+      <li>compile and decompile the Allwinner binary hardware
+      descriptions (FEX files).</li>
+      <li>display information about sunxi boot headers.</li>
+    </ul>
+  </description>
+  <url type="homepage">https://linux-sunxi.org</url>
+  <url type="bugtracker">https://github.com/linux-sunxi/sunxi-tools/issues</url>
+  <url type="vcs-browser">https://github.com/linux-sunxi/sunxi-tools</url>
+  <developer id="org.linux-sunxi">
+    <name>The Linux sunxi community</name>
+  </developer>
+  <provides>
+    <modalias>usb:v1F3ApEFE8d*</modalias>
+    <binary>sunxi-bootinfo</binary>
+    <binary>sunxi-fel</binary>
+    <binary>sunxi-fexc</binary>
+    <binary>sunxi-nand-part</binary>
+    <binary>sunxi-pio</binary>
+    <binary>bin2fex</binary>
+    <binary>fex2bin</binary>
+  </provides>
+  <content_rating type="oars-1.0"/>
+</component>
