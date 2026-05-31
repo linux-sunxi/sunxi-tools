@@ -1,14 +1,14 @@
-### GNU GENERAL PUBLIC LICENSE
+# GNU GENERAL PUBLIC LICENSE
 
 Version 2, June 1991
 
     Copyright (C) 1989, 1991 Free Software Foundation, Inc.  
-    51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+    <https://fsf.org/>
 
     Everyone is permitted to copy and distribute verbatim copies
     of this license document, but changing it is not allowed.
 
-### Preamble
+## Preamble
 
 The licenses for most software are designed to take away your freedom
 to share and change it. By contrast, the GNU General Public License is
@@ -59,7 +59,7 @@ all.
 The precise terms and conditions for copying, distribution and
 modification follow.
 
-### TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
+## TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
 
 **0.** This License applies to any program or other work which
 contains a notice placed by the copyright holder saying it may be
@@ -291,9 +291,9 @@ FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER PROGRAMS), EVEN IF
 SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH
 DAMAGES.
 
-### END OF TERMS AND CONDITIONS
+END OF TERMS AND CONDITIONS
 
-### How to Apply These Terms to Your New Programs
+## How to Apply These Terms to Your New Programs
 
 If you develop a new program, and you want it to be of the greatest
 possible use to the public, the best way to achieve this is to make it
@@ -319,8 +319,7 @@ the "copyright" line and a pointer to where the full notice is found.
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+    along with this program; if not, see <https://www.gnu.org/licenses/>.
 
 Also add information on how to contact you by electronic and paper
 mail.
@@ -349,13 +348,13 @@ if necessary. Here is a sample; alter the names:
     (which makes passes at compilers) written 
     by James Hacker.
 
-    signature of Ty Coon, 1 April 1989
-    Ty Coon, President of Vice
+    signature of Moe Ghoul, 1 April 1989
+    Moe Ghoul, President of Vice
 
 This General Public License does not permit incorporating your program
 into proprietary programs. If your program is a subroutine library,
 you may consider it more useful to permit linking proprietary
 applications with the library. If this is what you want to do, use the
 [GNU Lesser General Public
-License](http://www.gnu.org/licenses/lgpl.html) instead of this
+License](https://www.gnu.org/licenses/lgpl.html) instead of this
 License.
