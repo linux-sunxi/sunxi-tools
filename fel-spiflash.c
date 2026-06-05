@@ -87,6 +87,10 @@ void fel_writel(feldev_handle *dev, uint32_t addr, uint32_t val);
 #define H6_CCM_SPI_BGR              (0x03001000 + 0x96C)
 #define H6_CCM_SPI0_GATE_RESET      (1 << 0 | 1 << 16)
 
+#define SUN55I_CCM_SPI0_CLK         (0x02001000 + 0x940)
+#define SUN55I_CCM_SPI_BGR          (0x02001000 + 0x96C)
+#define SUN55I_CCM_SPI0_GATE_RESET  (1 << 0 | 1 << 16)
+
 #define SUNIV_GPC_SPI0              (2)
 #define SUNXI_GPC_SPI0              (3)
 #define SUN50I_GPC_SPI0             (4)
@@ -131,6 +135,8 @@ static uint32_t gpio_base(feldev_handle *dev)
 	case 0x1728: /* H6 */
 	case 0x1823: /* H616 */
 		return 0x0300B000;
+	case 0x1890: /* A523 */
+		return 0x02000000;
 	default:
 		return 0x01C20800;
 	}
@@ -151,8 +157,21 @@ static uint32_t spi_base(feldev_handle *dev)
 	case 0x1728: /* H6 */
 	case 0x1823: /* H616 */
 		return 0x05010000;
+	case 0x1890: /* A523 */
+		return 0x04025000;
 	default:
 		return 0x01C68000;
+	}
+}
+
+static uint32_t gpio_port_stride(feldev_handle *dev)
+{
+	soc_info_t *soc_info = dev->soc_info;
+	switch (soc_info->soc_id) {
+	case 0x1890: /* A523 */
+		return 0x30;
+	default:
+		return 0x24;
 	}
 }
 
@@ -162,11 +181,11 @@ static uint32_t spi_base(feldev_handle *dev)
 static void gpio_set_cfgpin(feldev_handle *dev, int port_num, int pin_num,
 			    int val)
 {
-	uint32_t port_base = gpio_base(dev) + port_num * 0x24;
+	uint32_t port_base = gpio_base(dev) + port_num * gpio_port_stride(dev);
 	uint32_t cfg_reg   = port_base + 4 * (pin_num / 8);
 	uint32_t pin_idx   = pin_num % 8;
 	uint32_t x = readl(cfg_reg);
-	x &= ~(0x7 << (pin_idx * 4));
+	x &= ~(0xf << (pin_idx * 4));
 	x |= val << (pin_idx * 4);
 	writel(x, cfg_reg);
 }
@@ -192,6 +211,17 @@ static bool soc_is_h6_style(feldev_handle *dev)
 	case 0x1817: /* V831 */
 	case 0x1728: /* H6 */
 	case 0x1823: /* H616 */
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool soc_is_a523_style(feldev_handle *dev)
+{
+	soc_info_t *soc_info = dev->soc_info;
+	switch (soc_info->soc_id) {
+	case 0x1890: /* A523 */
 		return true;
 	default:
 		return false;
@@ -259,13 +289,23 @@ static bool spi0_init(feldev_handle *dev)
 		gpio_set_cfgpin(dev, PC, 3, SUN50I_GPC_SPI0);	/* SPI0_CS0 */
 		gpio_set_cfgpin(dev, PC, 4, SUN50I_GPC_SPI0);	/* SPI0_MISO */
 		break;
+	case 0x1890: /* Allwinner A523 */
+		gpio_set_cfgpin(dev, PC, 12, SUN50I_GPC_SPI0);	/* SPI0_CLK */
+		gpio_set_cfgpin(dev, PC,  2, SUN50I_GPC_SPI0);	/* SPI0_MOSI */
+		gpio_set_cfgpin(dev, PC,  3, SUN50I_GPC_SPI0);	/* SPI0_CS0 */
+		gpio_set_cfgpin(dev, PC,  4, SUN50I_GPC_SPI0);	/* SPI0_MISO */
+		break;
 	default: /* Unknown/Unsupported SoC */
 		printf("SPI support not implemented yet for %x (%s)!\n",
 		       soc_info->soc_id, soc_info->name);
 		return false;
 	}
 
-	if (soc_is_h6_style(dev)) {
+	if (soc_is_a523_style(dev)) {
+		reg_val = readl(SUN55I_CCM_SPI_BGR);
+		reg_val |= SUN55I_CCM_SPI0_GATE_RESET;
+		writel(reg_val, SUN55I_CCM_SPI_BGR);
+	} else if (soc_is_h6_style(dev)) {
 		reg_val = readl(H6_CCM_SPI_BGR);
 		reg_val |= H6_CCM_SPI0_GATE_RESET;
 		writel(reg_val, H6_CCM_SPI_BGR);
@@ -302,7 +342,8 @@ static bool spi0_init(feldev_handle *dev)
 		       spi_is_sun6i(dev) ? SUN6I_SPI0_CCTL : SUN4I_SPI0_CCTL);
 		/* Choose 24MHz from OSC24M and enable clock */
 		writel(1U << 31,
-		       soc_is_h6_style(dev) ? H6_CCM_SPI0_CLK : CCM_SPI0_CLK);
+		       soc_is_a523_style(dev) ? SUN55I_CCM_SPI0_CLK :
+		       soc_is_h6_style(dev)   ? H6_CCM_SPI0_CLK  : CCM_SPI0_CLK);
 	}
 
 	if (spi_is_sun6i(dev)) {
