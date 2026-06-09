@@ -2,14 +2,16 @@
 # build "preprocessed" .h files for inclusion of ARM scratch code
 #
 
-SPL_THUNK := fel-to-spl-thunk.h
+FEL_EXEC_THUNKS := fel-to-spl-thunk.h
+FEL_EXEC_THUNKS += fel-to-secure-svc-smc-thunk.h
+FEL_EXEC_THUNKS += fel-rx-dma-thunk.h
 THUNKS := clrsetbits.h
 THUNKS += memcpy.h
 THUNKS += readl_writel.h
 THUNKS += rmr-thunk.h
 THUNKS += sid_read_root.h
 
-all: $(SPL_THUNK) $(THUNKS)
+all: $(FEL_EXEC_THUNKS) $(THUNKS)
 # clean up object files afterwards
 	rm -f *.o
 
@@ -24,9 +26,10 @@ OBJDUMP := $(CROSS_COMPILE)objdump
 
 AWK_O_TO_H := LC_ALL=C awk -f objdump_to_h.awk
 
-# The SPL thunk requires a different output format. The "style" variable for
-# awk controls this, and causes the htole32() conversion to be omitted.
-fel-to-spl-thunk.h: fel-to-spl-thunk.S FORCE
+# These thunks are copied into a uint32_t buffer and byte-swapped by fel.c.
+# The "style" variable for awk controls this, and causes the htole32()
+# conversion to be omitted.
+$(FEL_EXEC_THUNKS): %.h: %.S FORCE
 	$(AS) -o $(subst .S,.o,$<) -march=armv5te $<
 	$(OBJDUMP) -d $(subst .S,.o,$<) | $(AWK_O_TO_H) -v style=old > $@
 

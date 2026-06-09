@@ -70,6 +70,15 @@ typedef struct {
 	uint32_t	size_bits;
 } sid_section;
 
+typedef struct {
+	uint32_t           thunk_addr;
+	uint32_t           l1_tt_addr;
+	uint32_t           l2_tt_addr;
+	uint32_t           brom_hook_addr;
+	uint32_t           brom_hook_shadow_addr;
+	uint32_t           dma_max_len;
+} fel_rx_dma_info;
+
 #define SID_SECTION(_name, _offset, _size_bits) {	\
 	.name = _name,					\
 	.offset = _offset,				\
@@ -107,13 +116,31 @@ typedef struct {
  * - No access to the secure side of the GIC, so it can't be configured to
  *   be accessible from non-secure world.
  * - No RMR trigger on ARMv8 cores to bring the core into AArch64.
- * However it has been found out that a simple "smc" call will immediately
- * return from monitor mode, but with the NS bit cleared, so access to all
- * secure peripherals is suddenly possible.
+ * On older SoCs, a simple "smc" call returns with the NS bit cleared,
+ * so access to all secure peripherals is suddenly possible. Newer SoCs
+ * may need a secure-SVC thunk to handle the monitor-to-SVC transition
+ * after the SMC call before returning to FEL.
  * The 'needs_smc_workaround_if_zero_word_at_addr' field can be used to
  * have a check for this condition (reading from restricted addresses
  * typically returns zero) and then activate the SMC workaround if needed.
+ * The 'secure_boot_fuse_offset' field can be used when the SoC has an
+ * explicit readable secure boot status word at sid_base + offset. It is a
+ * gate only; a separate runtime state probe is still required to avoid
+ * applying the workaround on every invocation.
+ * The 'smc_workaround' field selects how to apply the workaround once the
+ * runtime checks say that it is needed.
  */
+typedef enum {
+	SMC_WORKAROUND_DIRECT_SMC,
+	SMC_WORKAROUND_SECURE_SVC_SMC_THUNK,
+} smc_workaround_t;
+
+typedef struct {
+	uint32_t vector_addr;
+	uint32_t gicc_base;
+	uint32_t gicd_base;
+} monitor_smc_handler;
+
 typedef struct {
 	uint32_t           soc_id;       /* ID of the SoC */
 	const char         *name;        /* human-readable SoC name string */
@@ -129,12 +156,20 @@ typedef struct {
 	uint32_t           rvbar_reg;    /* MMIO address of RVBARADDR0_L register */
 	uint32_t           rvbar_reg_alt;/* alternative MMIO address of RVBARADDR0_L register */
 	uint32_t           ver_reg;      /* MMIO address of "Version Register" */
+	uint32_t           usb_musb_base;/* base address of the USB OTG controller */
+	uint32_t           fel_endpoint_table_addr; /* BROM FEL endpoint table */
+	fel_rx_dma_info    fel_rx_dma;   /* BROM RX FIFO copy DMA patch */
 	const watchdog_info *watchdog;   /* Used for reset */
 	bool               sid_fix;      /* Use SID workaround (read via register) */
 	/* Use I$ workaround (disable I$ before first write to prevent stale thunk */
 	bool               icache_fix;
 	/* Use SMC workaround (enter secure mode) if can't read from this address */
 	uint32_t           needs_smc_workaround_if_zero_word_at_addr;
+	/* Require non-zero sid_base + offset before applying SMC workaround */
+	uint32_t           secure_boot_fuse_offset;
+	/* How to apply the SMC workaround */
+	smc_workaround_t   smc_workaround;
+	const monitor_smc_handler *monitor_smc_handler;
 	uint32_t           sram_size;	/* Usable contiguous SRAM at spl_addr */
 	sram_swap_buffers *swap_buffers;
 } soc_info_t;

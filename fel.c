@@ -37,6 +37,9 @@ static uint32_t uboot_entry = 0; /* entry point (address) of U-Boot */
 static uint32_t uboot_size  = 0; /* size of U-Boot binary */
 static bool enter_in_aarch64 = false;
 
+#define FEL_REENUM_TIMEOUT_MS		5000
+#define FEL_REENUM_RETRY_MS		100
+
 /* printf-style output, but only if "verbose" flag is active */
 #define pr_info(...) \
 	do { if (verbose) printf(__VA_ARGS__); } while (0);
@@ -75,6 +78,49 @@ typedef struct image_header {
 
 #define HEADER_NAME_OFFSET	offsetof(image_header_t, ih_name)
 #define HEADER_SIZE		sizeof(image_header_t)
+
+#define TOC0_HEADER_SIZE	0x30
+#define TOC0_ITEM_SIZE		0x20
+#define TOC0_MAIN_MAGIC_OFFSET	0x08
+#define TOC0_CHECKSUM_OFFSET	0x0c
+#define TOC0_NUM_ITEMS_OFFSET	0x18
+#define TOC0_LENGTH_OFFSET	0x1c
+#define TOC0_MAIN_END_OFFSET	0x2c
+#define TOC0_ITEM_NAME_OFFSET	0x00
+#define TOC0_ITEM_OFFSET_OFFSET	0x04
+#define TOC0_ITEM_SIZE_OFFSET	0x08
+#define TOC0_ITEM_LOAD_OFFSET	0x14
+#define TOC0_ITEM_END_OFFSET	0x1c
+#define TOC0_MAIN_INFO_MAGIC	0x89119800
+#define TOC0_ITEM_INFO_NAME_FIRMWARE	0x00010202
+#define EGON_HEADER_SIZE	0x60
+#define EGON_CHECKSUM_SEED	0x5F0A6C39
+#define SPL_HEADER_VERSION	2
+
+#define MUSB_POWER_OFFSET	0x40
+#define MUSB_POWER_HSMODE	0x10
+#define MUSB_POWER_HSENAB	0x20
+/* MUSB DEVCTL is the next byte after POWER. */
+#define MUSB_DEVCTL_SESSION	(0x01 << 8)
+
+#define FEL_HIGH_SPEED_MAXPACKET	512
+#define FEL_BULK_ENDPOINT_OFFSET	0x10
+
+#define SID_STR_SIZE		36
+
+static uint32_t get_le32(const void *ptr)
+{
+	uint32_t val;
+
+	memcpy(&val, ptr, sizeof(val));
+	return le32toh(val);
+}
+
+static void put_le32(void *ptr, uint32_t val)
+{
+	val = htole32(val);
+	memcpy(ptr, &val, sizeof(val));
+}
 
 /*
  * Utility function to determine the image type from a mkimage-compatible
@@ -358,6 +404,10 @@ static uint32_t fel_to_spl_thunk[] = {
 	#include "thunks/fel-to-spl-thunk.h"
 };
 
+static uint32_t fel_to_secure_svc_smc_thunk[] = {
+	#include "thunks/fel-to-secure-svc-smc-thunk.h"
+};
+
 #define	DRAM_BASE		0x40000000
 #define	DRAM_SIZE		0x80000000
 
@@ -415,9 +465,109 @@ void fel_writel(feldev_handle *dev, uint32_t addr, uint32_t val)
 	fel_writel_n(dev, addr, &val, 1);
 }
 
+static bool aw_fel_switch_usb_high_speed(feldev_handle *dev)
+{
+	soc_info_t *soc_info = dev->soc_info;
+	uint32_t arm_code[22], bulk_ep_addr, musb_power, new_val, val;
+
+	if (!soc_info->usb_musb_base)
+		return false;
+
+	musb_power = soc_info->usb_musb_base + MUSB_POWER_OFFSET;
+	val = fel_readl(dev, musb_power);
+	if (val & MUSB_POWER_HSMODE)
+		return false;
+
+	new_val = (val & ~MUSB_DEVCTL_SESSION) | MUSB_POWER_HSENAB;
+	bulk_ep_addr = soc_info->fel_endpoint_table_addr;
+	if (bulk_ep_addr)
+		bulk_ep_addr += FEL_BULK_ENDPOINT_OFFSET;
+	/*
+	 * Switching to high-speed disconnects USB. Do the endpoint patching
+	 * and POWER write in one device-side thunk so no ordinary FEL command
+	 * has to complete after the disconnect starts.
+	 */
+	arm_code[0] = htole32(0xe59f0044); /* ldr  r0, [ep_addr]      */
+	arm_code[1] = htole32(0xe3500000); /* cmp  r0, #0             */
+	arm_code[2] = htole32(0x0a000009); /* beq  power              */
+	arm_code[3] = htole32(0xe3a05002); /* mov  r5, #2             */
+	arm_code[4] = htole32(0xe3a04c02); /* mov  r4, #512           */
+	arm_code[5] = htole32(0xe5901000); /* ldr  r1, [r0]           */
+	arm_code[6] = htole32(0xe3510000); /* cmp  r1, #0             */
+	arm_code[7] = htole32(0x0a000001); /* beq  ep_next            */
+	arm_code[8] = htole32(0xe5804008); /* str  r4, [r0, #8]       */
+	arm_code[9] = htole32(0xe5814004); /* str  r4, [r1, #4]       */
+	arm_code[10] = htole32(0xe2800010); /* add  r0, r0, #16        */
+	arm_code[11] = htole32(0xe2555001); /* subs r5, r5, #1         */
+	arm_code[12] = htole32(0x1afffff7); /* bne  ep_loop            */
+	arm_code[13] = htole32(0xe59f0014); /* ldr  r0, [musb_power]   */
+	arm_code[14] = htole32(0xe59f1014); /* ldr  r1, [new_val]      */
+	arm_code[15] = htole32(0xe5801000); /* str  r1, [r0]           */
+	arm_code[16] = htole32(0xf57ff04f); /* dsb  sy                 */
+	arm_code[17] = htole32(0xf57ff06f); /* isb  sy                 */
+	arm_code[18] = htole32(0xe12fff1e); /* bx   lr                 */
+	arm_code[19] = htole32(bulk_ep_addr);
+	arm_code[20] = htole32(musb_power);
+	arm_code[21] = htole32(new_val);
+
+	if (bulk_ep_addr) {
+		pr_info("Switching USB to high-speed mode, setting FEL bulk "
+			"endpoints to %u-byte packets: "
+			"0x%08x: 0x%08x -> 0x%08x\n",
+			FEL_HIGH_SPEED_MAXPACKET, musb_power, val, new_val);
+	} else {
+		pr_info("Switching USB to high-speed mode: "
+			"0x%08x: 0x%08x -> 0x%08x\n",
+			musb_power, val, new_val);
+	}
+	aw_fel_write(dev, arm_code, soc_info->scratch_addr, sizeof(arm_code));
+	aw_fel_execute_may_disconnect(dev, soc_info->scratch_addr);
+	feldev_mark_disconnected(dev);
+
+	return true;
+}
+
+static void aw_apply_smc_workaround(feldev_handle *dev);
+
+static bool sid_is_zero(const uint32_t sid[4])
+{
+	return !(sid[0] | sid[1] | sid[2] | sid[3]);
+}
+
+static void format_sid(char *sid_str, const uint32_t sid[4])
+{
+	snprintf(sid_str, SID_STR_SIZE, "%08x:%08x:%08x:%08x",
+		 sid[0], sid[1], sid[2], sid[3]);
+}
+
+static bool read_device_sid(feldev_handle *dev, char *sid_str)
+{
+	uint32_t sid[4];
+
+	if (fel_read_sid(dev, sid, 0, sizeof(sid), false) < 0)
+		return false;
+	if (sid_is_zero(sid))
+		return false;
+
+	format_sid(sid_str, sid);
+	return true;
+}
+
+static void sleep_ms(unsigned int ms)
+{
+	struct timespec req = {
+		.tv_sec = ms / 1000,
+		.tv_nsec = (ms % 1000) * 1000000,
+	};
+
+	while (nanosleep(&req, &req) && errno == EINTR)
+		;
+}
+
 void aw_fel_print_sid(feldev_handle *dev, bool force_workaround)
 {
 	uint32_t key[4];
+	char sid[SID_STR_SIZE];
 	soc_info_t *soc_info = dev->soc_info;
 
 	if (!soc_info->sid_base) {
@@ -435,9 +585,8 @@ void aw_fel_print_sid(feldev_handle *dev, bool force_workaround)
 	}
 	fel_read_sid(dev, key, 0, sizeof(key), force_workaround);
 
-	/* output SID in "xxxxxxxx:xxxxxxxx:xxxxxxxx:xxxxxxxx" format */
-	for (unsigned i = 0; i <= 3; i++)
-		printf("%08x%c", key[i], i < 3 ? ':' : '\n');
+	format_sid(sid, key);
+	puts(sid);
 }
 
 void aw_fel_dump_sid(feldev_handle *dev)
@@ -564,36 +713,111 @@ void aw_set_sctlr(feldev_handle *dev, soc_info_t *soc_info,
 	aw_write_arm_cp_reg(dev, soc_info, 15, 0, 1, 0, 0, sctlr);
 }
 
-/*
- * Issue a "smc #0" instruction. This brings a SoC booted in "secure boot"
- * state from the default non-secure FEL into secure FEL.
- * This crashes on devices using "non-secure boot", as the BROM does not
- * provide a handler address in MVBAR. So we have a runtime check.
- */
-void aw_apply_smc_workaround(feldev_handle *dev)
+static bool aw_fel_needs_smc_workaround(feldev_handle *dev)
 {
 	soc_info_t *soc_info = dev->soc_info;
 	uint32_t val;
-	uint32_t arm_code[] = {
-		htole32(0xe1600070), /* smc	#0	*/
-		htole32(0xe12fff1e), /* bx	lr	*/
-	};
 
-	/* Return if the SoC does not need this workaround */
+	if (soc_info->secure_boot_fuse_offset) {
+		if (!soc_info->sid_base)
+			return false;
+		aw_fel_read(dev, soc_info->sid_base +
+			    soc_info->secure_boot_fuse_offset,
+			    &val, sizeof(val));
+		if (!le32toh(val))
+			return false;
+	}
+
 	if (!soc_info->needs_smc_workaround_if_zero_word_at_addr)
-		return;
-
-	/* This has less overhead than fel_readl_n() and may be good enough */
+		return false;
 	aw_fel_read(dev, soc_info->needs_smc_workaround_if_zero_word_at_addr,
-	            &val, sizeof(val));
+		    &val, sizeof(val));
 
-	/* Return if the workaround is not needed or has been already applied */
-	if (val != 0)
+	return le32toh(val) == 0;
+}
+
+static void aw_fel_execute_secure_svc_smc_thunk(feldev_handle *dev)
+{
+	soc_info_t *soc_info = dev->soc_info;
+	const monitor_smc_handler *handler = soc_info->monitor_smc_handler;
+	const sram_swap_buffers *swap_buffers = soc_info->swap_buffers;
+	struct timespec req = { .tv_nsec = 250000000 }; /* 250ms */
+	uint32_t arm_code[] = {
+		htole32(0xe12fff1e), /* bx	lr		*/
+	};
+	uint32_t *thunk_buf, *p;
+	size_t thunk_size;
+	size_t i;
+
+	if (!handler)
+		pr_fatal("FEL thunk: missing monitor SMC handler info\n");
+
+	for (i = 0; swap_buffers[i].size; i++)
+		;
+
+	thunk_size = sizeof(fel_to_secure_svc_smc_thunk) +
+		     4 * sizeof(uint32_t) +
+		     (i + 1) * sizeof(*swap_buffers);
+
+	if (thunk_size > soc_info->thunk_size)
+		pr_fatal("FEL thunk: bad size (need %zu, have %u)\n",
+			 thunk_size, soc_info->thunk_size);
+
+	thunk_buf = malloc(thunk_size);
+	if (!thunk_buf)
+		pr_fatal("FEL thunk: failed to allocate buffer\n");
+	memcpy(thunk_buf, fel_to_secure_svc_smc_thunk,
+	       sizeof(fel_to_secure_svc_smc_thunk));
+
+	p = thunk_buf + ARRAY_SIZE(fel_to_secure_svc_smc_thunk);
+	*p++ = soc_info->spl_addr;
+	*p++ = handler->vector_addr;
+	*p++ = handler->gicc_base;
+	*p++ = handler->gicd_base;
+	memcpy(p, swap_buffers, (i + 1) * sizeof(*swap_buffers));
+
+	for (i = 0; i < thunk_size / sizeof(uint32_t); i++)
+		thunk_buf[i] = htole32(thunk_buf[i]);
+
+	aw_fel_write(dev, arm_code, soc_info->spl_addr, sizeof(arm_code));
+	aw_fel_write(dev, thunk_buf, soc_info->thunk_addr, thunk_size);
+	aw_fel_execute(dev, soc_info->thunk_addr);
+	free(thunk_buf);
+
+	/* TODO: Try to find and fix the bug, which needs this workaround */
+	nanosleep(&req, NULL);
+}
+
+/*
+ * Apply the "smc #0" workaround. This moves a secure-boot FEL session from
+ * the default non-secure state into secure state.
+ * This crashes on devices using "non-secure boot", as the BROM does not
+ * provide a handler address in MVBAR. So we have a runtime check.
+ * Some newer SoCs need to perform the SMC and return to FEL via a thunk,
+ * which handles the monitor-to-SVC transition details.
+ */
+static void aw_apply_smc_workaround(feldev_handle *dev)
+{
+	soc_info_t *soc_info = dev->soc_info;
+
+	/* Return if the workaround is not needed */
+	if (!aw_fel_needs_smc_workaround(dev))
 		return;
 
-	pr_info("Applying SMC workaround... ");
-	aw_fel_write(dev, arm_code, soc_info->scratch_addr, sizeof(arm_code));
-	aw_fel_execute(dev, soc_info->scratch_addr);
+	if (soc_info->smc_workaround == SMC_WORKAROUND_SECURE_SVC_SMC_THUNK) {
+		pr_info("Applying SMC workaround via secure-SVC SMC thunk... ");
+		aw_fel_execute_secure_svc_smc_thunk(dev);
+	} else {
+		uint32_t arm_code[] = {
+			htole32(0xe1600070), /* smc	#0		*/
+			htole32(0xe12fff1e), /* bx	lr		*/
+		};
+
+		pr_info("Applying SMC workaround... ");
+		aw_fel_write(dev, arm_code, soc_info->scratch_addr,
+			     sizeof(arm_code));
+		aw_fel_execute(dev, soc_info->scratch_addr);
+	}
 	pr_info(" done.\n");
 }
 
@@ -775,7 +999,7 @@ uint32_t aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t l
 	if (len < 32 || memcmp(buf + 4, "eGON.BT0", 8) != 0)
 		pr_fatal("SPL: eGON header is not found\n");
 
-	spl_checksum = 2 * le32toh(buf32[3]) - 0x5F0A6C39;
+	spl_checksum = 2 * le32toh(buf32[3]) - EGON_CHECKSUM_SEED;
 	spl_len = le32toh(buf32[4]);
 
 	if (spl_len > len || (spl_len % 4) != 0)
@@ -893,6 +1117,7 @@ uint32_t aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t l
 	/* re-enable the MMU if it was enabled by BROM */
 	if (tt != NULL)
 		aw_restore_and_enable_mmu(dev, soc_info, tt);
+	dev->dram_ready = true;
 
 	return spl_len;
 }
@@ -970,6 +1195,112 @@ static void aw_fel_write_uboot_image(feldev_handle *dev, uint8_t *buf,
 	uboot_size = data_size;
 }
 
+static bool is_toc0_image(const uint8_t *buf, size_t len)
+{
+	return len >= TOC0_HEADER_SIZE && memcmp(buf, "TOC0.GLH", 8) == 0;
+}
+
+static uint8_t *toc0_make_egon_spl(const soc_info_t *soc_info,
+				   const uint8_t *buf,
+				   size_t len, size_t *egon_len,
+				   size_t *payload_offset)
+{
+	uint32_t toc0_len, num_items, checksum, hdr_checksum;
+	uint32_t code_offset = 0, code_size = 0, load_addr = 0;
+	uint32_t code_pos, branch_words;
+	uint64_t egon_size;
+	uint8_t *egon;
+	size_t i;
+
+	if (!soc_info)
+		pr_fatal("TOC0: Unsupported SoC type\n");
+	if (len < TOC0_HEADER_SIZE)
+		pr_fatal("TOC0: invalid header\n");
+
+	num_items = get_le32(buf + TOC0_NUM_ITEMS_OFFSET);
+	toc0_len = get_le32(buf + TOC0_LENGTH_OFFSET);
+	hdr_checksum = get_le32(buf + TOC0_CHECKSUM_OFFSET);
+	if ((toc0_len & 3) || toc0_len < TOC0_HEADER_SIZE ||
+	    toc0_len > len || num_items == 0 ||
+	    num_items > (toc0_len - TOC0_HEADER_SIZE) / TOC0_ITEM_SIZE)
+		pr_fatal("TOC0: invalid header\n");
+	if (get_le32(buf + TOC0_MAIN_MAGIC_OFFSET) != TOC0_MAIN_INFO_MAGIC ||
+	    memcmp(buf + TOC0_MAIN_END_OFFSET, "MIE;", 4) != 0)
+		pr_fatal("TOC0: invalid main info header\n");
+
+	checksum = EGON_CHECKSUM_SEED;
+	for (i = 0; i < toc0_len; i += 4)
+		checksum += get_le32(buf + i);
+	if (checksum != 2 * hdr_checksum)
+		pr_fatal("TOC0: checksum mismatch\n");
+
+	for (i = 0; i < num_items; i++) {
+		const uint8_t *item = buf + TOC0_HEADER_SIZE +
+				      i * TOC0_ITEM_SIZE;
+		uint32_t item_name;
+		uint32_t item_offset, item_size, item_load;
+
+		if (memcmp(item + TOC0_ITEM_END_OFFSET, "IIE;", 4) != 0)
+			pr_fatal("TOC0: invalid item header\n");
+
+		item_name = get_le32(item + TOC0_ITEM_NAME_OFFSET);
+		if (item_name != TOC0_ITEM_INFO_NAME_FIRMWARE)
+			continue;
+
+		item_offset = get_le32(item + TOC0_ITEM_OFFSET_OFFSET);
+		item_size = get_le32(item + TOC0_ITEM_SIZE_OFFSET);
+		item_load = get_le32(item + TOC0_ITEM_LOAD_OFFSET);
+		if (item_size == 0 || item_load == 0)
+			continue;
+		if (item_offset > toc0_len || item_size > toc0_len - item_offset)
+			pr_fatal("TOC0: invalid SPL item bounds\n");
+
+		code_offset = item_offset;
+		code_size = item_size;
+		load_addr = item_load;
+		break;
+	}
+
+	if (!code_size)
+		pr_fatal("TOC0: no loadable SPL item found\n");
+	if (load_addr < soc_info->spl_addr)
+		pr_fatal("TOC0: SPL load address 0x%08x is below 0x%08x\n",
+			 load_addr, soc_info->spl_addr);
+
+	code_pos = load_addr - soc_info->spl_addr;
+	if (code_pos < EGON_HEADER_SIZE || (code_pos & 3))
+		pr_fatal("TOC0: unsupported SPL load offset 0x%x\n", code_pos);
+
+	egon_size = (uint64_t)code_pos + code_size;
+	egon_size = (egon_size + 3) & ~(uint64_t)3;
+	if (egon_size > soc_info->sram_size)
+		pr_fatal("TOC0: SPL item too large\n");
+	*egon_len = (size_t)egon_size;
+	egon = calloc(1, *egon_len);
+	if (!egon)
+		pr_fatal("TOC0: failed to allocate SPL buffer\n");
+
+	branch_words = (code_pos - 8) >> 2;
+	put_le32(egon, 0xea000000 | (branch_words & 0x00ffffff));
+	memcpy(egon + 4, "eGON.BT0", 8);
+	put_le32(egon + 0x10, (uint32_t)*egon_len);
+	memcpy(egon + 0x14, "SPL", 3);
+	egon[0x17] = SPL_HEADER_VERSION;
+	memcpy(egon + code_pos, buf + code_offset, code_size);
+
+	checksum = EGON_CHECKSUM_SEED;
+	for (i = 0; i < *egon_len; i += 4)
+		checksum += get_le32(egon + i);
+	put_le32(egon + 0x0c, checksum);
+
+	*payload_offset = toc0_len;
+	pr_info("TOC0: wrapped SPL item %u bytes from 0x%x, load 0x%08x\n",
+		code_size, code_offset, load_addr);
+	pr_info("TOC0: payload starts at 0x%x\n", toc0_len);
+
+	return egon;
+}
+
 static const char *spl_get_dtb_name(uint8_t *spl_buf)
 {
 	uint32_t dt_offset;
@@ -1001,7 +1332,25 @@ void aw_fel_process_spl_and_uboot(feldev_handle *dev, const char *filename)
 	uint32_t offset;
 	/* load file into memory buffer */
 	uint8_t *buf = load_file(filename, &size);
-	const char *dt_name = spl_get_dtb_name(buf);
+	const char *dt_name;
+
+	if (is_toc0_image(buf, size)) {
+		size_t egon_spl_size, payload_offset;
+		uint8_t *egon_spl = toc0_make_egon_spl(dev->soc_info, buf,
+							size, &egon_spl_size,
+							&payload_offset);
+
+		aw_fel_write_and_execute_spl(dev, egon_spl, egon_spl_size);
+		free(egon_spl);
+
+		if (size > payload_offset)
+			aw_fel_write_uboot_image(dev, buf + payload_offset,
+						 size - payload_offset, NULL);
+		free(buf);
+		return;
+	}
+
+	dt_name = spl_get_dtb_name(buf);
 
 	/* write and execute the SPL from the buffer */
 	offset = aw_fel_write_and_execute_spl(dev, buf, size);
@@ -1111,14 +1460,26 @@ void aw_rmr_request(feldev_handle *dev, uint32_t entry_point, bool aarch64)
 	}
 
 	uint32_t rmr_mode = (1 << 1) | (aarch64 ? 1 : 0); /* RR, AA64 flag */
+	uint32_t usb_power = soc_info->usb_musb_base ?
+			     soc_info->usb_musb_base + MUSB_POWER_OFFSET : 0;
+
 	uint32_t arm_code[] = {
-		htole32(0xe59f0028), /* ldr        r0, [rvbar_reg]          */
-		htole32(0xe59f1028), /* ldr        r1, [entry_point]        */
+		htole32(0xe59f0048), /* ldr        r0, [rvbar_reg]          */
+		htole32(0xe59f1048), /* ldr        r1, [entry_point]        */
 		htole32(0xe5801000), /* str        r1, [r0]                 */
 		htole32(0xf57ff04f), /* dsb        sy                       */
 		htole32(0xf57ff06f), /* isb        sy                       */
 
-		htole32(0xe59f101c), /* ldr        r1, [rmr_mode]           */
+		htole32(0xe59f003c), /* ldr        r0, [usb_power]          */
+		htole32(0xe3500000), /* cmp        r0, #0                   */
+		htole32(0x0a000004), /* beq        rmr_request              */
+		htole32(0xe5d01000), /* ldrb       r1, [r0]                 */
+		htole32(0xe3c11040), /* bic        r1, r1, #0x40            */
+		htole32(0xe5c01000), /* strb       r1, [r0]                 */
+		htole32(0xf57ff04f), /* dsb        sy                       */
+		htole32(0xf57ff06f), /* isb        sy                       */
+
+		htole32(0xe59f1020), /* ldr        r1, [rmr_mode]           */
 		htole32(0xee1c0f50), /* mrc        15, 0, r0, cr12, cr0, {2}*/
 		htole32(0xe1800001), /* orr        r0, r0, r1               */
 		htole32(0xee0c0f50), /* mcr        15, 0, r0, cr12, cr0, {2}*/
@@ -1129,6 +1490,7 @@ void aw_rmr_request(feldev_handle *dev, uint32_t entry_point, bool aarch64)
 
 		htole32(rvbar_reg),
 		htole32(entry_point),
+		htole32(usb_power),
 		htole32(rmr_mode)
 	};
 	/* scratch buffer setup: transfers ARM code and parameter values */
@@ -1138,6 +1500,7 @@ void aw_rmr_request(feldev_handle *dev, uint32_t entry_point, bool aarch64)
 		"and request warm reset with RMR mode %u...",
 		entry_point, rvbar_reg, rmr_mode);
 	aw_fel_execute(dev, soc_info->scratch_addr);
+	feldev_mark_disconnected(dev);
 	pr_info(" done.\n");
 }
 
@@ -1202,15 +1565,17 @@ static void felusb_list_devices(void)
 {
 	size_t devices; /* FEL device count */
 	feldev_list_entry *list, *entry;
+	char sid[SID_STR_SIZE];
 
 	list = list_fel_devices(&devices);
 	for (entry = list; entry->soc_version.soc_id; entry++) {
 		printf("USB device %03d:%03d   Allwinner %-8s",
 			entry->busnum, entry->devnum, entry->soc_name);
 		/* output SID only if non-zero */
-		if (entry->SID[0] | entry->SID[1] | entry->SID[2] | entry->SID[3])
-			printf("%08x:%08x:%08x:%08x",
-			       entry->SID[0], entry->SID[1], entry->SID[2], entry->SID[3]);
+		if (!sid_is_zero(entry->SID)) {
+			format_sid(sid, entry->SID);
+			printf("%s", sid);
+		}
 		putchar('\n');
 	}
 	free(list);
@@ -1222,22 +1587,61 @@ static void felusb_list_devices(void)
 	exit(devices > 0 ? EXIT_SUCCESS : EXIT_FAILURE);
 }
 
-static void select_by_sid(const char *sid_arg, int *busnum, int *devnum)
+static bool select_by_sid(const char *sid_arg, int *busnum, int *devnum)
 {
-	char sid[36];
+	char sid[SID_STR_SIZE];
 	feldev_list_entry *list, *entry;
+	bool found = false;
+
+	*busnum = *devnum = -1;
 
 	list = list_fel_devices(NULL);
 	for (entry = list; entry->soc_version.soc_id; entry++) {
-		snprintf(sid, sizeof(sid), "%08x:%08x:%08x:%08x",
-			entry->SID[0], entry->SID[1], entry->SID[2], entry->SID[3]);
+		if (sid_is_zero(entry->SID))
+			continue;
+		format_sid(sid, entry->SID);
 		if (strcmp(sid, sid_arg) == 0) {
 			*busnum = entry->busnum;
 			*devnum = entry->devnum;
+			found = true;
 			break;
 		}
 	}
 	free(list);
+
+	return found;
+}
+
+static bool wait_for_sid(const char *sid_arg, int *busnum, int *devnum)
+{
+	unsigned int waited = 0;
+
+	while (waited <= FEL_REENUM_TIMEOUT_MS) {
+		if (select_by_sid(sid_arg, busnum, devnum))
+			return true;
+		sleep_ms(FEL_REENUM_RETRY_MS);
+		waited += FEL_REENUM_RETRY_MS;
+	}
+
+	return false;
+}
+
+static bool wait_for_fel_device(void)
+{
+	unsigned int waited = 0;
+
+	while (waited <= FEL_REENUM_TIMEOUT_MS) {
+		size_t devices = 0;
+		feldev_list_entry *list = list_fel_devices(&devices);
+
+		free(list);
+		if (devices > 0)
+			return true;
+		sleep_ms(FEL_REENUM_RETRY_MS);
+		waited += FEL_REENUM_RETRY_MS;
+	}
+
+	return false;
 }
 
 void usage(const char *cmd) {
@@ -1246,6 +1650,7 @@ void usage(const char *cmd) {
 		"	-h, --help			Print this usage summary and exit\n"
 		"	-v, --verbose			Verbose logging\n"
 		"	-p, --progress			\"write\" transfers show a progress bar\n"
+		"	    --no-high-speed		Disable high-speed USB and fast writes\n"
 		"	-l, --list			Enumerate all (USB) FEL devices and exit\n"
 		"	-d, --dev bus:devnum		Use specific USB bus and device number\n"
 		"	    --sid SID			Select device by SID key (exact match)\n"
@@ -1299,9 +1704,12 @@ int main(int argc, char **argv)
 	bool pflag_active = false; /* -p switch, causing "write" to output progress */
 	bool device_list = false; /* -l switch, prints device list and exits */
 	bool socs_list = false; /* list all supported SoCs and exit */
+	bool high_speed = true;
 	feldev_handle *handle;
 	int busnum = -1, devnum = -1;
 	char *sid_arg = NULL;
+	char reenum_sid[SID_STR_SIZE];
+	const char *reenum_sid_arg;
 
 	if (argc <= 1)
 		usage(argv[0]);
@@ -1314,6 +1722,8 @@ int main(int argc, char **argv)
 			verbose = true;
 		else if (strcmp(argv[1], "--progress") == 0 || strcmp(argv[1], "-p") == 0)
 			pflag_active = true;
+		else if (strcmp(argv[1], "--no-high-speed") == 0)
+			high_speed = false;
 		else if (strcmp(argv[1], "--list") == 0 || strcmp(argv[1], "-l") == 0
 			 || strcmp(argv[1], "list") == 0)
 			device_list = true;
@@ -1368,8 +1778,7 @@ int main(int argc, char **argv)
 	}
 	if (sid_arg) {
 		/* try to set busnum and devnum according to "--sid" option */
-		select_by_sid(sid_arg, &busnum, &devnum);
-		if (busnum <= 0 || devnum <= 0)
+		if (!select_by_sid(sid_arg, &busnum, &devnum))
 			pr_fatal("No matching FEL device found for SID '%s'\n",
 				 sid_arg);
 		pr_info("Selecting FEL device %03d:%03d by SID\n", busnum, devnum);
@@ -1381,7 +1790,43 @@ int main(int argc, char **argv)
 	 */
 	handle = feldev_open(busnum, devnum, AW_USB_VENDOR_ID, AW_USB_PRODUCT_ID);
 
-	/* Some SoCs need the SMC workaround to enter the secure boot mode */
+	handle->verbose = verbose;
+	handle->usb_high_speed = high_speed &&
+				 handle->soc_info->usb_musb_base != 0;
+	reenum_sid_arg = sid_arg;
+	if (handle->usb_high_speed && !reenum_sid_arg &&
+	    read_device_sid(handle, reenum_sid)) {
+		reenum_sid_arg = reenum_sid;
+		pr_info("Tracking FEL device by SID %s\n", reenum_sid_arg);
+	}
+	if (high_speed && aw_fel_switch_usb_high_speed(handle)) {
+		feldev_done(handle);
+
+		/*
+		 * Re-enumeration changes the USB device number, so a previous
+		 * bus:devnum selection can't be reused.
+		 */
+		if (reenum_sid_arg) {
+			if (!wait_for_sid(reenum_sid_arg, &busnum, &devnum))
+				pr_fatal("No matching FEL device found for SID '%s'\n",
+					 reenum_sid_arg);
+			pr_info("Selecting FEL device %03d:%03d by SID\n",
+				busnum, devnum);
+		} else if (busnum > 0 || devnum > 0) {
+			pr_error("Warning: re-opening the first FEL device after USB re-enumeration.\n");
+			if (!wait_for_fel_device())
+				pr_fatal("No FEL device found after USB re-enumeration\n");
+			busnum = devnum = -1;
+		}
+
+		handle = feldev_open(busnum, devnum, AW_USB_VENDOR_ID,
+				     AW_USB_PRODUCT_ID);
+		handle->verbose = verbose;
+		handle->usb_high_speed = high_speed &&
+					 handle->soc_info->usb_musb_base != 0;
+	}
+
+	/* Some SoCs need the SMC workaround to enter secure state. */
 	aw_apply_smc_workaround(handle);
 
 	/* Handle command-style arguments, in order of appearance */
@@ -1505,8 +1950,10 @@ int main(int argc, char **argv)
 		pr_info("Starting U-Boot (0x%08X).\n", uboot_entry);
 		if (enter_in_aarch64)
 			aw_rmr_request(handle, uboot_entry, true);
-		else
+		else {
 			aw_fel_execute(handle, uboot_entry);
+			feldev_mark_disconnected(handle);
+		}
 	}
 
 	feldev_done(handle);
