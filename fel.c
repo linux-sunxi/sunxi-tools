@@ -358,6 +358,10 @@ static uint32_t fel_to_spl_thunk[] = {
 	#include "thunks/fel-to-spl-thunk.h"
 };
 
+static uint32_t fel_to_secure_svc_smc_thunk[] = {
+	#include "thunks/fel-to-secure-svc-smc-thunk.h"
+};
+
 #define	DRAM_BASE		0x40000000
 #define	DRAM_SIZE		0x80000000
 
@@ -564,36 +568,111 @@ void aw_set_sctlr(feldev_handle *dev, soc_info_t *soc_info,
 	aw_write_arm_cp_reg(dev, soc_info, 15, 0, 1, 0, 0, sctlr);
 }
 
-/*
- * Issue a "smc #0" instruction. This brings a SoC booted in "secure boot"
- * state from the default non-secure FEL into secure FEL.
- * This crashes on devices using "non-secure boot", as the BROM does not
- * provide a handler address in MVBAR. So we have a runtime check.
- */
-void aw_apply_smc_workaround(feldev_handle *dev)
+static bool aw_fel_needs_smc_workaround(feldev_handle *dev)
 {
 	soc_info_t *soc_info = dev->soc_info;
 	uint32_t val;
-	uint32_t arm_code[] = {
-		htole32(0xe1600070), /* smc	#0	*/
-		htole32(0xe12fff1e), /* bx	lr	*/
-	};
 
-	/* Return if the SoC does not need this workaround */
+	if (soc_info->secure_boot_fuse_offset) {
+		if (!soc_info->sid_base)
+			return false;
+		aw_fel_read(dev, soc_info->sid_base +
+			    soc_info->secure_boot_fuse_offset,
+			    &val, sizeof(val));
+		if (!le32toh(val))
+			return false;
+	}
+
 	if (!soc_info->needs_smc_workaround_if_zero_word_at_addr)
-		return;
-
-	/* This has less overhead than fel_readl_n() and may be good enough */
+		return false;
 	aw_fel_read(dev, soc_info->needs_smc_workaround_if_zero_word_at_addr,
-	            &val, sizeof(val));
+		    &val, sizeof(val));
 
-	/* Return if the workaround is not needed or has been already applied */
-	if (val != 0)
+	return le32toh(val) == 0;
+}
+
+static void aw_fel_execute_secure_svc_smc_thunk(feldev_handle *dev)
+{
+	soc_info_t *soc_info = dev->soc_info;
+	const monitor_smc_handler *handler = soc_info->monitor_smc_handler;
+	const sram_swap_buffers *swap_buffers = soc_info->swap_buffers;
+	struct timespec req = { .tv_nsec = 250000000 }; /* 250ms */
+	uint32_t arm_code[] = {
+		htole32(0xe12fff1e), /* bx	lr		*/
+	};
+	uint32_t *thunk_buf, *p;
+	size_t thunk_size;
+	size_t i;
+
+	if (!handler)
+		pr_fatal("FEL thunk: missing monitor SMC handler info\n");
+
+	for (i = 0; swap_buffers[i].size; i++)
+		;
+
+	thunk_size = sizeof(fel_to_secure_svc_smc_thunk) +
+		     4 * sizeof(uint32_t) +
+		     (i + 1) * sizeof(*swap_buffers);
+
+	if (thunk_size > soc_info->thunk_size)
+		pr_fatal("FEL thunk: bad size (need %zu, have %u)\n",
+			 thunk_size, soc_info->thunk_size);
+
+	thunk_buf = malloc(thunk_size);
+	if (!thunk_buf)
+		pr_fatal("FEL thunk: failed to allocate buffer\n");
+	memcpy(thunk_buf, fel_to_secure_svc_smc_thunk,
+	       sizeof(fel_to_secure_svc_smc_thunk));
+
+	p = thunk_buf + ARRAY_SIZE(fel_to_secure_svc_smc_thunk);
+	*p++ = soc_info->spl_addr;
+	*p++ = handler->vector_addr;
+	*p++ = handler->gicc_base;
+	*p++ = handler->gicd_base;
+	memcpy(p, swap_buffers, (i + 1) * sizeof(*swap_buffers));
+
+	for (i = 0; i < thunk_size / sizeof(uint32_t); i++)
+		thunk_buf[i] = htole32(thunk_buf[i]);
+
+	aw_fel_write(dev, arm_code, soc_info->spl_addr, sizeof(arm_code));
+	aw_fel_write(dev, thunk_buf, soc_info->thunk_addr, thunk_size);
+	aw_fel_execute(dev, soc_info->thunk_addr);
+	free(thunk_buf);
+
+	/* TODO: Try to find and fix the bug, which needs this workaround */
+	nanosleep(&req, NULL);
+}
+
+/*
+ * Apply the "smc #0" workaround. This moves a secure-boot FEL session from
+ * the default non-secure state into secure state.
+ * This crashes on devices using "non-secure boot", as the BROM does not
+ * provide a handler address in MVBAR. So we have a runtime check.
+ * Some newer SoCs need to perform the SMC and return to FEL via a thunk,
+ * which handles the monitor-to-SVC transition details.
+ */
+static void aw_apply_smc_workaround(feldev_handle *dev)
+{
+	soc_info_t *soc_info = dev->soc_info;
+
+	/* Return if the workaround is not needed */
+	if (!aw_fel_needs_smc_workaround(dev))
 		return;
 
-	pr_info("Applying SMC workaround... ");
-	aw_fel_write(dev, arm_code, soc_info->scratch_addr, sizeof(arm_code));
-	aw_fel_execute(dev, soc_info->scratch_addr);
+	if (soc_info->smc_workaround == SMC_WORKAROUND_SECURE_SVC_SMC_THUNK) {
+		pr_info("Applying SMC workaround via secure-SVC SMC thunk... ");
+		aw_fel_execute_secure_svc_smc_thunk(dev);
+	} else {
+		uint32_t arm_code[] = {
+			htole32(0xe1600070), /* smc	#0		*/
+			htole32(0xe12fff1e), /* bx	lr		*/
+		};
+
+		pr_info("Applying SMC workaround... ");
+		aw_fel_write(dev, arm_code, soc_info->scratch_addr,
+			     sizeof(arm_code));
+		aw_fel_execute(dev, soc_info->scratch_addr);
+	}
 	pr_info(" done.\n");
 }
 
@@ -1381,7 +1460,7 @@ int main(int argc, char **argv)
 	 */
 	handle = feldev_open(busnum, devnum, AW_USB_VENDOR_ID, AW_USB_PRODUCT_ID);
 
-	/* Some SoCs need the SMC workaround to enter the secure boot mode */
+	/* Some SoCs need the SMC workaround to enter secure state */
 	aw_apply_smc_workaround(handle);
 
 	/* Handle command-style arguments, in order of appearance */
