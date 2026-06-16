@@ -577,6 +577,21 @@ soc_info_t soc_info_table[] = {
 		.rvbar_reg    = 0x08100040,
 		.watchdog     = &wd_h6_compat,
 	},{
+		.soc_id       = 0x1860, /* Allwinner H713 */
+		.name         = "H713",
+		.spl_addr     = 0x20000,
+		.scratch_addr = 0x21000,
+		.thunk_addr   = 0x53a00, .thunk_size = 0x200,
+		.swap_buffers = h616_sram_swap_buffers,
+		.sram_size    = 207 * 1024,
+		.sid_base     = 0x03006000,
+		.sid_offset   = 0x200,
+		.sid_sections = generic_2k_sid_maps,
+		.rvbar_reg    = 0x09010040,
+		.rvbar_reg_alt= 0x08100040,
+		.ver_reg      = 0x03000024,
+		.watchdog     = &wd_h6_compat,
+	},{
 		.soc_id       = 0x1886, /* Allwinner V853 */
 		.name         = "V853",
 		.spl_addr     = 0x20000,
