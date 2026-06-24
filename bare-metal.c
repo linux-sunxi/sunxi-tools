@@ -323,7 +323,10 @@ static const struct soc_info *find_soc_info(int id, int variant)
 }
 
 static u32 pio_base;
-static u32 pio_bank_size, pio_dat_off, pio_pull_off;
+static u32 pio_base_off;
+static u32 pio_bank_size;
+static u32 pio_dat_off;
+static u32 pio_pull_off;
 
 static int sunxi_gpio_set_cfgpin(u32 pin, u32 val)
 {
@@ -503,19 +506,25 @@ static void clock_init_uart(const struct soc_info *soc)
 
 void gpio_init(const struct soc_info *soc)
 {
-	pio_base = soc->pio.base;
-
-	if (soc->flags & FLAG_PIO_NCAT2) {
+	if (soc->flags & FLAG_PIO_NCAT3) {
+		/* GPIO V3 */
+		pio_base_off = 0x80;
+		pio_bank_size = 0x80;
+		pio_pull_off = 0x30;
+	} else if (soc->flags & FLAG_PIO_NCAT2) {
 		/* GPIO V2 */
 		pio_bank_size = 0x30;
-		pio_dat_off = 0x10;
 		pio_pull_off = 0x24;
 	} else {
 		/* GPIO V1 */
 		pio_bank_size = 0x24;
-		pio_dat_off = 0x10;
 		pio_pull_off = 0x1c;
 	}
+
+	/* All SoC has same data offset */
+	pio_dat_off = 0x10;
+
+	pio_base = soc->pio.base + pio_base_off;
 
 	if (soc->flags & FLAG_UART_ON_PORTF) {
 		/* Disable normal UART0 pins to avoid conflict */
@@ -535,8 +544,6 @@ void gpio_init(const struct soc_info *soc)
 
 void jtag_init(const struct soc_info *soc)
 {
-	pio_base = soc->pio.base;
-
 	if (soc->jtag.pinmux) {
 		sunxi_gpio_set_cfgpin(SUNXI_GPF(0), soc->jtag.pinmux);
 		sunxi_gpio_set_cfgpin(SUNXI_GPF(1), soc->jtag.pinmux);
