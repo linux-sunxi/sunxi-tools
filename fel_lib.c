@@ -74,7 +74,12 @@ static void usb_error(int rc, const char *caption, int exitcode)
 static const int AW_USB_MAX_BULK_SEND = 512 * 1024;
 static const int AW_USB_PROGRESS_BULK_SEND = 128 * 1024;
 static const int AW_USB_FAST_PROGRESS_BULK_SEND = 1024 * 1024;
+static const int AW_USB_ASYNC_BULK_SEND = 16 * 1024;
 static const int FEL_RX_DMA_PACKET_SIZE = 512;
+
+enum {
+	AW_USB_ASYNC_DEPTH = 4,
+};
 
 #define	DRAM_BASE		0x40000000
 #define	DRAM_SIZE		0x80000000
@@ -84,27 +89,160 @@ static uint32_t fel_rx_dma_thunk[] = {
 	#include "thunks/fel-rx-dma-thunk.h"
 };
 
+static int usb_transfer_status_to_error(enum libusb_transfer_status status)
+{
+	switch (status) {
+	case LIBUSB_TRANSFER_COMPLETED:
+		return 0;
+	case LIBUSB_TRANSFER_TIMED_OUT:
+		return LIBUSB_ERROR_TIMEOUT;
+	case LIBUSB_TRANSFER_CANCELLED:
+		return LIBUSB_ERROR_INTERRUPTED;
+	case LIBUSB_TRANSFER_STALL:
+		return LIBUSB_ERROR_PIPE;
+	case LIBUSB_TRANSFER_NO_DEVICE:
+		return LIBUSB_ERROR_NO_DEVICE;
+	case LIBUSB_TRANSFER_OVERFLOW:
+		return LIBUSB_ERROR_OVERFLOW;
+	case LIBUSB_TRANSFER_ERROR:
+	default:
+		return LIBUSB_ERROR_IO;
+	}
+}
+
+static size_t usb_bulk_send_chunk_size(size_t length, size_t max_chunk)
+{
+	size_t chunk = length;
+
+	if (chunk > (size_t)AW_USB_ASYNC_BULK_SEND)
+		chunk = AW_USB_ASYNC_BULK_SEND;
+	if (chunk > max_chunk)
+		chunk = max_chunk;
+	return chunk;
+}
+
+struct usb_bulk_async_slot {
+	struct libusb_transfer *transfer;
+	size_t length;
+	int *event_completed;
+	bool completed;
+};
+
+static void LIBUSB_CALL usb_bulk_send_async_cb(struct libusb_transfer *transfer)
+{
+	struct usb_bulk_async_slot *slot = transfer->user_data;
+
+	slot->completed = true;
+	*slot->event_completed = 1;
+}
+
+static void usb_bulk_send_async_submit(libusb_device_handle *usb, int ep,
+				       struct usb_bulk_async_slot *slot,
+				       const unsigned char *data, size_t length)
+{
+	int rc;
+
+	slot->length = length;
+	slot->completed = false;
+	libusb_fill_bulk_transfer(slot->transfer, usb, ep,
+				  (unsigned char *)data, length,
+				  usb_bulk_send_async_cb, slot, USB_TIMEOUT);
+	rc = libusb_submit_transfer(slot->transfer);
+	if (rc)
+		usb_error(rc, "libusb_submit_transfer()", 2);
+}
+
 /*
  * Keep progress updates frequent enough for slow BROM PIO transfers. Once an
  * RX-DMA thunk is installed, 1 MiB chunks avoid host-side progress overhead.
+ *
+ * The USB writes themselves use a small queue of asynchronous transfers. This
+ * keeps the host controller fed during fast transfers without relying on large
+ * per-transfer sizes that would be unsuitable for slow BROM PIO paths.
  */
 static void usb_bulk_send(libusb_device_handle *usb, int ep, const void *data,
 			  size_t length, size_t max_chunk, bool progress)
 {
-	size_t chunk;
-	int rc, sent;
-	while (length > 0) {
-		chunk = length < max_chunk ? length : max_chunk;
-		rc = libusb_bulk_transfer(usb, ep, (void *)data, chunk,
-					  &sent, USB_TIMEOUT);
-		if (rc != 0)
-			usb_error(rc, "usb_bulk_send()", 2);
-		length -= sent;
-		data += sent;
+	struct usb_bulk_async_slot slots[AW_USB_ASYNC_DEPTH] = { 0 };
+	const unsigned char *ptr = data;
+	size_t progress_pending = 0;
+	size_t offset = 0;
+	int event_completed = 0;
+	int active = 0;
+	int rc;
+	int i;
 
-		if (progress)
-			progress_update(sent); /* notification after each chunk */
+	if (length == 0)
+		return;
+
+	for (i = 0; i < AW_USB_ASYNC_DEPTH; i++) {
+		slots[i].transfer = libusb_alloc_transfer(0);
+		if (!slots[i].transfer)
+			usb_error(LIBUSB_ERROR_NO_MEM,
+				  "libusb_alloc_transfer()", 2);
+		slots[i].event_completed = &event_completed;
 	}
+
+	for (i = 0; i < AW_USB_ASYNC_DEPTH && offset < length; i++) {
+		size_t chunk = usb_bulk_send_chunk_size(length - offset,
+						       max_chunk);
+
+		usb_bulk_send_async_submit(usb, ep, &slots[i],
+					   ptr + offset, chunk);
+		offset += chunk;
+		active++;
+	}
+
+	while (active > 0) {
+		event_completed = 0;
+		rc = libusb_handle_events_completed(NULL, &event_completed);
+		if (rc) {
+			if (rc == LIBUSB_ERROR_INTERRUPTED)
+				continue;
+			usb_error(rc, "libusb_handle_events_completed()", 2);
+		}
+
+		for (i = 0; i < AW_USB_ASYNC_DEPTH; i++) {
+			struct libusb_transfer *transfer = slots[i].transfer;
+			size_t chunk;
+
+			if (!slots[i].completed)
+				continue;
+
+			slots[i].completed = false;
+			active--;
+
+			rc = usb_transfer_status_to_error(transfer->status);
+			if (rc)
+				usb_error(rc, "usb_bulk_send()", 2);
+			if (transfer->actual_length != (int)slots[i].length)
+				usb_error(LIBUSB_ERROR_IO, "usb_bulk_send()", 2);
+
+			if (progress) {
+				progress_pending += transfer->actual_length;
+				if (progress_pending >= max_chunk) {
+					progress_update(progress_pending);
+					progress_pending = 0;
+				}
+			}
+
+			if (offset >= length)
+				continue;
+
+			chunk = usb_bulk_send_chunk_size(length - offset,
+							 max_chunk);
+			usb_bulk_send_async_submit(usb, ep, &slots[i],
+						   ptr + offset, chunk);
+			offset += chunk;
+			active++;
+		}
+	}
+
+	for (i = 0; i < AW_USB_ASYNC_DEPTH; i++)
+		libusb_free_transfer(slots[i].transfer);
+
+	if (progress && progress_pending)
+		progress_update(progress_pending);
 }
 
 static void usb_bulk_recv(libusb_device_handle *usb, int ep, void *data,
