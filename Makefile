@@ -155,6 +155,8 @@ ifeq ($(OS),Windows_NT)
 	DEFAULT_CFLAGS += -DNO_MMAP
 	# portable_endian.h relies on winsock2
 	LIBS += -lws2_32
+	# Windows implementation of nanosleep
+	LIBS += -lwinpthread
 endif
 
 HOST_CFLAGS = $(DEFAULT_CFLAGS) $(CFLAGS)
