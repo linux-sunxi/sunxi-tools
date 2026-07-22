@@ -157,6 +157,7 @@ ifeq ($(OS),Windows_NT)
 	LIBS += -lws2_32
 	# Windows implementation of nanosleep
 	LIBS += -lwinpthread
+	LDFLAGS += -static -static-libgcc
 endif
 
 HOST_CFLAGS = $(DEFAULT_CFLAGS) $(CFLAGS)
