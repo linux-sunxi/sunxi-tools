@@ -886,6 +886,12 @@ uint32_t aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t l
 
 	swap_buffers = soc_info->swap_buffers;
 	for (i = 0; swap_buffers[i].size; i++) {
+		/* Will rewrite swap_buffers, shrink according to actual case */
+		if (swap_buffers[i].buf1 <= soc_info->spl_addr &&
+			(swap_buffers[i].buf1 + swap_buffers[i].size) > soc_info->spl_addr) {
+			swap_buffers[i].buf1 = soc_info->spl_addr;
+			swap_buffers[i].size -= (soc_info->spl_addr - swap_buffers[i].buf1);
+		}
 		if ((swap_buffers[i].buf2 >= soc_info->spl_addr) &&
 		    (swap_buffers[i].buf2 < soc_info->spl_addr + spl_len_limit))
 			spl_len_limit = swap_buffers[i].buf2 - soc_info->spl_addr;
