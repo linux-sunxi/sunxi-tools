@@ -79,6 +79,7 @@ typedef struct {
 enum secure_boot_workaround {
 	SECURE_BOOT_NONE = 0,
 	SECURE_BOOT_SMC,	/* A simple 'smc #0' does the trick. */
+	SECURE_BOOT_MONITOR_H6, /* SMC returns in monitor mode, needs fixing. */
 };
 
 /*
