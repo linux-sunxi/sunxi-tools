@@ -564,6 +564,41 @@ void aw_set_sctlr(feldev_handle *dev, soc_info_t *soc_info,
 	aw_write_arm_cp_reg(dev, soc_info, 15, 0, 1, 0, 0, sctlr);
 }
 
+static void upload_h6_secure_boot_wa(feldev_handle *dev, uint32_t scratch_addr)
+{
+	const uint32_t arm_h6_mon_code[] = {
+	htole32(0xe1600070),	/* smc	#0		; trigger SMC	*/
+	htole32(0xe3a02403),	/* mov	r2, #0x3000000	; sys resource base */
+	htole32(0xe3822a22),	/* orr	r2, r2, #0x22000; GICC base address */
+	htole32(0xe5920000),	/* ldr	r0, [r2]	; load GICC_CTLR */
+	htole32(0xe3800006),	/* orr	r0, r0, #0x6	; set ACKCTL+Grp1En */
+	htole32(0xe5820000),	/* str	r0, [r2]	; write new GICC_CTLR */
+	htole32(0xe3a00000),	/* mov	r0, #0		; .NS=0: secure state */
+	htole32(0xee010f11),	/* mcr	15, 0, r0, c1, c1, 0 ; SCR	*/
+	htole32(0xe10f0000),	/* mrs	r0, CPSR			*/
+	htole32(0xe3c0001f),	/* bic	r0, r0, #0x1f	; clear .M field */
+	htole32(0xe3800013),	/* orr	r0, r0, #0x13	; force SVC mode */
+	htole32(0xe121f000),	/* msr	CPSR_c, r0	; switch to SVC mode */
+	htole32(0xe12fff1e),	/* bx	lr		; return to BootROM */
+	};
+	uint32_t val;
+
+	/*
+	 * The A133 BootROM clears all of SRAM when entering non-secure
+	 * state, which includes the monitor vectors. MVBAR still points
+	 * into the SRAM region, but there is nothing there anymore.
+	 * Just replace the vector address we need (MVBAR + 0x8) which
+	 * the opcode for a "mov pc, lr", to immediately return to
+	 * the caller. The MVBAR value has been found by BROM inspection
+	 * and has been verified by experiments.
+	 */
+	val = htole32(0xe1a0f00e);	/* mov pc, lr */
+	aw_fel_write(dev, &val, 0x300c8, sizeof(val));
+
+	aw_fel_write(dev, arm_h6_mon_code, scratch_addr,
+		     sizeof(arm_h6_mon_code));
+}
+
 /*
  * When a SoC is configured for "secure boot", the FEL code is running in
  * non-secure SVC mode, which denies access to secure state system registers
@@ -600,6 +635,25 @@ static void handle_secure_boot(feldev_handle *dev)
 		pr_info("Applying secure boot SMC workaround... ");
 		aw_fel_write(dev, arm_smc_code, soc_info->scratch_addr,
 			     sizeof(arm_smc_code));
+		aw_fel_execute(dev, soc_info->scratch_addr);
+		break;
+	case SECURE_BOOT_MONITOR_H6:
+		/* +0xa0 is the "secure boot register" in the SID. */
+		val = fel_readl(dev, soc_info->sid_base + 0xa0);
+		if (val == 0)
+			return;
+		/*
+		 * Now check whether the workaround has already been applied.
+		 * Read the LCJS efuse, which is only accessible from secure
+		 * state (reads as 0 otherwise), and holds the secure boot
+		 * fuse, so its value is 0 on normal SoCs.
+		 */
+		val = fel_readl(dev, soc_info->sid_base + 0x248);
+		if (val != 0)
+			return;
+
+		upload_h6_secure_boot_wa(dev, soc_info->scratch_addr);
+		pr_info("Applying secure boot H6 monitor workaround... ");
 		aw_fel_execute(dev, soc_info->scratch_addr);
 		break;
 	}
