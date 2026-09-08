@@ -577,6 +577,7 @@ soc_info_t soc_info_table[] = {
 		.sid_sections = generic_2k_sid_maps,
 		.rvbar_reg    = 0x09010040,
 		.rvbar_reg_alt= 0x08100040,
+		.sec_boot_wa  = SECURE_BOOT_MONITOR_H6,
 		.ver_reg      = 0x03000024,
 		.watchdog     = &wd_h6_compat,
 	},{
@@ -657,6 +658,7 @@ soc_info_t soc_info_table[] = {
 		.sid_offset   = 0x200,
 		.sid_sections = generic_2k_sid_maps,
 		.rvbar_reg    = 0x08100040,
+		.sec_boot_wa  = SECURE_BOOT_MONITOR_H6,
 		.watchdog     = &wd_h6_compat,
 	},{
 		.swap_buffers = NULL /* End of the table */
