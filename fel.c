@@ -565,35 +565,45 @@ void aw_set_sctlr(feldev_handle *dev, soc_info_t *soc_info,
 }
 
 /*
- * Issue a "smc #0" instruction. This brings a SoC booted in "secure boot"
- * state from the default non-secure FEL into secure FEL.
- * This crashes on devices using "non-secure boot", as the BROM does not
- * provide a handler address in MVBAR. So we have a runtime check.
+ * When a SoC is configured for "secure boot", the FEL code is running in
+ * non-secure SVC mode, which denies access to secure state system registers
+ * like CNTFRQ, the secure GIC configuration registers or the RMR register to
+ * switch to AArch64.
+ * Thankfully there are ways to break out of this non-secure prison, how
+ * exactly is varying between the SoCs.
  */
-void aw_apply_smc_workaround(feldev_handle *dev)
+static void handle_secure_boot(feldev_handle *dev)
 {
 	soc_info_t *soc_info = dev->soc_info;
 	uint32_t val;
-	uint32_t arm_code[] = {
+	const uint32_t arm_smc_code[] = {
 		htole32(0xe1600070), /* smc	#0	*/
 		htole32(0xe12fff1e), /* bx	lr	*/
 	};
 
-	/* Return if the SoC does not need this workaround */
-	if (!soc_info->needs_smc_workaround_if_zero_word_at_addr)
+	/*
+	 * Check whether the SoC is using secure boot, and if the workaround
+	 * has already been applied.
+	 */
+	switch (soc_info->sec_boot_wa) {
+	case SECURE_BOOT_NONE:
 		return;
+	case SECURE_BOOT_SMC:
+		aw_fel_read(dev, soc_info->sec_mem_addr, &val, sizeof(val));
+		if (val != 0)
+			return;
+		/*
+		 * H3, H5, A64 just need a simple SMC, which will magically
+		 * return in secure state, with all the system registers
+		 * already fixed up.
+		 */
+		pr_info("Applying secure boot SMC workaround... ");
+		aw_fel_write(dev, arm_smc_code, soc_info->scratch_addr,
+			     sizeof(arm_smc_code));
+		aw_fel_execute(dev, soc_info->scratch_addr);
+		break;
+	}
 
-	/* This has less overhead than fel_readl_n() and may be good enough */
-	aw_fel_read(dev, soc_info->needs_smc_workaround_if_zero_word_at_addr,
-	            &val, sizeof(val));
-
-	/* Return if the workaround is not needed or has been already applied */
-	if (val != 0)
-		return;
-
-	pr_info("Applying SMC workaround... ");
-	aw_fel_write(dev, arm_code, soc_info->scratch_addr, sizeof(arm_code));
-	aw_fel_execute(dev, soc_info->scratch_addr);
 	pr_info(" done.\n");
 }
 
@@ -1381,8 +1391,7 @@ int main(int argc, char **argv)
 	 */
 	handle = feldev_open(busnum, devnum, AW_USB_VENDOR_ID, AW_USB_PRODUCT_ID);
 
-	/* Some SoCs need the SMC workaround to enter the secure boot mode */
-	aw_apply_smc_workaround(handle);
+	handle_secure_boot(handle);
 
 	/* Handle command-style arguments, in order of appearance */
 	while (argc > 1 ) {
