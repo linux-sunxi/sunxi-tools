@@ -295,6 +295,16 @@ static const struct soc_info soc_table[] = {
 		.uart0	= { R329_UART0_BASE, SUNXI_GPB(9), MUX_2 },
 		.jtag	= { MUX_3 },
 	},
+	{
+		.id	= 0x1860,
+		.name	= "H713",
+		.flags	= FLAG_NEW_CLOCK,
+		.pio	= { H6_PIO_BASE },
+		.ccu	= { H6_CCM_BASE },
+		.sram	= { SRAM_A1_ADDR_10000 },
+		.uart0	= { H6_UART0_BASE, SUNXI_GPH(0), MUX_2 },
+		.jtag	= { MUX_3 },
+	},
 };
 
 static const struct soc_info *find_soc_info(int id, int variant)

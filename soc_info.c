@@ -643,6 +643,21 @@ soc_info_t soc_info_table[] = {
 		.needs_smc_workaround_if_zero_word_at_addr = 0x100004,
 		.watchdog     = &wd_h6_compat,
 	},{
+		.soc_id       = 0x1860, /* Allwinner H713 / sun50iw12p1 */
+		.name         = "H713",
+		.spl_addr     = 0x104000,
+		.scratch_addr = 0x10c000,
+		.thunk_addr   = 0x11f000, .thunk_size = 0x200,
+		.swap_buffers = no_sram_swap_buffers,
+		.sram_size    = 128 * 1024,
+		.sid_base     = 0x03006000,
+		.sid_offset   = 0x200,
+		.sid_sections = generic_2k_sid_maps,
+		.rvbar_reg    = 0x08100040,
+		.rvbar_reg_alt= 0x09010040,
+		.icache_fix   = true,
+		.watchdog     = &wd_v853_compat,
+	},{
 		.swap_buffers = NULL /* End of the table */
 	}
 };
