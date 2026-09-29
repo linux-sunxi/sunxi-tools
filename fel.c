@@ -1329,7 +1329,7 @@ int main(int argc, char **argv)
 				argv += 1;
 			}
 			if (sscanf(dev_arg, "%d:%d", &busnum, &devnum) != 2
-			    || busnum <= 0 || devnum <= 0)
+			    || busnum < 0 || devnum <= 0)
 				pr_fatal("ERROR: Expected 'bus:devnum', got '%s'.\n", dev_arg);
 			pr_info("Selecting USB Bus %03d Device %03d\n", busnum, devnum);
 		}
@@ -1369,7 +1369,7 @@ int main(int argc, char **argv)
 	if (sid_arg) {
 		/* try to set busnum and devnum according to "--sid" option */
 		select_by_sid(sid_arg, &busnum, &devnum);
-		if (busnum <= 0 || devnum <= 0)
+		if (busnum < 0 || devnum <= 0)
 			pr_fatal("No matching FEL device found for SID '%s'\n",
 				 sid_arg);
 		pr_info("Selecting FEL device %03d:%03d by SID\n", busnum, devnum);
