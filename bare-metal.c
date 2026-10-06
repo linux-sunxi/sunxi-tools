@@ -295,6 +295,16 @@ static const struct soc_info soc_table[] = {
 		.uart0	= { R329_UART0_BASE, SUNXI_GPB(9), MUX_2 },
 		.jtag	= { MUX_3 },
 	},
+	{
+		.id	= 0x1903,
+		.name	= "A733",
+		.flags	= FLAG_NCAT3,
+		.pio	= { V853_PIO_BASE },
+		.ccu	= { A733_CCM_BASE },
+		.sram	= { SRAM_A1_ADDR_20000 },
+		.uart0	= { R329_UART0_BASE, SUNXI_GPB(9), MUX_2 },
+		.jtag	= { MUX_3 },
+	},
 };
 
 static const struct soc_info *find_soc_info(int id, int variant)
@@ -465,6 +475,9 @@ static void clock_init_uart(const struct soc_info *soc)
 	if (soc->flags & FLAG_NEW_CLOCK) {
 		set_wbit(soc->ccu.base + 0x90c,
 			 0x10001 << (CONFIG_CONS_INDEX - 1));
+	} else if (soc->flags & FLAG_A733_CLOCK) {
+		set_wbit(soc->ccu.base + 0xe00 + (CONFIG_CONS_INDEX - 1) * 4,
+			 0x10001);
 	} else {
 		int bit = 16 + CONFIG_CONS_INDEX - 1;
 		int gate_ofs = 0x06c;
@@ -500,6 +513,12 @@ void gpio_init(const struct soc_info *soc)
 		pio_bank_size = 0x30;
 		pio_dat_off = 0x10;
 		pio_pull_off = 0x24;
+	} else if (soc->flags & FLAG_A733_GPIO) {
+		/* GPIO V3 (Bank A offset = 0x80) */
+		pio_base += 0x80;
+		pio_bank_size = 0x80;
+		pio_dat_off = 0x10;
+		pio_pull_off = 0x30;
 	} else {
 		/* GPIO V1 */
 		pio_bank_size = 0x24;
