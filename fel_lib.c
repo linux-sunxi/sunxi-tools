@@ -101,7 +101,18 @@ static void usb_bulk_send(libusb_device_handle *usb, int ep, const void *data,
 static void usb_bulk_recv(libusb_device_handle *usb, int ep, void *data,
 			  int length)
 {
-	int rc, recv;
+	int rc, recv = 0;
+	if (length < 512) {
+		uint8_t temp[512];
+		rc = libusb_bulk_transfer(usb, ep, temp, sizeof(temp),
+					  &recv, USB_TIMEOUT);
+		if (rc != 0 && rc != LIBUSB_ERROR_OVERFLOW)
+			usb_error(rc, "usb_bulk_recv()", 2);
+		if (recv > length)
+			recv = length;
+		memcpy(data, temp, recv);
+		return;
+	}
 	while (length > 0) {
 		rc = libusb_bulk_transfer(usb, ep, data, length,
 					  &recv, USB_TIMEOUT);
@@ -152,10 +163,13 @@ static void aw_send_usb_request(feldev_handle *dev, int type, int length)
 
 static void aw_read_usb_response(feldev_handle *dev)
 {
-	char buf[13];
-	usb_bulk_recv(dev->usb->handle, dev->usb->endpoint_in,
-		      buf, sizeof(buf));
-	assert(strcmp(buf, "AWUS") == 0);
+	char buf[512];
+	int rc, recv = 0;
+	rc = libusb_bulk_transfer(dev->usb->handle, dev->usb->endpoint_in,
+				  (unsigned char *)buf, sizeof(buf), &recv, USB_TIMEOUT);
+	if (rc != 0)
+		usb_error(rc, "aw_read_usb_response()", 2);
+	assert(memcmp(buf, "AWUS", 4) == 0);
 }
 
 static void aw_usb_write(feldev_handle *dev, const void *data, size_t len,
