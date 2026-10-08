@@ -458,6 +458,18 @@ soc_info_t soc_info_table[] = {
 		.sid_sections = generic_2k_sid_maps,
 		.watchdog     = &wd_h3_compat,
 	},{
+		.soc_id       = 0x1699, /* Allwinner B288 */
+		.name         = "B288",
+		.spl_addr     = 0x0,
+		.scratch_addr = 0x1000,
+		.mmu_tt_addr  = 0x8000,
+		.thunk_addr   = 0xA200, .thunk_size = 0x200,
+		.swap_buffers = a10_a13_a20_sram_swap_buffers,
+		.sram_size    = 52 * 1024,
+		.sid_base     = 0x01C14000,
+		.sid_sections = generic_2k_sid_maps,
+		.watchdog     = &wd_h3_compat,
+	},{
 		.soc_id       = 0x1708, /* Allwinner T7 */
 		.name         = "T7",
 		.spl_addr     = 0x20000,
