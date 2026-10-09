@@ -377,6 +377,7 @@ soc_info_t soc_info_table[] = {
 		.soc_id       = 0x1667, /* Allwinner A33, R16 */
 		.name         = "A33",
 		.scratch_addr = 0x1000,
+		.mmu_tt_addr  = 0x44000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = ar100_abusing_sram_swap_buffers,
 		.sram_size    = 32 * 1024,
