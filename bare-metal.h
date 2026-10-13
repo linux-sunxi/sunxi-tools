@@ -193,7 +193,10 @@ struct soc_info {
 	u8	flags;
 
 	const struct {
-		u32	base;
+		u32	base; /* GPIO controller base address */
+		u32	offs; /* First(PA) bank offset to GPIO base */
+		u32	size; /* Each GPIO bank size */
+		u32	pull; /* PULL register offset to its bank */
 	} pio;
 
 	const struct {
