@@ -98,18 +98,15 @@ static void usb_bulk_send(libusb_device_handle *usb, int ep, const void *data,
 	}
 }
 
-static void usb_bulk_recv(libusb_device_handle *usb, int ep, void *data,
-			  int length)
+static int usb_bulk_recv(libusb_device_handle *usb, int ep, void *data,
+			 int length)
 {
 	int rc, recv;
-	while (length > 0) {
-		rc = libusb_bulk_transfer(usb, ep, data, length,
-					  &recv, USB_TIMEOUT);
-		if (rc != 0)
-			usb_error(rc, "usb_bulk_recv()", 2);
-		length -= recv;
-		data += recv;
-	}
+	/* A short transfer ends this stage; the next packet may be AWUS. */
+	rc = libusb_bulk_transfer(usb, ep, data, length, &recv, USB_TIMEOUT);
+	if (rc != 0)
+		usb_error(rc, "usb_bulk_recv()", 2);
+	return recv;
 }
 
 struct aw_usb_request {
@@ -129,6 +126,13 @@ struct aw_fel_request {
 	uint32_t address;
 	uint32_t length;
 	uint32_t pad;
+};
+
+struct aw_fel_status {
+	uint16_t mark;
+	uint16_t tag;
+	uint8_t state;
+	uint8_t rev[3];
 };
 
 /* FEL request types */
@@ -152,10 +156,18 @@ static void aw_send_usb_request(feldev_handle *dev, int type, int length)
 
 static void aw_read_usb_response(feldev_handle *dev)
 {
-	char buf[13];
-	usb_bulk_recv(dev->usb->handle, dev->usb->endpoint_in,
-		      buf, sizeof(buf));
-	assert(strcmp(buf, "AWUS") == 0);
+	uint8_t buf[13];
+	int len = usb_bulk_recv(dev->usb->handle, dev->usb->endpoint_in,
+				buf, sizeof(buf));
+	if (len != sizeof(buf) || memcmp(buf, "AWUS", 4) != 0) {
+		fprintf(stderr, "Invalid AWUS response\n");
+		exit(2);
+	}
+	if (buf[12] != 0) {
+		fprintf(stderr, "AWUS transaction failed with status 0x%02x\n",
+			buf[12]);
+		exit(2);
+	}
 }
 
 static void aw_usb_write(feldev_handle *dev, const void *data, size_t len,
@@ -167,11 +179,44 @@ static void aw_usb_write(feldev_handle *dev, const void *data, size_t len,
 	aw_read_usb_response(dev);
 }
 
+static void aw_check_fel_status(const struct aw_fel_status *status)
+{
+	/* FEL requests use a zero tag (the upper 16 bits of request). */
+	if (le16toh(status->mark) != 0xffff || status->tag != 0) {
+		fprintf(stderr, "Invalid FEL status response\n");
+		exit(2);
+	}
+	if (status->state != 0) {
+		fprintf(stderr, "FEL command failed with status 0x%02x\n",
+			status->state);
+		exit(2);
+	}
+}
+
 static void aw_usb_read(feldev_handle *dev, void *data, size_t len)
 {
+	struct aw_fel_status status;
+	void *buf = len < sizeof(status) ? &status : data;
+	size_t capacity = len < sizeof(status) ? sizeof(status) : len;
+	int received;
+
 	aw_send_usb_request(dev, AW_USB_READ, len);
-	usb_bulk_recv(dev->usb->handle, dev->usb->endpoint_in, data, len);
+	/* A rejected command can return an eight-byte status instead of data. */
+	received = usb_bulk_recv(dev->usb->handle, dev->usb->endpoint_in,
+				 buf, capacity);
 	aw_read_usb_response(dev);
+	if ((size_t)received != len) {
+		if (received == sizeof(status)) {
+			memmove(&status, buf, sizeof(status));
+			if (le16toh(status.mark) == 0xffff)
+				aw_check_fel_status(&status);
+		}
+		fprintf(stderr, "Unexpected FEL response length: got %d, expected %zu\n",
+			received, len);
+		exit(2);
+	}
+	if (len < sizeof(status))
+		memcpy(data, buf, len);
 }
 
 static void aw_send_fel_request(feldev_handle *dev, int type,
@@ -187,8 +232,9 @@ static void aw_send_fel_request(feldev_handle *dev, int type,
 
 static void aw_read_fel_status(feldev_handle *dev)
 {
-	char buf[8];
-	aw_usb_read(dev, buf, sizeof(buf));
+	struct aw_fel_status status;
+	aw_usb_read(dev, &status, sizeof(status));
+	aw_check_fel_status(&status);
 }
 
 /* AW_FEL_VERSION request */
@@ -209,6 +255,12 @@ static void aw_fel_get_version(feldev_handle *dev, struct aw_fel_version *buf)
 /* AW_FEL_1_READ request */
 void aw_fel_read(feldev_handle *dev, uint32_t offset, void *buf, size_t len)
 {
+	/* An eight-byte memory value could be identical to an error status. */
+	if (len == sizeof(struct aw_fel_status)) {
+		aw_fel_read(dev, offset, buf, len / 2);
+		aw_fel_read(dev, offset + len / 2, (char *)buf + len / 2, len / 2);
+		return;
+	}
 	aw_send_fel_request(dev, AW_FEL_1_READ, offset, len);
 	aw_usb_read(dev, buf, len);
 	aw_read_fel_status(dev);
