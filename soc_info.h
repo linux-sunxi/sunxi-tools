@@ -70,11 +70,36 @@ typedef struct {
 	uint32_t	size_bits;
 } sid_section;
 
+typedef enum {
+	FEL_RX_DMA_IRQ_NONE,
+	FEL_RX_DMA_IRQ_GICV2,
+	FEL_RX_DMA_IRQ_GICV3,
+} fel_rx_dma_irq_type;
+
+typedef struct {
+	uint32_t           thunk_addr;
+	uint32_t           l1_tt_addr;
+	uint32_t           l2_tt_addr;
+	uint32_t           brom_hook_addr;
+	uint32_t           brom_hook_shadow_addr;
+	uint32_t           dma_max_len;
+	fel_rx_dma_irq_type irq_type;
+	uint32_t           gicc_base;    /* GICv2 CPU interface base */
+	uint32_t           gicd_base;    /* GIC distributor base */
+	uint32_t           gic_irq_id;   /* GIC INTID, not raw SPI number */
+} fel_rx_dma_info;
+
 #define SID_SECTION(_name, _offset, _size_bits) {	\
 	.name = _name,					\
 	.offset = _offset,				\
 	.size_bits = _size_bits,			\
 }
+
+enum secure_boot_workaround {
+	SECURE_BOOT_NONE = 0,
+	SECURE_BOOT_SMC,	/* A simple 'smc #0' does the trick. */
+	SECURE_BOOT_MONITOR_H6, /* SMC returns in monitor mode, needs fixing. */
+};
 
 /*
  * Each SoC variant may have its own list of memory buffers to be exchanged
@@ -99,20 +124,19 @@ typedef struct {
  * address must be 16K aligned.
  *
  * If an SoC has the "secure boot" fuse burned, it will enter FEL mode in
- * non-secure state, so with the SCR.NS bit set. Since in this mode the
- * secure/non-secure state restrictions are actually observed, we suffer
+ * non-secure state, so with the SCR.NS bit set. Since in this mode more of
+ * the secure/non-secure state restrictions are actually observed, we suffer
  * from several restrictions:
- * - No access to the SID information (both via memory mapped and "register").
- * - No access to secure SRAM (SRAM A2 on H3/A64/H5).
+ * - No access to the SID information (on earlier SoCs like H3/A64/H5).
+ * - No access to secure SRAM (on earlier SoCs like H3/A64/H5).
  * - No access to the secure side of the GIC, so it can't be configured to
  *   be accessible from non-secure world.
  * - No RMR trigger on ARMv8 cores to bring the core into AArch64.
- * However it has been found out that a simple "smc" call will immediately
- * return from monitor mode, but with the NS bit cleared, so access to all
- * secure peripherals is suddenly possible.
- * The 'needs_smc_workaround_if_zero_word_at_addr' field can be used to
- * have a check for this condition (reading from restricted addresses
- * typically returns zero) and then activate the SMC workaround if needed.
+ * Depending on the SoC there are workarounds to bring us into secure state,
+ * 'sec_boot_wa' selects one of the methods. Since most workarounds must
+ * only be applied once, we need to first check if secure boot is enabled and
+ * if the workaround has already been applied. 'sec_mem_addr' holds a SoC
+ * specific address that can be used to determine the secure boot status.
  */
 typedef struct {
 	uint32_t           soc_id;       /* ID of the SoC */
@@ -129,12 +153,16 @@ typedef struct {
 	uint32_t           rvbar_reg;    /* MMIO address of RVBARADDR0_L register */
 	uint32_t           rvbar_reg_alt;/* alternative MMIO address of RVBARADDR0_L register */
 	uint32_t           ver_reg;      /* MMIO address of "Version Register" */
+	uint32_t           usb_musb_base;/* base address of the USB OTG controller */
+	uint32_t           fel_endpoint_state_ptr_addr; /* addr holding FEL state pointer */
+	fel_rx_dma_info    fel_rx_dma;   /* BROM RX FIFO copy DMA patch */
 	const watchdog_info *watchdog;   /* Used for reset */
 	bool               sid_fix;      /* Use SID workaround (read via register) */
 	/* Use I$ workaround (disable I$ before first write to prevent stale thunk */
 	bool               icache_fix;
-	/* Use SMC workaround (enter secure mode) if can't read from this address */
-	uint32_t           needs_smc_workaround_if_zero_word_at_addr;
+	enum secure_boot_workaround	sec_boot_wa;
+	/* A secure-only memory address with non-zero content */
+	uint32_t           sec_mem_addr;
 	uint32_t           sram_size;	/* Usable contiguous SRAM at spl_addr */
 	sram_swap_buffers *swap_buffers;
 } soc_info_t;
