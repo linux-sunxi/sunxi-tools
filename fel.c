@@ -426,7 +426,7 @@ void aw_fel_print_sid(feldev_handle *dev, bool force_workaround)
 		return;
 	}
 
-	if (soc_info->sid_fix || force_workaround) {
+	if (soc_info->flags & NEEDS_SID_FIX || force_workaround) {
 		pr_info("Read SID key via registers, base = 0x%08X\n",
 			soc_info->sid_base);
 	} else {
@@ -788,7 +788,7 @@ uint32_t aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t l
 	if (spl_checksum != 0)
 		pr_fatal("SPL: checksum check failed\n");
 
-	if (soc_info->needs_l2en) {
+	if (soc_info->flags & NEEDS_L2EN) {
 		pr_info("Enabling the L2 cache\n");
 		aw_enable_l2_cache(dev, soc_info);
 	}
