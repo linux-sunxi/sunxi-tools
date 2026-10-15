@@ -564,36 +564,112 @@ void aw_set_sctlr(feldev_handle *dev, soc_info_t *soc_info,
 	aw_write_arm_cp_reg(dev, soc_info, 15, 0, 1, 0, 0, sctlr);
 }
 
-/*
- * Issue a "smc #0" instruction. This brings a SoC booted in "secure boot"
- * state from the default non-secure FEL into secure FEL.
- * This crashes on devices using "non-secure boot", as the BROM does not
- * provide a handler address in MVBAR. So we have a runtime check.
- */
-void aw_apply_smc_workaround(feldev_handle *dev)
+static bool aw_fel_needs_smc_workaround(feldev_handle *dev)
 {
 	soc_info_t *soc_info = dev->soc_info;
 	uint32_t val;
-	uint32_t arm_code[] = {
-		htole32(0xe1600070), /* smc	#0	*/
-		htole32(0xe12fff1e), /* bx	lr	*/
-	};
 
-	/* Return if the SoC does not need this workaround */
-	if (!soc_info->needs_smc_workaround_if_zero_word_at_addr)
-		return;
+	if (soc_info->secure_boot_status_offset) {
+		aw_fel_read(dev, soc_info->sid_base +
+			    soc_info->secure_boot_status_offset,
+			    &val, sizeof(val));
+		if (!val)
+			return false;
+	}
+
+	if (!soc_info->smc_workaround_probe_addr)
+		return false;
 
 	/* This has less overhead than fel_readl_n() and may be good enough */
-	aw_fel_read(dev, soc_info->needs_smc_workaround_if_zero_word_at_addr,
+	aw_fel_read(dev, soc_info->smc_workaround_probe_addr,
 	            &val, sizeof(val));
 
-	/* Return if the workaround is not needed or has been already applied */
-	if (val != 0)
+	return val == 0;
+}
+
+/*
+ * Apply the "smc #0" workaround. This moves a secure-boot FEL session from
+ * the default non-secure state into secure state.
+ * This crashes on devices using "non-secure boot", as the BROM does not
+ * provide a handler address in MVBAR. So we have a runtime check.
+ * Some newer SoCs also need CPU and GIC state fixups before returning
+ * to FEL in secure SVC.
+ */
+static void aw_apply_smc_workaround(feldev_handle *dev)
+{
+	soc_info_t *soc_info = dev->soc_info;
+
+	if (!aw_fel_needs_smc_workaround(dev))
 		return;
 
 	pr_info("Applying SMC workaround... ");
-	aw_fel_write(dev, arm_code, soc_info->scratch_addr, sizeof(arm_code));
-	aw_fel_execute(dev, soc_info->scratch_addr);
+	if (soc_info->smc_workaround == SMC_WORKAROUND_SECURE_SVC) {
+		const secure_svc_smc_info *smc_info = soc_info->secure_svc_smc;
+		/*
+		 * A32 literal loads read PC as the instruction address + 8.
+		 * Offsets below are relative to the start of arm_code.
+		 */
+		uint32_t arm_code[] = {
+			/* Keep the FEL return address in unbanked r12. */
+			htole32(0xe1a0c00e), /* mov  r12, lr                 */
+			/* 0x04 + 8 + 56 = 0x44: monitor vector table base. */
+			htole32(0xe59f0038), /* ldr  r0, [pc, #56]           */
+			/* Save the original SMC vector instruction in r1. */
+			htole32(0xe5901008), /* ldr  r1, [r0, #8]            */
+			/* 0x0c + 8 + 44 = 0x40: the "mov pc, lr" encoding. */
+			htole32(0xe59f202c), /* ldr  r2, [pc, #44]           */
+			/* Replace the SMC vector word at MVBAR + 8. */
+			htole32(0xe5802008), /* str  r2, [r0, #8]            */
+			/* Complete the vector write before taking SMC. */
+			htole32(0xf57ff04f), /* dsb  sy                      */
+			/*
+			 * SMC saves CPSR in SPSR_mon; the vector resumes
+			 * after SMC in monitor mode, without restoring CPSR.
+			 */
+			htole32(0xe1600070), /* smc  #0                      */
+			/* Restore the original SMC vector instruction. */
+			htole32(0xe5801008), /* str  r1, [r0, #8]            */
+			/* Prepare SCR = 0. */
+			htole32(0xe3a00000), /* mov  r0, #0                  */
+			/* Clear SCR.NS and monitor IRQ/FIQ routing. */
+			htole32(0xee010f11), /* mcr  p15, 0, r0, c1, c1, 0   */
+			/* 0x28 + 8 + 24 = 0x48: GIC CPU interface base. */
+			htole32(0xe59f0018), /* ldr  r0, [pc, #24]           */
+			/* Read the existing secure GICC_CTLR value. */
+			htole32(0xe5901000), /* ldr  r1, [r0]                */
+			/* AckCtl: Group 1 ACKs through secure GICC_IAR. */
+			htole32(0xe3811004), /* orr  r1, r1, #4              */
+			/* Keep the other GICC_CTLR bits unchanged. */
+			htole32(0xe5801000), /* str  r1, [r0]                */
+			/* Complete the GIC update and vector restoration. */
+			htole32(0xf57ff04f), /* dsb  sy                      */
+			/*
+			 * Return to FEL; restore CPSR from SPSR_mon.
+			 * Exception return synchronizes the SCR change.
+			 */
+			htole32(0xe1b0f00c), /* movs pc, r12                 */
+			/*
+			 * Literal pool: copy the word at 0x40 to MVBAR + 8;
+			 * do not execute it here.
+			 */
+			htole32(0xe1a0f00e), /* mov  pc, lr                  */
+			htole32(smc_info->monitor_vector_addr), /* 0x44 */
+			htole32(smc_info->gicc_base),           /* 0x48 */
+		};
+
+		aw_fel_write(dev, arm_code, soc_info->thunk_addr,
+			     sizeof(arm_code));
+		aw_fel_execute(dev, soc_info->thunk_addr);
+	} else {
+		uint32_t arm_code[] = {
+			htole32(0xe1600070), /* smc	#0	*/
+			htole32(0xe12fff1e), /* bx	lr	*/
+		};
+
+		aw_fel_write(dev, arm_code, soc_info->scratch_addr,
+			     sizeof(arm_code));
+		aw_fel_execute(dev, soc_info->scratch_addr);
+	}
 	pr_info(" done.\n");
 }
 
@@ -1381,7 +1457,7 @@ int main(int argc, char **argv)
 	 */
 	handle = feldev_open(busnum, devnum, AW_USB_VENDOR_ID, AW_USB_PRODUCT_ID);
 
-	/* Some SoCs need the SMC workaround to enter the secure boot mode */
+	/* Some SoCs need the SMC workaround to enter secure state */
 	aw_apply_smc_workaround(handle);
 
 	/* Handle command-style arguments, in order of appearance */
