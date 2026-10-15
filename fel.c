@@ -992,10 +992,14 @@ static const char *spl_get_dtb_name(uint8_t *spl_buf)
 	return (char *)spl_buf + dt_offset;
 }
 
+static bool aw_fel_try_ramfit_handoff(feldev_handle *dev, uint8_t *fit,
+				      size_t fit_size);
+
 /*
  * This function handles the common part of both "spl" and "uboot" commands.
  */
-void aw_fel_process_spl_and_uboot(feldev_handle *dev, const char *filename)
+void aw_fel_process_spl_and_uboot(feldev_handle *dev, const char *filename,
+				  bool try_ramfit)
 {
 	size_t size;
 	uint32_t offset;
@@ -1011,8 +1015,11 @@ void aw_fel_process_spl_and_uboot(feldev_handle *dev, const char *filename)
 		/* U-Boot pads to at least 32KB */
 		if (offset < SPL_MIN_OFFSET)
 			offset = SPL_MIN_OFFSET;
-		aw_fel_write_uboot_image(dev, buf + offset, size - offset,
-					 dt_name);
+		if (!(try_ramfit &&
+		      aw_fel_try_ramfit_handoff(dev, buf + offset,
+						size - offset)))
+			aw_fel_write_uboot_image(dev, buf + offset,
+						 size - offset, dt_name);
 	}
 	free(buf);
 }
@@ -1032,6 +1039,8 @@ void aw_fel_process_spl_and_uboot(feldev_handle *dev, const char *filename)
 	((min) & ((1U << SPL_MINOR_BITS) - 1)))
 #define SPL_MIN_VERSION			SPL_VERSION(0, 1)
 #define SPL_MAX_VERSION			SPL_VERSION(0, 31)
+#define SPL_FEL_RAMFIT_VERSION		SPL_VERSION(0, 4)
+#define SUNXI_BOOTED_FROM_FEL_RAMFIT_WAIT	0xf8
 bool have_sunxi_spl(feldev_handle *dev, uint32_t spl_addr)
 {
 	uint8_t spl_signature[4];
@@ -1057,6 +1066,50 @@ bool have_sunxi_spl(feldev_handle *dev, uint32_t spl_addr)
 		return false;
 	}
 	return true; /* sunxi SPL and suitable version */
+}
+
+static bool aw_fel_try_ramfit_handoff(feldev_handle *dev, uint8_t *fit,
+				      size_t fit_size)
+{
+	uint32_t boot_media, fit_addr, fit_max_size, resume_addr, dram_size_mib;
+	uint8_t spl_signature[4];
+
+	if (fit_size <= HEADER_SIZE ||
+	    get_image_type(fit, fit_size) != IH_TYPE_FLATDT)
+		return false;
+	if (fit_size > UINT32_MAX)
+		pr_fatal("RAMFIT: FIT image is too large\n");
+	if (!have_sunxi_spl(dev, dev->soc_info->spl_addr))
+		return false;
+
+	aw_fel_read(dev, dev->soc_info->spl_addr + 0x14,
+		    &spl_signature, sizeof(spl_signature));
+	if (spl_signature[3] < SPL_FEL_RAMFIT_VERSION)
+		return false;
+
+	fit_addr = fel_readl(dev, dev->soc_info->spl_addr + 0x18);
+	fit_max_size = fel_readl(dev, dev->soc_info->spl_addr + 0x1c);
+	resume_addr = fel_readl(dev, dev->soc_info->spl_addr + 0x20);
+	dram_size_mib = fel_readl(dev, dev->soc_info->spl_addr + 0x24);
+	boot_media = fel_readl(dev, dev->soc_info->spl_addr + 0x28);
+	if (!fit_addr || !resume_addr || !dram_size_mib)
+		pr_fatal("RAMFIT: SPL did not publish a RAM FIT handoff\n");
+	if ((boot_media & 0xff) != SUNXI_BOOTED_FROM_FEL_RAMFIT_WAIT)
+		pr_fatal("RAMFIT: SPL handoff is not waiting for a FIT "
+			 "(boot_media=0x%08x)\n", boot_media);
+	if (fit_max_size && fit_size > fit_max_size)
+		pr_fatal("RAMFIT: FIT image too large (%zu > %u)\n",
+			 fit_size, fit_max_size);
+
+	pr_info("RAMFIT: writing %zu-byte FIT to 0x%08x (DRAM %u MiB)\n",
+		fit_size, fit_addr, dram_size_mib);
+	aw_write_buffer(dev, fit, fit_addr, fit_size, false);
+
+	uboot_entry = resume_addr;
+	uboot_size = 4;
+	enter_in_aarch64 = true;
+
+	return true;
 }
 
 /*
@@ -1468,10 +1521,10 @@ int main(int argc, char **argv)
 			aw_fel_fill(handle, strtoul(argv[2], NULL, 0), strtoul(argv[3], NULL, 0), (unsigned char)strtoul(argv[4], NULL, 0));
 			skip=4;
 		} else if (strcmp(argv[1], "spl") == 0 && argc > 2) {
-			aw_fel_process_spl_and_uboot(handle, argv[2]);
+			aw_fel_process_spl_and_uboot(handle, argv[2], false);
 			skip=2;
 		} else if (strcmp(argv[1], "uboot") == 0 && argc > 2) {
-			aw_fel_process_spl_and_uboot(handle, argv[2]);
+			aw_fel_process_spl_and_uboot(handle, argv[2], true);
 			uboot_autostart = (uboot_entry > 0 && uboot_size > 0);
 			if (!uboot_autostart)
 				printf("Warning: \"uboot\" command failed to detect image! Can't execute U-Boot.\n");
