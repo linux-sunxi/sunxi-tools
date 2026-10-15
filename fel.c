@@ -76,6 +76,38 @@ typedef struct image_header {
 #define HEADER_NAME_OFFSET	offsetof(image_header_t, ih_name)
 #define HEADER_SIZE		sizeof(image_header_t)
 
+#define TOC0_HEADER_SIZE	0x30
+#define TOC0_ITEM_SIZE		0x20
+#define TOC0_MAIN_MAGIC_OFFSET	0x08
+#define TOC0_CHECKSUM_OFFSET	0x0c
+#define TOC0_NUM_ITEMS_OFFSET	0x18
+#define TOC0_LENGTH_OFFSET	0x1c
+#define TOC0_MAIN_END_OFFSET	0x2c
+#define TOC0_ITEM_NAME_OFFSET	0x00
+#define TOC0_ITEM_OFFSET_OFFSET	0x04
+#define TOC0_ITEM_SIZE_OFFSET	0x08
+#define TOC0_ITEM_LOAD_OFFSET	0x14
+#define TOC0_ITEM_END_OFFSET	0x1c
+#define TOC0_MAIN_INFO_MAGIC	0x89119800
+#define TOC0_ITEM_INFO_NAME_FIRMWARE	0x00010202
+#define EGON_HEADER_SIZE	0x60
+#define EGON_CHECKSUM_SEED	0x5F0A6C39
+#define SPL_HEADER_VERSION	2
+
+static uint32_t get_le32(const void *ptr)
+{
+	uint32_t val;
+
+	memcpy(&val, ptr, sizeof(val));
+	return le32toh(val);
+}
+
+static void put_le32(void *ptr, uint32_t val)
+{
+	val = htole32(val);
+	memcpy(ptr, &val, sizeof(val));
+}
+
 /*
  * Utility function to determine the image type from a mkimage-compatible
  * header at given buffer (address).
@@ -775,7 +807,7 @@ uint32_t aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t l
 	if (len < 32 || memcmp(buf + 4, "eGON.BT0", 8) != 0)
 		pr_fatal("SPL: eGON header is not found\n");
 
-	spl_checksum = 2 * le32toh(buf32[3]) - 0x5F0A6C39;
+	spl_checksum = 2 * le32toh(buf32[3]) - EGON_CHECKSUM_SEED;
 	spl_len = le32toh(buf32[4]);
 
 	if (spl_len > len || (spl_len % 4) != 0)
@@ -970,6 +1002,112 @@ static void aw_fel_write_uboot_image(feldev_handle *dev, uint8_t *buf,
 	uboot_size = data_size;
 }
 
+static bool is_toc0_image(const uint8_t *buf, size_t len)
+{
+	return len >= TOC0_HEADER_SIZE && memcmp(buf, "TOC0.GLH", 8) == 0;
+}
+
+static uint8_t *toc0_make_egon_spl(const soc_info_t *soc_info,
+				   const uint8_t *buf,
+				   size_t len, size_t *egon_len,
+				   size_t *payload_offset)
+{
+	uint32_t toc0_len, num_items, checksum, hdr_checksum;
+	uint32_t code_offset = 0, code_size = 0, load_addr = 0;
+	uint32_t code_pos, branch_words;
+	uint64_t egon_size;
+	uint8_t *egon;
+	size_t i;
+
+	if (!soc_info)
+		pr_fatal("TOC0: Unsupported SoC type\n");
+	if (len < TOC0_HEADER_SIZE)
+		pr_fatal("TOC0: invalid header\n");
+
+	num_items = get_le32(buf + TOC0_NUM_ITEMS_OFFSET);
+	toc0_len = get_le32(buf + TOC0_LENGTH_OFFSET);
+	hdr_checksum = get_le32(buf + TOC0_CHECKSUM_OFFSET);
+	if ((toc0_len & 3) || toc0_len < TOC0_HEADER_SIZE ||
+	    toc0_len > len || num_items == 0 ||
+	    num_items > (toc0_len - TOC0_HEADER_SIZE) / TOC0_ITEM_SIZE)
+		pr_fatal("TOC0: invalid header\n");
+	if (get_le32(buf + TOC0_MAIN_MAGIC_OFFSET) != TOC0_MAIN_INFO_MAGIC ||
+	    memcmp(buf + TOC0_MAIN_END_OFFSET, "MIE;", 4) != 0)
+		pr_fatal("TOC0: invalid main info header\n");
+
+	checksum = EGON_CHECKSUM_SEED;
+	for (i = 0; i < toc0_len; i += 4)
+		checksum += get_le32(buf + i);
+	if (checksum != 2 * hdr_checksum)
+		pr_fatal("TOC0: checksum mismatch\n");
+
+	for (i = 0; i < num_items; i++) {
+		const uint8_t *item = buf + TOC0_HEADER_SIZE +
+				      i * TOC0_ITEM_SIZE;
+		uint32_t item_name;
+		uint32_t item_offset, item_size, item_load;
+
+		if (memcmp(item + TOC0_ITEM_END_OFFSET, "IIE;", 4) != 0)
+			pr_fatal("TOC0: invalid item header\n");
+
+		item_name = get_le32(item + TOC0_ITEM_NAME_OFFSET);
+		if (item_name != TOC0_ITEM_INFO_NAME_FIRMWARE)
+			continue;
+
+		item_offset = get_le32(item + TOC0_ITEM_OFFSET_OFFSET);
+		item_size = get_le32(item + TOC0_ITEM_SIZE_OFFSET);
+		item_load = get_le32(item + TOC0_ITEM_LOAD_OFFSET);
+		if (item_size == 0 || item_load == 0)
+			continue;
+		if (item_offset > toc0_len || item_size > toc0_len - item_offset)
+			pr_fatal("TOC0: invalid SPL item bounds\n");
+
+		code_offset = item_offset;
+		code_size = item_size;
+		load_addr = item_load;
+		break;
+	}
+
+	if (!code_size)
+		pr_fatal("TOC0: no loadable SPL item found\n");
+	if (load_addr < soc_info->spl_addr)
+		pr_fatal("TOC0: SPL load address 0x%08x is below 0x%08x\n",
+			 load_addr, soc_info->spl_addr);
+
+	code_pos = load_addr - soc_info->spl_addr;
+	if (code_pos < EGON_HEADER_SIZE || (code_pos & 3))
+		pr_fatal("TOC0: unsupported SPL load offset 0x%x\n", code_pos);
+
+	egon_size = (uint64_t)code_pos + code_size;
+	egon_size = (egon_size + 3) & ~(uint64_t)3;
+	if (egon_size > soc_info->sram_size)
+		pr_fatal("TOC0: SPL item too large\n");
+	*egon_len = (size_t)egon_size;
+	egon = calloc(1, *egon_len);
+	if (!egon)
+		pr_fatal("TOC0: failed to allocate SPL buffer\n");
+
+	branch_words = (code_pos - 8) >> 2;
+	put_le32(egon, 0xea000000 | (branch_words & 0x00ffffff));
+	memcpy(egon + 4, "eGON.BT0", 8);
+	put_le32(egon + 0x10, (uint32_t)*egon_len);
+	memcpy(egon + 0x14, "SPL", 3);
+	egon[0x17] = SPL_HEADER_VERSION;
+	memcpy(egon + code_pos, buf + code_offset, code_size);
+
+	checksum = EGON_CHECKSUM_SEED;
+	for (i = 0; i < *egon_len; i += 4)
+		checksum += get_le32(egon + i);
+	put_le32(egon + 0x0c, checksum);
+
+	*payload_offset = toc0_len;
+	pr_info("TOC0: wrapped SPL item %u bytes from 0x%x, load 0x%08x\n",
+		code_size, code_offset, load_addr);
+	pr_info("TOC0: payload starts at 0x%x\n", toc0_len);
+
+	return egon;
+}
+
 static const char *spl_get_dtb_name(uint8_t *spl_buf)
 {
 	uint32_t dt_offset;
@@ -1001,7 +1139,25 @@ void aw_fel_process_spl_and_uboot(feldev_handle *dev, const char *filename)
 	uint32_t offset;
 	/* load file into memory buffer */
 	uint8_t *buf = load_file(filename, &size);
-	const char *dt_name = spl_get_dtb_name(buf);
+	const char *dt_name;
+
+	if (is_toc0_image(buf, size)) {
+		size_t egon_spl_size, payload_offset;
+		uint8_t *egon_spl = toc0_make_egon_spl(dev->soc_info, buf,
+							size, &egon_spl_size,
+							&payload_offset);
+
+		aw_fel_write_and_execute_spl(dev, egon_spl, egon_spl_size);
+		free(egon_spl);
+
+		if (size > payload_offset)
+			aw_fel_write_uboot_image(dev, buf + payload_offset,
+						 size - payload_offset, NULL);
+		free(buf);
+		return;
+	}
+
+	dt_name = spl_get_dtb_name(buf);
 
 	/* write and execute the SPL from the buffer */
 	offset = aw_fel_write_and_execute_spl(dev, buf, size);
