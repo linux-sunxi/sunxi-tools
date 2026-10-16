@@ -88,6 +88,10 @@ typedef unsigned char u8;
 #define R329_PIO_BASE		0x02000400
 #define R329_CCM_BASE		0x02001000
 
+#define T153_UART0_BASE		0x02600000
+#define T153_PIO_BASE		0x03604000
+#define T153_CCM_BASE		0x02002000
+
 #define V853_PIO_BASE		0x02000000
 
 #define SUNIV_UART0_BASE	0x01c25000
@@ -95,6 +99,7 @@ typedef unsigned char u8;
 #define SRAM_A1_ADDR_0		0x00000000
 #define SRAM_A1_ADDR_10000	0x00010000
 #define SRAM_A1_ADDR_20000	0x00020000
+#define SRAM_A1_ADDR_40000	0x00040000
 #define SRAM_A1_ADDR_100000	0x00100000
 
 /*****************************************************************************
@@ -193,7 +198,10 @@ struct soc_info {
 	u8	flags;
 
 	const struct {
-		u32	base;
+		u32	base; /* GPIO controller base address */
+		u32	offs; /* First(PA) bank offset to GPIO base */
+		u32	size; /* Each GPIO bank size */
+		u32	pull; /* PULL register offset to its bank */
 	} pio;
 
 	const struct {
