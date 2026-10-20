@@ -98,20 +98,6 @@ static void usb_bulk_send(libusb_device_handle *usb, int ep, const void *data,
 	}
 }
 
-static void usb_bulk_recv(libusb_device_handle *usb, int ep, void *data,
-			  int length)
-{
-	int rc, recv;
-	while (length > 0) {
-		rc = libusb_bulk_transfer(usb, ep, data, length,
-					  &recv, USB_TIMEOUT);
-		if (rc != 0)
-			usb_error(rc, "usb_bulk_recv()", 2);
-		length -= recv;
-		data += recv;
-	}
-}
-
 struct aw_usb_request {
 	char signature[8];
 	uint32_t length;
@@ -120,6 +106,13 @@ struct aw_usb_request {
 	uint32_t length2;	/* Same as length */
 	char     pad[10];
 }  __attribute__((packed));
+
+struct aw_usb_response {
+	char signature[4];
+	uint32_t tag;
+	uint32_t data_residue;
+	uint8_t status;
+} __attribute__((packed));
 
 #define AW_USB_READ	0x11
 #define AW_USB_WRITE	0x12
@@ -130,6 +123,13 @@ struct aw_fel_request {
 	uint32_t length;
 	uint32_t pad;
 };
+
+struct aw_fel_status {
+	uint16_t mark;
+	uint16_t tag;
+	uint8_t state;
+	uint8_t rev[3];
+} __attribute__((packed));
 
 /* FEL request types */
 #define AW_FEL_VERSION	0x001
@@ -152,10 +152,26 @@ static void aw_send_usb_request(feldev_handle *dev, int type, int length)
 
 static void aw_read_usb_response(feldev_handle *dev)
 {
-	char buf[13];
-	usb_bulk_recv(dev->usb->handle, dev->usb->endpoint_in,
-		      buf, sizeof(buf));
-	assert(strcmp(buf, "AWUS") == 0);
+	struct aw_usb_response response;
+	int rc, received;
+
+	rc = libusb_bulk_transfer(dev->usb->handle, dev->usb->endpoint_in,
+				  (void *)&response, sizeof(response),
+				  &received, USB_TIMEOUT);
+	if (rc)
+		usb_error(rc, "aw_read_usb_response()", 2);
+
+	if (received != sizeof(response) ||
+	    memcmp(response.signature, "AWUS", sizeof(response.signature))) {
+		fprintf(stderr, "Invalid USB response\n");
+		exit(2);
+	}
+
+	if (response.status) {
+		fprintf(stderr, "USB transaction failed with status 0x%02x\n",
+			response.status);
+		exit(2);
+	}
 }
 
 static void aw_usb_write(feldev_handle *dev, const void *data, size_t len,
@@ -167,11 +183,73 @@ static void aw_usb_write(feldev_handle *dev, const void *data, size_t len,
 	aw_read_usb_response(dev);
 }
 
-static void aw_usb_read(feldev_handle *dev, void *data, size_t len)
+static size_t aw_usb_read(feldev_handle *dev, void *data, size_t len,
+			  size_t max_len)
 {
+	int rc, received;
+
 	aw_send_usb_request(dev, AW_USB_READ, len);
-	usb_bulk_recv(dev->usb->handle, dev->usb->endpoint_in, data, len);
+	/* A short transfer ends the data stage; do not read into the response. */
+	rc = libusb_bulk_transfer(dev->usb->handle, dev->usb->endpoint_in,
+				  data, max_len, &received, USB_TIMEOUT);
+	if (rc)
+		usb_error(rc, "aw_usb_read()", 2);
+
 	aw_read_usb_response(dev);
+	return received;
+}
+
+static void aw_check_fel_status(const struct aw_fel_status *status, size_t len)
+{
+	/* FEL requests use a zero tag (the upper 16 bits of request). */
+	if (len != sizeof(*status) ||
+	    le16toh(status->mark) != 0xffff || status->tag != 0) {
+		fprintf(stderr, "Invalid FEL status response\n");
+		exit(2);
+	}
+
+	if (status->state) {
+		fprintf(stderr, "FEL command failed with status 0x%02x\n",
+			status->state);
+		exit(2);
+	}
+}
+
+static void aw_read_fel_data(feldev_handle *dev, void *data, size_t len)
+{
+	struct aw_fel_status status;
+	void *buf = data;
+	size_t max_len = len;
+	size_t received;
+
+	assert(len != sizeof(status));
+
+	/*
+	 * A rejected command returns an eight-byte status instead of data.
+	 * Small reads need a temporary buffer large enough for that status.
+	 */
+	if (len < sizeof(status)) {
+		buf = &status;
+		max_len = sizeof(status);
+	}
+
+	received = aw_usb_read(dev, buf, len, max_len);
+	if (received == sizeof(status)) {
+		memmove(&status, buf, sizeof(status));
+		aw_check_fel_status(&status, received);
+		fprintf(stderr, "Unexpected FEL status instead of read data\n");
+		exit(2);
+	}
+
+	if (received != len) {
+		fprintf(stderr, "Unexpected FEL response length: "
+			"got %zu, expected %zu\n",
+			received, len);
+		exit(2);
+	}
+
+	if (len < sizeof(status))
+		memcpy(data, buf, len);
 }
 
 static void aw_send_fel_request(feldev_handle *dev, int type,
@@ -187,15 +265,18 @@ static void aw_send_fel_request(feldev_handle *dev, int type,
 
 static void aw_read_fel_status(feldev_handle *dev)
 {
-	char buf[8];
-	aw_usb_read(dev, buf, sizeof(buf));
+	struct aw_fel_status status;
+	size_t received;
+
+	received = aw_usb_read(dev, &status, sizeof(status), sizeof(status));
+	aw_check_fel_status(&status, received);
 }
 
 /* AW_FEL_VERSION request */
 static void aw_fel_get_version(feldev_handle *dev, struct aw_fel_version *buf)
 {
 	aw_send_fel_request(dev, AW_FEL_VERSION, 0, 0);
-	aw_usb_read(dev, buf, sizeof(*buf));
+	aw_read_fel_data(dev, buf, sizeof(*buf));
 	aw_read_fel_status(dev);
 
 	buf->soc_id = (le32toh(buf->soc_id) >> 8) & 0xFFFF;
@@ -209,9 +290,21 @@ static void aw_fel_get_version(feldev_handle *dev, struct aw_fel_version *buf)
 /* AW_FEL_1_READ request */
 void aw_fel_read(feldev_handle *dev, uint32_t offset, void *buf, size_t len)
 {
-	aw_send_fel_request(dev, AW_FEL_1_READ, offset, len);
-	aw_usb_read(dev, buf, len);
-	aw_read_fel_status(dev);
+	/*
+	 * An eight-byte payload could be identical to a FEL error status.
+	 * Split reads of that size into two requests so their response lengths
+	 * distinguish successful reads from error statuses.
+	 */
+	size_t chunk = len == sizeof(struct aw_fel_status) ? len / 2 : len;
+
+	while (len > 0) {
+		aw_send_fel_request(dev, AW_FEL_1_READ, offset, chunk);
+		aw_read_fel_data(dev, buf, chunk);
+		aw_read_fel_status(dev);
+		offset += chunk;
+		buf = (char *)buf + chunk;
+		len -= chunk;
+	}
 }
 
 /* AW_FEL_1_WRITE request */
