@@ -189,6 +189,13 @@ sram_swap_buffers a523_sram_swap_buffers[] = {
 	{ .buf1 = 0x45000, .buf2 = 0x40200, .size = 0x0400 },
 	{ .size = 0 }  /* End of the table */
 };
+
+/* Only Use SRAM_C 0x40000 - 0x67FFF */
+sram_swap_buffers t153_sram_swap_buffers[] = {
+	{ .buf1 = 0x40000, .buf2 = 0x66c00, .size = 0x1400 },
+	{ .size = 0 }  /* End of the table */
+};
+
 /*
  * Some SoCs put both stacks, BSS and data segments at the end of a comparably
  * large SRAM, so we don't need to move anything around.
@@ -660,6 +667,19 @@ soc_info_t soc_info_table[] = {
 		.rvbar_reg    = 0x08100040,
 		.sec_boot_wa  = SECURE_BOOT_MONITOR_H6,
 		.watchdog     = &wd_h6_compat,
+	},{
+		.soc_id       = 0x1922, /* Allwinner T153 */
+		.name         = "T153",
+		.spl_addr     = 0x40000,
+		.scratch_addr = 0x41800,
+		.thunk_addr   = 0x66a00, .thunk_size = 0x200,
+		.swap_buffers = t153_sram_swap_buffers,
+		.sram_size    = 154 * 1024,
+		.sid_base     = 0x03006000,
+		.sid_offset   = 0x200,
+		.sid_sections = generic_2k_sid_maps,
+		.icache_fix   = true,
+		.watchdog     = &wd_a523_compat,
 	},{
 		.swap_buffers = NULL /* End of the table */
 	}

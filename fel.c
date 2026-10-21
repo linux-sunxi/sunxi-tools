@@ -832,6 +832,7 @@ uint32_t aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t l
 	uint32_t spl_checksum, spl_len, spl_len_limit;
 	uint32_t *buf32 = (uint32_t *)buf;
 	uint32_t cur_addr = soc_info->spl_addr;
+	uint32_t spl_status_addr = soc_info->spl_addr;
 	uint32_t *tt = NULL;
 
 	if (!soc_info || !soc_info->swap_buffers)
@@ -886,6 +887,14 @@ uint32_t aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t l
 
 	swap_buffers = soc_info->swap_buffers;
 	for (i = 0; swap_buffers[i].size; i++) {
+		/* Will rewrite swap_buffers, shrink according to actual case */
+		if (swap_buffers[i].buf1 <= soc_info->spl_addr &&
+			(swap_buffers[i].buf1 + swap_buffers[i].size) > soc_info->spl_addr) {
+			swap_buffers[i].size -= (soc_info->spl_addr - swap_buffers[i].buf1);
+			swap_buffers[i].buf1 = soc_info->spl_addr;
+			spl_status_addr = swap_buffers[i].buf2;
+		}
+
 		if ((swap_buffers[i].buf2 >= soc_info->spl_addr) &&
 		    (swap_buffers[i].buf2 < soc_info->spl_addr + spl_len_limit))
 			spl_len_limit = swap_buffers[i].buf2 - soc_info->spl_addr;
@@ -950,7 +959,7 @@ uint32_t aw_fel_write_and_execute_spl(feldev_handle *dev, uint8_t *buf, size_t l
 	nanosleep(&req, NULL);
 
 	/* Read back the result and check if everything was fine */
-	aw_fel_read(dev, soc_info->spl_addr + 4, header_signature, 8);
+	aw_fel_read(dev, spl_status_addr + 4, header_signature, 8);
 	if (strcmp(header_signature, "eGON.FEL") != 0)
 		pr_fatal("SPL: failure code '%s'\n", header_signature);
 
