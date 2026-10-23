@@ -475,7 +475,10 @@ const struct soc_info *sunxi_detect_soc(void)
 
 static void clock_init_uart(const struct soc_info *soc)
 {
-	if (soc->flags & FLAG_CLK_NCAT2) {
+	if (soc->flags & FLAG_CLK_NCAT3) {
+		set_wbit(soc->ccu.base + 0xe00 + (CONFIG_CONS_INDEX - 1) * 4,
+			 0x10001);
+	} else if (soc->flags & FLAG_CLK_NCAT2) {
 		set_wbit(soc->ccu.base + 0x90c,
 			 0x10001 << (CONFIG_CONS_INDEX - 1));
 	} else {
