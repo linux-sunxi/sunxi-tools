@@ -179,7 +179,7 @@ static const struct soc_info soc_table[] = {
 	{
 		.id	= 0x1708,
 		.name	= "T7",
-		.flags	= FLAG_NEW_CLOCK,
+		.flags	= FLAG_CLK_NCAT2,
 		.pio	= { H6_PIO_BASE },
 		.ccu	= { H6_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_20000 },
@@ -198,7 +198,7 @@ static const struct soc_info soc_table[] = {
 	{
 		.id	= 0x1719,
 		.name	= "A63",
-		.flags	= FLAG_NEW_CLOCK,
+		.flags	= FLAG_CLK_NCAT2,
 		.pio	= { H6_PIO_BASE },
 		.ccu	= { H6_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_10000 },
@@ -208,7 +208,7 @@ static const struct soc_info soc_table[] = {
 	{
 		.id	= 0x1721,
 		.name	= "V5",
-		.flags	= FLAG_NEW_CLOCK,
+		.flags	= FLAG_CLK_NCAT2,
 		.pio	= { H6_PIO_BASE },
 		.ccu	= { H6_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_20000 },
@@ -218,7 +218,7 @@ static const struct soc_info soc_table[] = {
 	{
 		.id	= 0x1728,
 		.name	= "H6",
-		.flags	= FLAG_NEW_CLOCK,
+		.flags	= FLAG_CLK_NCAT2,
 		.pio	= { H6_PIO_BASE },
 		.ccu	= { H6_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_20000 },
@@ -228,7 +228,7 @@ static const struct soc_info soc_table[] = {
 	{
 		.id	= 0x1816,
 		.name	= "V536",
-		.flags	= FLAG_NEW_CLOCK,
+		.flags	= FLAG_CLK_NCAT2,
 		.pio	= { H6_PIO_BASE },
 		.ccu	= { H6_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_20000 },
@@ -238,7 +238,7 @@ static const struct soc_info soc_table[] = {
 	{
 		.id	= 0x1817,
 		.name	= "V831",
-		.flags	= FLAG_NEW_CLOCK,
+		.flags	= FLAG_CLK_NCAT2,
 		.pio	= { H6_PIO_BASE },
 		.ccu	= { H6_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_20000 },
@@ -248,7 +248,7 @@ static const struct soc_info soc_table[] = {
 	{
 		.id	= 0x1823,
 		.name	= "H616",
-		.flags	= FLAG_NEW_CLOCK,
+		.flags	= FLAG_CLK_NCAT2,
 		.pio	= { H6_PIO_BASE },
 		.ccu	= { H6_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_20000 },
@@ -268,7 +268,7 @@ static const struct soc_info soc_table[] = {
 	{
 		.id	= 0x1855,
 		.name	= "A133",
-		.flags	= FLAG_NEW_CLOCK,
+		.flags	= FLAG_CLK_NCAT2,
 		.pio	= { H6_PIO_BASE },
 		.ccu	= { H6_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_20000 },
@@ -305,6 +305,16 @@ static const struct soc_info soc_table[] = {
 		.uart0	= { R329_UART0_BASE, SUNXI_GPB(9), MUX_2 },
 		.jtag	= { MUX_3 },
 	},
+	{
+		.id	= 0x1903,
+		.name	= "A733",
+		.flags	= FLAG_NCAT3,
+		.pio	= { V853_PIO_BASE },
+		.ccu	= { A733_CCM_BASE },
+		.sram	= { SRAM_A1_ADDR_20000 },
+		.uart0	= { R329_UART0_BASE, SUNXI_GPB(9), MUX_2 },
+		.jtag	= { MUX_3 },
+	},
 };
 
 static const struct soc_info *find_soc_info(int id, int variant)
@@ -323,7 +333,10 @@ static const struct soc_info *find_soc_info(int id, int variant)
 }
 
 static u32 pio_base;
-static u32 pio_bank_size, pio_dat_off, pio_pull_off;
+static u32 pio_base_off;
+static u32 pio_bank_size;
+static u32 pio_dat_off;
+static u32 pio_pull_off;
 
 static int sunxi_gpio_set_cfgpin(u32 pin, u32 val)
 {
@@ -472,7 +485,10 @@ const struct soc_info *sunxi_detect_soc(void)
 
 static void clock_init_uart(const struct soc_info *soc)
 {
-	if (soc->flags & FLAG_NEW_CLOCK) {
+	if (soc->flags & FLAG_CLK_NCAT3) {
+		set_wbit(soc->ccu.base + 0xe00 + (CONFIG_CONS_INDEX - 1) * 4,
+			 0x10001);
+	} else if (soc->flags & FLAG_CLK_NCAT2) {
 		set_wbit(soc->ccu.base + 0x90c,
 			 0x10001 << (CONFIG_CONS_INDEX - 1));
 	} else {
@@ -503,19 +519,25 @@ static void clock_init_uart(const struct soc_info *soc)
 
 void gpio_init(const struct soc_info *soc)
 {
-	pio_base = soc->pio.base;
-
-	if (soc->flags & FLAG_NEW_GPIO) {
+	if (soc->flags & FLAG_PIO_NCAT3) {
+		/* GPIO V3 */
+		pio_base_off = 0x80;
+		pio_bank_size = 0x80;
+		pio_pull_off = 0x30;
+	} else if (soc->flags & FLAG_PIO_NCAT2) {
 		/* GPIO V2 */
 		pio_bank_size = 0x30;
-		pio_dat_off = 0x10;
 		pio_pull_off = 0x24;
 	} else {
 		/* GPIO V1 */
 		pio_bank_size = 0x24;
-		pio_dat_off = 0x10;
 		pio_pull_off = 0x1c;
 	}
+
+	/* All SoC has same data offset */
+	pio_dat_off = 0x10;
+
+	pio_base = soc->pio.base + pio_base_off;
 
 	if (soc->flags & FLAG_UART_ON_PORTF) {
 		/* Disable normal UART0 pins to avoid conflict */
@@ -535,8 +557,6 @@ void gpio_init(const struct soc_info *soc)
 
 void jtag_init(const struct soc_info *soc)
 {
-	pio_base = soc->pio.base;
-
 	if (soc->jtag.pinmux) {
 		sunxi_gpio_set_cfgpin(SUNXI_GPF(0), soc->jtag.pinmux);
 		sunxi_gpio_set_cfgpin(SUNXI_GPF(1), soc->jtag.pinmux);
