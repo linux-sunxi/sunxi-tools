@@ -179,7 +179,7 @@ static const struct soc_info soc_table[] = {
 	{
 		.id	= 0x1708,
 		.name	= "T7",
-		.flags	= FLAG_NEW_CLOCK,
+		.flags	= FLAG_CLK_NCAT2,
 		.pio	= { H6_PIO_BASE },
 		.ccu	= { H6_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_20000 },
@@ -198,7 +198,7 @@ static const struct soc_info soc_table[] = {
 	{
 		.id	= 0x1719,
 		.name	= "A63",
-		.flags	= FLAG_NEW_CLOCK,
+		.flags	= FLAG_CLK_NCAT2,
 		.pio	= { H6_PIO_BASE },
 		.ccu	= { H6_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_10000 },
@@ -208,7 +208,7 @@ static const struct soc_info soc_table[] = {
 	{
 		.id	= 0x1721,
 		.name	= "V5",
-		.flags	= FLAG_NEW_CLOCK,
+		.flags	= FLAG_CLK_NCAT2,
 		.pio	= { H6_PIO_BASE },
 		.ccu	= { H6_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_20000 },
@@ -218,7 +218,7 @@ static const struct soc_info soc_table[] = {
 	{
 		.id	= 0x1728,
 		.name	= "H6",
-		.flags	= FLAG_NEW_CLOCK,
+		.flags	= FLAG_CLK_NCAT2,
 		.pio	= { H6_PIO_BASE },
 		.ccu	= { H6_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_20000 },
@@ -228,7 +228,7 @@ static const struct soc_info soc_table[] = {
 	{
 		.id	= 0x1816,
 		.name	= "V536",
-		.flags	= FLAG_NEW_CLOCK,
+		.flags	= FLAG_CLK_NCAT2,
 		.pio	= { H6_PIO_BASE },
 		.ccu	= { H6_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_20000 },
@@ -238,7 +238,7 @@ static const struct soc_info soc_table[] = {
 	{
 		.id	= 0x1817,
 		.name	= "V831",
-		.flags	= FLAG_NEW_CLOCK,
+		.flags	= FLAG_CLK_NCAT2,
 		.pio	= { H6_PIO_BASE },
 		.ccu	= { H6_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_20000 },
@@ -248,7 +248,7 @@ static const struct soc_info soc_table[] = {
 	{
 		.id	= 0x1823,
 		.name	= "H616",
-		.flags	= FLAG_NEW_CLOCK,
+		.flags	= FLAG_CLK_NCAT2,
 		.pio	= { H6_PIO_BASE },
 		.ccu	= { H6_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_20000 },
@@ -268,7 +268,7 @@ static const struct soc_info soc_table[] = {
 	{
 		.id	= 0x1855,
 		.name	= "A133",
-		.flags	= FLAG_NEW_CLOCK,
+		.flags	= FLAG_CLK_NCAT2,
 		.pio	= { H6_PIO_BASE },
 		.ccu	= { H6_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_20000 },
@@ -472,7 +472,7 @@ const struct soc_info *sunxi_detect_soc(void)
 
 static void clock_init_uart(const struct soc_info *soc)
 {
-	if (soc->flags & FLAG_NEW_CLOCK) {
+	if (soc->flags & FLAG_CLK_NCAT2) {
 		set_wbit(soc->ccu.base + 0x90c,
 			 0x10001 << (CONFIG_CONS_INDEX - 1));
 	} else {
@@ -505,7 +505,7 @@ void gpio_init(const struct soc_info *soc)
 {
 	pio_base = soc->pio.base;
 
-	if (soc->flags & FLAG_NEW_GPIO) {
+	if (soc->flags & FLAG_PIO_NCAT2) {
 		/* GPIO V2 */
 		pio_bank_size = 0x30;
 		pio_dat_off = 0x10;
