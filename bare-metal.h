@@ -178,12 +178,12 @@ enum sunxi_gpio_number {
 #define FLAG_VAR0		0
 #define FLAG_VAR1		BIT(0)
 #define FLAG_UART_ON_PORTF	BIT(1)
-#define FLAG_NEW_GPIO		BIT(2)
-#define FLAG_NEW_CLOCK		BIT(3)
-#define FLAG_UART_ON_APB1	BIT(4)
-#define FLAG_A80_CLOCK		BIT(5)
+#define FLAG_PIO_NCAT2		BIT(2)	/* D1/T113/A523: banks sized 0x30 */
+#define FLAG_CLK_NCAT		BIT(4)	/* H6+ clocks: all UARTs at 0x90c */
+#define FLAG_UART_ON_APB1	BIT(6)
+#define FLAG_A80_CLOCK		BIT(7)
 
-#define FLAG_NCAT2		FLAG_NEW_GPIO | FLAG_NEW_CLOCK
+#define FLAG_NCAT2		FLAG_PIO_NCAT2 | FLAG_CLK_NCAT
 
 enum { BOOT_DEVICE_UNK, BOOT_DEVICE_FEL, BOOT_DEVICE_MMC0, BOOT_DEVICE_SPI };
 
