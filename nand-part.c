@@ -233,13 +233,14 @@ static int writembrs(int fd, char names[][MAX_NAME], __u32 start, __u32 *lens, u
 	printf("\nready to write new partition tables:\n");
 	printmbr(mbr);
 	for (i = 0; i < MBR_COPY_NUM; i++) {
-		if (mbrs[i])
+		if (mbrs[i] && mbrs[i] != mbr)
 			_free_mbr(mbrs[i]);
 	}
 	printf("\nwrite new partition tables? (Y/N)\n");
 	read(0, &yn, 1);
 	if (yn != 'Y' && yn != 'y') {
 		printf("aborting\n");
+		_free_mbr(mbr);
 		return 0;
 	}
 
@@ -256,6 +257,7 @@ static int writembrs(int fd, char names[][MAX_NAME], __u32 start, __u32 *lens, u
 		perror("Failed rereading partition table");
 #endif
 
+	_free_mbr(mbr);
 	return 1;
 }
 
