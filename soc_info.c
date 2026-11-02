@@ -377,6 +377,7 @@ soc_info_t soc_info_table[] = {
 		.soc_id       = 0x1667, /* Allwinner A33, R16 */
 		.name         = "A33",
 		.scratch_addr = 0x1000,
+		.mmu_tt_addr  = 0x44000,
 		.thunk_addr   = 0x46E00, .thunk_size = 0x200,
 		.swap_buffers = ar100_abusing_sram_swap_buffers,
 		.sram_size    = 32 * 1024,
@@ -395,8 +396,9 @@ soc_info_t soc_info_table[] = {
 		.sid_offset   = 0x200,
 		.sid_sections = h3_sid_maps,
 		.rvbar_reg    = 0x017000A0,
+		.sec_boot_wa  = SECURE_BOOT_SMC,
 		/* Check L.NOP in the OpenRISC reset vector */
-		.needs_smc_workaround_if_zero_word_at_addr = 0x40004,
+		.sec_mem_addr = 0x40004,
 		.watchdog     = &wd_h3_compat,
 	},{
 		.soc_id       = 0x1639, /* Allwinner A80 */
@@ -443,8 +445,9 @@ soc_info_t soc_info_table[] = {
 		.sid_offset   = 0x200,
 		.sid_fix      = true,
 		.sid_sections = h3_sid_maps,
+		.sec_boot_wa  = SECURE_BOOT_SMC,
 		/* Check L.NOP in the OpenRISC reset vector */
-		.needs_smc_workaround_if_zero_word_at_addr = 0x40004,
+		.sec_mem_addr = 0x40004,
 		.watchdog     = &wd_h3_compat,
 	},{
 		.soc_id       = 0x1681, /* Allwinner V3s */
@@ -455,6 +458,18 @@ soc_info_t soc_info_table[] = {
 		.swap_buffers = a10_a13_a20_sram_swap_buffers,
 		.sram_size    = 60 * 1024,
 		.sid_base     = 0x01C23800,
+		.sid_sections = generic_2k_sid_maps,
+		.watchdog     = &wd_h3_compat,
+	},{
+		.soc_id       = 0x1699, /* Allwinner B288 */
+		.name         = "B288",
+		.spl_addr     = 0x0,
+		.scratch_addr = 0x1000,
+		.mmu_tt_addr  = 0x8000,
+		.thunk_addr   = 0xA200, .thunk_size = 0x200,
+		.swap_buffers = a10_a13_a20_sram_swap_buffers,
+		.sram_size    = 52 * 1024,
+		.sid_base     = 0x01C14000,
 		.sid_sections = generic_2k_sid_maps,
 		.watchdog     = &wd_h3_compat,
 	},{
@@ -481,8 +496,9 @@ soc_info_t soc_info_table[] = {
 		.sid_offset   = 0x200,
 		.sid_sections = h3_sid_maps,
 		.rvbar_reg    = 0x017000A0,
+		.sec_boot_wa  = SECURE_BOOT_SMC,
 		/* Check L.NOP in the OpenRISC reset vector */
-		.needs_smc_workaround_if_zero_word_at_addr = 0x40004,
+		.sec_mem_addr = 0x40004,
 		.watchdog     = &wd_h3_compat,
 	},{
 		.soc_id       = 0x1701, /* Allwinner R40 */
@@ -520,15 +536,16 @@ soc_info_t soc_info_table[] = {
 		.sid_offset   = 0x200,
 		.sid_sections = h6_sid_maps,
 		.rvbar_reg    = 0x09010040,
+		.sec_boot_wa  = SECURE_BOOT_SMC,
 		/* Check L.NOP in the OpenRISC reset vector */
-		.needs_smc_workaround_if_zero_word_at_addr = 0x100004,
+		.sec_mem_addr = 0x100004,
 		.watchdog     = &wd_h6_compat,
 	},{
 		.soc_id       = 0x1816, /* Allwinner V536 */
 		.name         = "V536",
 		.spl_addr     = 0x20000,
 		.scratch_addr = 0x21000,
-		.thunk_addr   = 0x2A200, .thunk_size = 0x200,
+		.thunk_addr   = 0x2E000, .thunk_size = 0x200,
 		.swap_buffers = v831_sram_swap_buffers,
 		.sram_size    = 228 * 1024,
 		.sid_base     = 0x03006000,
@@ -560,6 +577,7 @@ soc_info_t soc_info_table[] = {
 		.sid_sections = generic_2k_sid_maps,
 		.rvbar_reg    = 0x09010040,
 		.rvbar_reg_alt= 0x08100040,
+		.sec_boot_wa  = SECURE_BOOT_MONITOR_H6,
 		.ver_reg      = 0x03000024,
 		.watchdog     = &wd_h6_compat,
 	},{
@@ -640,7 +658,7 @@ soc_info_t soc_info_table[] = {
 		.sid_offset   = 0x200,
 		.sid_sections = generic_2k_sid_maps,
 		.rvbar_reg    = 0x08100040,
-		.needs_smc_workaround_if_zero_word_at_addr = 0x100004,
+		.sec_boot_wa  = SECURE_BOOT_MONITOR_H6,
 		.watchdog     = &wd_h6_compat,
 	},{
 		.soc_id       = 0x1860, /* Allwinner H713 / sun50iw12p1 */

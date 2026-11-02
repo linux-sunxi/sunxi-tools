@@ -226,6 +226,16 @@ static const struct soc_info soc_table[] = {
 		.jtag	= { MUX_3 },
 	},
 	{
+		.id	= 0x1816,
+		.name	= "V536",
+		.flags	= FLAG_NEW_CLOCK,
+		.pio	= { H6_PIO_BASE },
+		.ccu	= { H6_CCM_BASE },
+		.sram	= { SRAM_A1_ADDR_20000 },
+		.uart0	= { H6_UART0_BASE, SUNXI_GPH(7), MUX_3 },
+		.jtag	= { MUX_3 },
+	},
+	{
 		.id	= 0x1817,
 		.name	= "V831",
 		.flags	= FLAG_NEW_CLOCK,
