@@ -259,7 +259,12 @@ static const struct soc_info soc_table[] = {
 		.id	= 0x1851,
 		.name	= "R329",
 		.flags	= FLAG_NCAT2,
-		.pio	= { R329_PIO_BASE },
+		.pio	= {
+			.base = R329_PIO_BASE,
+			.offs = 0x0,
+			.size = 0x30,
+			.pull = 0x24,
+		},
 		.ccu	= { R329_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_100000 },
 		.uart0	= { R329_UART0_BASE, SUNXI_GPB(4), MUX_2 },
@@ -279,7 +284,12 @@ static const struct soc_info soc_table[] = {
 		.id	= 0x1859,
 		.name	= "R528",
 		.flags	= FLAG_NCAT2,
-		.pio	= { V853_PIO_BASE },
+		.pio	= {
+			.base = V853_PIO_BASE,
+			.offs = 0x0,
+			.size = 0x30,
+			.pull = 0x24,
+		},
 		.ccu	= { R329_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_20000 },
 		.uart0	= { R329_UART0_BASE, SUNXI_GPE(2), MUX_6 },
@@ -289,7 +299,12 @@ static const struct soc_info soc_table[] = {
 		.id	= 0x1886,
 		.name	= "V853",
 		.flags	= FLAG_NCAT2,
-		.pio	= { V853_PIO_BASE },
+		.pio	= {
+			.base = V853_PIO_BASE,
+			.offs = 0x0,
+			.size = 0x30,
+			.pull = 0x24,
+		},
 		.ccu	= { R329_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_20000 },
 		.uart0	= { R329_UART0_BASE, SUNXI_GPH(9), MUX_5 },
@@ -299,10 +314,30 @@ static const struct soc_info soc_table[] = {
 		.id	= 0x1890,
 		.name	= "A523",
 		.flags	= FLAG_NCAT2,
-		.pio	= { V853_PIO_BASE },
+		.pio	= {
+			.base = V853_PIO_BASE,
+			.offs = 0x0,
+			.size = 0x30,
+			.pull = 0x24,
+		},
 		.ccu	= { R329_CCM_BASE },
 		.sram	= { SRAM_A1_ADDR_20000 },
 		.uart0	= { R329_UART0_BASE, SUNXI_GPB(9), MUX_2 },
+		.jtag	= { MUX_3 },
+	},
+	{
+		.id	= 0x1922,
+		.name	= "T153",
+		.flags	= FLAG_NCAT2,
+		.pio	= {
+			.base = T153_PIO_BASE,
+			.offs = 0x80,
+			.size = 0x80,
+			.pull = 0x30,
+		},
+		.ccu	= { T153_CCM_BASE },
+		.sram	= { SRAM_A1_ADDR_40000 },
+		.uart0	= { T153_UART0_BASE, SUNXI_GPB(9), MUX_2 },
 		.jtag	= { MUX_3 },
 	},
 };
@@ -426,6 +461,7 @@ const struct soc_info *sunxi_detect_soc(void)
 {
 	int variant = 0;
 	u32 soc_id;
+#if 0
 	u32 midr;
 	u32 reg;
 
@@ -455,7 +491,8 @@ const struct soc_info *sunxi_detect_soc(void)
 		variant = sunxi_get_sun5i_variant();
 		break;
 	}
-
+#endif
+	soc_id = 0x1922;
 	return find_soc_info(soc_id, variant);
 }
 
@@ -473,7 +510,9 @@ const struct soc_info *sunxi_detect_soc(void)
 static void clock_init_uart(const struct soc_info *soc)
 {
 	if (soc->flags & FLAG_NEW_CLOCK) {
-		set_wbit(soc->ccu.base + 0x90c,
+		int gate_ofs = soc->id == 0x1922 ? 0xe00 : 0x90c;
+
+		set_wbit(soc->ccu.base + gate_ofs,
 			 0x10001 << (CONFIG_CONS_INDEX - 1));
 	} else {
 		int bit = 16 + CONFIG_CONS_INDEX - 1;
@@ -503,19 +542,20 @@ static void clock_init_uart(const struct soc_info *soc)
 
 void gpio_init(const struct soc_info *soc)
 {
-	pio_base = soc->pio.base;
+	pio_base = soc->pio.base + soc->pio.offs;
 
 	if (soc->flags & FLAG_NEW_GPIO) {
 		/* GPIO V2 */
-		pio_bank_size = 0x30;
-		pio_dat_off = 0x10;
-		pio_pull_off = 0x24;
+		pio_bank_size = soc->pio.size;
+		pio_pull_off = soc->pio.pull;
 	} else {
 		/* GPIO V1 */
 		pio_bank_size = 0x24;
-		pio_dat_off = 0x10;
 		pio_pull_off = 0x1c;
 	}
+
+	/* All SoC has same GPIO data set register offset */
+	pio_dat_off = 0x10;
 
 	if (soc->flags & FLAG_UART_ON_PORTF) {
 		/* Disable normal UART0 pins to avoid conflict */
