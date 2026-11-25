@@ -871,3 +871,47 @@ feldev_list_entry *list_fel_devices(size_t *count)
 	if (count) *count = devices;
 	return list;
 }
+
+/*
+ * Check for virtual machine (USB emulation). The FEL protocol is rather
+ * sensitive to errors and timing issues, so such environments are known
+ * to NOT work well with sunxi-fel.
+ *
+ * Returns either NULL (if no virtual machine could be detected), or a string
+ * pointer that identifies the environment. (e.g. "VirtualBox", "VMware", ...)
+ */
+const char *fel_check_vm(void) {
+	const char *result = NULL;
+
+	ssize_t rc;
+	libusb_context *ctx;
+	libusb_device **usb;
+	struct libusb_device_descriptor desc;
+
+	libusb_init(&ctx);
+	rc = libusb_get_device_list(ctx, &usb);
+	if (rc < 0)
+		usb_error(rc, "libusb_get_device_list()", 1);
+
+	// iterate over device descriptors, checking their vendor IDs
+	while (--rc >= 0) {
+		libusb_get_device_descriptor(usb[rc], &desc);
+		switch (desc.idVendor) {
+		case 0x0E0F:
+			result = "VMware";
+			break;
+		case 0x15AD:
+			result = "VMware";
+			break;
+		case 0x80EE:
+			result = "VirtualBox";
+			break;
+		}
+		if (result)
+			break; // exit while loop
+	}
+	libusb_free_device_list(usb, true);
+	libusb_exit(ctx);
+
+	return result;
+}
