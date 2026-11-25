@@ -541,6 +541,18 @@ soc_info_t soc_info_table[] = {
 		.sec_mem_addr = 0x100004,
 		.watchdog     = &wd_h6_compat,
 	},{
+		.soc_id       = 0x1755, /* Allwinner A50 */
+		.name         = "A50",
+		.spl_addr     = 0x20000,
+		.scratch_addr = 0x21000,
+		.thunk_addr   = 0x2A200, .thunk_size = 0x200,
+		.swap_buffers = v831_sram_swap_buffers,
+		.sram_size    = 228 * 1024,
+		.sid_base     = 0x03006000,
+		.sid_offset   = 0x200,
+		.sid_sections = generic_2k_sid_maps,
+		.watchdog     = &wd_h6_compat,
+	},{
 		.soc_id       = 0x1816, /* Allwinner V536 */
 		.name         = "V536",
 		.spl_addr     = 0x20000,
