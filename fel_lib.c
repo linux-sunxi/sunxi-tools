@@ -252,7 +252,8 @@ static void aw_disable_icache(feldev_handle *dev)
 
 void aw_fel_write(feldev_handle *dev, const void *buf, uint32_t offset, size_t len)
 {
-	if (dev->soc_info->icache_fix && !dev->usb->icache_hacked) {
+	if (dev->soc_info->flags & NEEDS_ICACHE_FIX &&
+	    !dev->usb->icache_hacked) {
 		aw_disable_icache(dev);
 		dev->usb->icache_hacked = true;
 	}
@@ -617,7 +618,7 @@ int fel_read_sid(feldev_handle *dev, uint32_t *result,
 	if ((offset & 3) || (length & 3))	/* needs to be 32-bit aligned */
 		return -3;
 
-	if (soc->sid_fix || force_workaround)
+	if (soc->flags & NEEDS_SID_FIX || force_workaround)
 		/* Work around SID issues by using ARM thunk code */
 		fel_get_sid_registers(dev, result, offset, length);
 	else
