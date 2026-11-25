@@ -87,6 +87,7 @@ typedef unsigned char u8;
 #define R329_UART0_BASE		0x02500000
 #define R329_PIO_BASE		0x02000400
 #define R329_CCM_BASE		0x02001000
+#define A733_CCM_BASE		0x02002000
 
 #define V853_PIO_BASE		0x02000000
 
