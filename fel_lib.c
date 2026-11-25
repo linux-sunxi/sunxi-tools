@@ -153,9 +153,14 @@ static void aw_send_usb_request(feldev_handle *dev, int type, int length)
 static void aw_read_usb_response(feldev_handle *dev)
 {
 	char buf[13];
+	memset(buf, 0, sizeof(buf));
 	usb_bulk_recv(dev->usb->handle, dev->usb->endpoint_in,
 		      buf, sizeof(buf));
-	assert(strcmp(buf, "AWUS") == 0);
+	if (memcmp(buf, "AWUS", 4) != 0) {
+		fprintf(stderr, "FEL response error: expected 'AWUS', got '%.4s' (hex: %02x %02x %02x %02x)\n",
+			buf, (unsigned char)buf[0], (unsigned char)buf[1], (unsigned char)buf[2], (unsigned char)buf[3]);
+		exit(1);
+	}
 }
 
 static void aw_usb_write(feldev_handle *dev, const void *data, size_t len,

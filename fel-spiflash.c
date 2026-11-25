@@ -130,6 +130,7 @@ static uint32_t gpio_base(feldev_handle *dev)
 	case 0x1817: /* V831 */
 	case 0x1728: /* H6 */
 	case 0x1823: /* H616 */
+	case 0x1860: /* H713 */
 		return 0x0300B000;
 	default:
 		return 0x01C20800;
@@ -150,6 +151,7 @@ static uint32_t spi_base(feldev_handle *dev)
 	case 0x1817: /* V831 */
 	case 0x1728: /* H6 */
 	case 0x1823: /* H616 */
+	case 0x1860: /* H713 */
 		return 0x05010000;
 	default:
 		return 0x01C68000;
@@ -192,6 +194,7 @@ static bool soc_is_h6_style(feldev_handle *dev)
 	case 0x1817: /* V831 */
 	case 0x1728: /* H6 */
 	case 0x1823: /* H616 */
+	case 0x1860: /* H713 */
 		return true;
 	default:
 		return false;
@@ -254,6 +257,7 @@ static bool spi0_init(feldev_handle *dev)
 		gpio_set_cfgpin(dev, PC, 5, SUN50I_GPC_SPI0);
 		break;
 	case 0x1823: /* Allwinner H616 */
+	case 0x1860: /* Allwinner H713 */
 		gpio_set_cfgpin(dev, PC, 0, SUN50I_GPC_SPI0);	/* SPI0_CLK */
 		gpio_set_cfgpin(dev, PC, 2, SUN50I_GPC_SPI0);	/* SPI0_MOSI */
 		gpio_set_cfgpin(dev, PC, 3, SUN50I_GPC_SPI0);	/* SPI0_CS0 */
