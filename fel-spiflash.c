@@ -370,6 +370,111 @@ static void prepare_spi_batch_data_transfer(feldev_handle *dev, uint32_t buf)
 	}
 }
 
+#define CMD_READ_DATA       0x03
+#define CMD_WRITE_ENABLE    0x06
+#define CMD_EXTNADDR_WREAR  0xC5
+#define SPI_FLASH_16MB_BOUN 0x1000000
+
+void aw_fel_spiflash_read_helper(feldev_handle *dev,
+				 uint32_t offset, void *buf, size_t len,
+				 uint8_t read_cmd)
+{
+	soc_info_t *soc_info = dev->soc_info;
+	uint8_t *buf8 = (uint8_t *)buf;
+	size_t max_chunk_size = soc_info->scratch_addr - soc_info->spl_addr;
+	size_t cmd_idx;
+	uint8_t current_bank = 0xFF;
+
+	if (max_chunk_size > 0x1000)
+		max_chunk_size = 0x1000;
+	uint8_t *cmdbuf = calloc(1, max_chunk_size);
+	cmd_idx = 0;
+
+	prepare_spi_batch_data_transfer(dev, soc_info->spl_addr);
+
+	while (len > 0) {
+		uint8_t target_bank = offset / SPI_FLASH_16MB_BOUN;
+		uint32_t bank_offset = offset % SPI_FLASH_16MB_BOUN;
+
+		/* Switch bank if needed */
+		if (target_bank != current_bank) {
+			if (cmd_idx > 0) {
+				cmdbuf[cmd_idx++] = 0;
+				cmdbuf[cmd_idx++] = 0;
+				aw_fel_write(dev, cmdbuf, soc_info->spl_addr, cmd_idx);
+				aw_fel_remotefunc_execute(dev, NULL);
+				cmd_idx = 0;
+			}
+
+			cmdbuf[cmd_idx++] = 0;
+			cmdbuf[cmd_idx++] = 1;
+			cmdbuf[cmd_idx++] = CMD_WRITE_ENABLE;
+			cmdbuf[cmd_idx++] = 0;
+			cmdbuf[cmd_idx++] = 2;
+			cmdbuf[cmd_idx++] = CMD_EXTNADDR_WREAR;
+			cmdbuf[cmd_idx++] = target_bank;
+			cmdbuf[cmd_idx++] = 0xFF;
+			cmdbuf[cmd_idx++] = 0xFF;
+			cmdbuf[cmd_idx++] = 0;
+			cmdbuf[cmd_idx++] = 0;
+			aw_fel_write(dev, cmdbuf, soc_info->spl_addr, cmd_idx);
+			aw_fel_remotefunc_execute(dev, NULL);
+			cmd_idx = 0;
+
+			current_bank = target_bank;
+		}
+
+		/* Calculate how much we can read before hitting bank boundary */
+		size_t bank_remaining = SPI_FLASH_16MB_BOUN - bank_offset;
+		size_t chunk_len = (len < bank_remaining) ? len : bank_remaining;
+
+		while (chunk_len > 0) {
+			size_t read_count = chunk_len;
+			if (read_count > max_chunk_size - 16)
+				read_count = max_chunk_size - 16;
+
+			/* Emit read command */
+			cmdbuf[cmd_idx++] = (4 + read_count) >> 8;
+			cmdbuf[cmd_idx++] = 4 + read_count;
+			cmdbuf[cmd_idx++] = read_cmd;
+			cmdbuf[cmd_idx++] = bank_offset >> 16;
+			cmdbuf[cmd_idx++] = bank_offset >> 8;
+			cmdbuf[cmd_idx++] = bank_offset;
+			cmd_idx += read_count;  /* Reserve space for read data */
+
+			/* Emit end marker and flush */
+			cmdbuf[cmd_idx++] = 0;
+			cmdbuf[cmd_idx++] = 0;
+			aw_fel_write(dev, cmdbuf, soc_info->spl_addr, cmd_idx);
+			aw_fel_remotefunc_execute(dev, NULL);
+
+			/* Read back data (skip 2-byte batch header and SPI command) */
+			aw_fel_read(dev, soc_info->spl_addr + 6, buf8, read_count);
+
+			buf8        += read_count;
+			len         -= read_count;
+			chunk_len   -= read_count;
+			offset      += read_count;
+			bank_offset += read_count;
+			cmd_idx = 0;
+		}
+	}
+
+	free(cmdbuf);
+
+	/* Always restore bank to 0 after operations */
+	if (current_bank != 0 && current_bank != 0xFF) {
+		uint8_t reset_bank_cmd[11] = {
+			0, 1, CMD_WRITE_ENABLE,
+			0, 2, CMD_EXTNADDR_WREAR, 0,  /* Set bank to 0 */
+			0xFF, 0xFF,
+			0, 0
+		};
+		aw_fel_write(dev, reset_bank_cmd, soc_info->spl_addr, sizeof(reset_bank_cmd));
+		aw_fel_remotefunc_execute(dev, NULL);
+	}
+}
+
 /*
  * Read data from the SPI flash. Use the first 4KiB of SRAM as the data buffer.
  */
@@ -377,57 +482,24 @@ void aw_fel_spiflash_read(feldev_handle *dev,
 			  uint32_t offset, void *buf, size_t len,
 			  progress_cb_t progress)
 {
-	soc_info_t *soc_info = dev->soc_info;
 	void *backup = backup_sram(dev);
 	uint8_t *buf8 = (uint8_t *)buf;
-	size_t max_chunk_size = soc_info->scratch_addr - soc_info->spl_addr;
-	if (max_chunk_size > 0x1000)
-		max_chunk_size = 0x1000;
-	uint8_t *cmdbuf = malloc(max_chunk_size);
-	memset(cmdbuf, 0, max_chunk_size);
-	aw_fel_write(dev, cmdbuf, soc_info->spl_addr, max_chunk_size);
 
-	if (!spi0_init(dev))
+	if (!spi0_init(dev)) {
+		restore_sram(dev, backup);
 		return;
-
-	prepare_spi_batch_data_transfer(dev, soc_info->spl_addr);
-
-	progress_start(progress, len);
-	while (len > 0) {
-		size_t chunk_size = len;
-		if (chunk_size > max_chunk_size - 8)
-			chunk_size = max_chunk_size - 8;
-
-		memset(cmdbuf, 0, max_chunk_size);
-		cmdbuf[0] = (chunk_size + 4) >> 8;
-		cmdbuf[1] = (chunk_size + 4);
-		cmdbuf[2] = 3;
-		cmdbuf[3] = offset >> 16;
-		cmdbuf[4] = offset >> 8;
-		cmdbuf[5] = offset;
-
-		if (chunk_size == max_chunk_size - 8)
-			aw_fel_write(dev, cmdbuf, soc_info->spl_addr, 6);
-		else
-			aw_fel_write(dev, cmdbuf, soc_info->spl_addr, chunk_size + 8);
-		aw_fel_remotefunc_execute(dev, NULL);
-		aw_fel_read(dev, soc_info->spl_addr + 6, buf8, chunk_size);
-
-		len -= chunk_size;
-		offset += chunk_size;
-		buf8 += chunk_size;
-		progress_update(chunk_size);
 	}
 
-	free(cmdbuf);
+	progress_start(progress, len);
+	aw_fel_spiflash_read_helper(dev, offset, buf8, len, CMD_READ_DATA);
+	progress_update(len);
+
 	restore_sram(dev, backup);
 }
 
 /*
  * Write data to the SPI flash. Use the first 4KiB of SRAM as the data buffer.
  */
-
-#define CMD_WRITE_ENABLE 0x06
 
 void aw_fel_spiflash_write_helper(feldev_handle *dev,
 				  uint32_t offset, void *buf, size_t len,
@@ -438,6 +510,7 @@ void aw_fel_spiflash_write_helper(feldev_handle *dev,
 	uint8_t *buf8 = (uint8_t *)buf;
 	size_t max_chunk_size = soc_info->scratch_addr - soc_info->spl_addr;
 	size_t cmd_idx;
+	uint8_t current_bank = 0xFF;
 
 	if (max_chunk_size > 0x1000)
 		max_chunk_size = 0x1000;
@@ -447,57 +520,100 @@ void aw_fel_spiflash_write_helper(feldev_handle *dev,
 	prepare_spi_batch_data_transfer(dev, soc_info->spl_addr);
 
 	while (len > 0) {
-		while (len > 0 && max_chunk_size - cmd_idx > program_size + 64) {
-			if (offset % erase_size == 0) {
-				/* Emit write enable command */
+		uint8_t target_bank = offset / SPI_FLASH_16MB_BOUN;
+		uint32_t bank_offset = offset % SPI_FLASH_16MB_BOUN;
+
+		/* Switch bank if needed */
+		if (target_bank != current_bank) {
+			if (cmd_idx > 0) {
 				cmdbuf[cmd_idx++] = 0;
-				cmdbuf[cmd_idx++] = 1;
-				cmdbuf[cmd_idx++] = CMD_WRITE_ENABLE;
-				/* Emit erase command */
 				cmdbuf[cmd_idx++] = 0;
-				cmdbuf[cmd_idx++] = 4;
-				cmdbuf[cmd_idx++] = erase_cmd;
-				cmdbuf[cmd_idx++] = offset >> 16;
-				cmdbuf[cmd_idx++] = offset >> 8;
-				cmdbuf[cmd_idx++] = offset;
-				/* Emit wait for completion */
-				cmdbuf[cmd_idx++] = 0xFF;
-				cmdbuf[cmd_idx++] = 0xFF;
+				aw_fel_write(dev, cmdbuf, soc_info->spl_addr, cmd_idx);
+				aw_fel_remotefunc_execute(dev, NULL);
+				cmd_idx = 0;
 			}
-			/* Emit write enable command */
+
 			cmdbuf[cmd_idx++] = 0;
 			cmdbuf[cmd_idx++] = 1;
 			cmdbuf[cmd_idx++] = CMD_WRITE_ENABLE;
-			/* Emit page program command */
+			cmdbuf[cmd_idx++] = 0;
+			cmdbuf[cmd_idx++] = 2;
+			cmdbuf[cmd_idx++] = CMD_EXTNADDR_WREAR;
+			cmdbuf[cmd_idx++] = target_bank;
+			cmdbuf[cmd_idx++] = 0xFF;
+			cmdbuf[cmd_idx++] = 0xFF;
+			cmdbuf[cmd_idx++] = 0;
+			cmdbuf[cmd_idx++] = 0;
+			aw_fel_write(dev, cmdbuf, soc_info->spl_addr, cmd_idx);
+			aw_fel_remotefunc_execute(dev, NULL);
+			cmd_idx = 0;
+
+			current_bank = target_bank;
+		}
+
+		/* Calculate how much we can write before hitting bank boundary */
+		size_t bank_remaining = SPI_FLASH_16MB_BOUN - bank_offset;
+		size_t chunk_len = (len < bank_remaining) ? len : bank_remaining;
+
+		while (chunk_len > 0 && max_chunk_size - cmd_idx > program_size + 64) {
+			if (bank_offset % erase_size == 0) {
+				cmdbuf[cmd_idx++] = 0;
+				cmdbuf[cmd_idx++] = 1;
+				cmdbuf[cmd_idx++] = CMD_WRITE_ENABLE;
+				cmdbuf[cmd_idx++] = 0;
+				cmdbuf[cmd_idx++] = 4;
+				cmdbuf[cmd_idx++] = erase_cmd;
+				cmdbuf[cmd_idx++] = bank_offset >> 16;
+				cmdbuf[cmd_idx++] = bank_offset >> 8;
+				cmdbuf[cmd_idx++] = bank_offset;
+				cmdbuf[cmd_idx++] = 0xFF;
+				cmdbuf[cmd_idx++] = 0xFF;
+			}
+
+			cmdbuf[cmd_idx++] = 0;
+			cmdbuf[cmd_idx++] = 1;
+			cmdbuf[cmd_idx++] = CMD_WRITE_ENABLE;
+
 			size_t write_count = program_size;
-			if (write_count > len)
-				write_count = len;
+			if (write_count > chunk_len)
+				write_count = chunk_len;
 			cmdbuf[cmd_idx++] = (4 + write_count) >> 8;
 			cmdbuf[cmd_idx++] = 4 + write_count;
 			cmdbuf[cmd_idx++] = program_cmd;
-			cmdbuf[cmd_idx++] = offset >> 16;
-			cmdbuf[cmd_idx++] = offset >> 8;
-			cmdbuf[cmd_idx++] = offset;
+			cmdbuf[cmd_idx++] = bank_offset >> 16;
+			cmdbuf[cmd_idx++] = bank_offset >> 8;
+			cmdbuf[cmd_idx++] = bank_offset;
 			memcpy(cmdbuf + cmd_idx, buf8, write_count);
 			cmd_idx += write_count;
-			buf8    += write_count;
-			len     -= write_count;
-			offset  += write_count;
-			/* Emit wait for completion */
+			buf8        += write_count;
+			len         -= write_count;
+			chunk_len   -= write_count;
+			offset      += write_count;
+			bank_offset += write_count;
 			cmdbuf[cmd_idx++] = 0xFF;
 			cmdbuf[cmd_idx++] = 0xFF;
 		}
-		/* Emit the end marker */
-		cmdbuf[cmd_idx++] = 0;
-		cmdbuf[cmd_idx++] = 0;
 
-		/* Flush */
+		cmdbuf[cmd_idx++] = 0;
+		cmdbuf[cmd_idx++] = 0;
 		aw_fel_write(dev, cmdbuf, soc_info->spl_addr, cmd_idx);
 		aw_fel_remotefunc_execute(dev, NULL);
 		cmd_idx = 0;
 	}
 
 	free(cmdbuf);
+
+	/* Always restore bank to 0 after operations */
+	if (current_bank != 0 && current_bank != 0xFF) {
+		uint8_t reset_bank_cmd[11] = {
+			0, 1, CMD_WRITE_ENABLE,
+			0, 2, CMD_EXTNADDR_WREAR, 0,  /* Set bank to 0 */
+			0xFF, 0xFF,
+			0, 0
+		};
+		aw_fel_write(dev, reset_bank_cmd, soc_info->spl_addr, sizeof(reset_bank_cmd));
+		aw_fel_remotefunc_execute(dev, NULL);
+	}
 }
 
 void aw_fel_spiflash_write(feldev_handle *dev,
@@ -515,8 +631,10 @@ void aw_fel_spiflash_write(feldev_handle *dev,
 		exit(1);
 	}
 
-	if (!spi0_init(dev))
+	if (!spi0_init(dev)) {
+		restore_sram(dev, backup);
 		return;
+	}
 
 	progress_start(progress, len);
 	while (len > 0) {
@@ -560,8 +678,10 @@ void aw_fel_spiflash_info(feldev_handle *dev)
 	unsigned char buf[] = { 0, 4, 0x9F, 0, 0, 0, 0x0, 0x0 };
 	void *backup = backup_sram(dev);
 
-	if (!spi0_init(dev))
+	if (!spi0_init(dev)) {
+		restore_sram(dev, backup);
 		return;
+	}
 
 	aw_fel_write(dev, buf, soc_info->spl_addr, sizeof(buf));
 	prepare_spi_batch_data_transfer(dev, soc_info->spl_addr);
