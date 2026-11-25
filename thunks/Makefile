@@ -8,6 +8,7 @@ THUNKS += memcpy.h
 THUNKS += readl_writel.h
 THUNKS += rmr-thunk.h
 THUNKS += sid_read_root.h
+THUNKS += sid_write.h
 
 all: $(SPL_THUNK) $(THUNKS)
 # clean up object files afterwards

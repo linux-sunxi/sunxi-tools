@@ -81,6 +81,9 @@ int fel_read_sid(feldev_handle *dev, uint32_t *result,
 		 unsigned int offset, unsigned int length,
 		 bool force_workaround);
 
+int fel_write_sid(feldev_handle *dev, uint32_t *data,
+		 unsigned int offset, unsigned int length);
+
 bool aw_fel_remotefunc_prepare(feldev_handle *dev,
 			       size_t                stack_size,
 			       void                 *arm_code,
